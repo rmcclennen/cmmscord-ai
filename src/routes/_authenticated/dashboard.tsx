@@ -84,10 +84,10 @@ function Dashboard() {
   });
 
   const cards = [
-    { label: "Assets tracked", value: stats.data?.assets, icon: Boxes, to: "/assets" as const },
     { label: "Active PMs", value: stats.data?.pms, icon: CalendarClock, to: "/pm-schedule" as const },
     { label: "Overdue PMs", value: stats.data?.overdue, icon: AlertTriangle, to: "/pm-schedule" as const, alert: true },
     { label: "Open work orders", value: stats.data?.openWo, icon: ClipboardList, to: "/work-orders" as const },
+    { label: "Assets tracked", value: stats.data?.assets, icon: Boxes, to: "/assets" as const },
   ];
 
   return (
