@@ -72,11 +72,12 @@ function PmSchedulePage() {
     queryKey: ["pms", search, window, page],
     placeholderData: keepPreviousData,
     queryFn: async () => {
+      const history = window === "history";
       let query = supabase
         .from("pm_schedules")
         .select("*, assets(id, name)", { count: "exact" })
-        .eq("active", true)
-        .order("next_due")
+        .eq("active", !history)
+        .order("next_due", { ascending: !history })
         .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
       if (search.trim()) query = query.ilike("title", `%${search.trim()}%`);
       if (window === "overdue") query = query.lt("next_due", today());
