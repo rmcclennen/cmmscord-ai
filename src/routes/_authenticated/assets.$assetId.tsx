@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WorkOrderDialog } from "@/components/work-order-dialog";
+import { DeleteRequestDialog } from "@/components/delete-request-dialog";
 import { classLabel, dueTone, manualList, prettyLabel } from "@/lib/cmms";
 import { ManualDialog } from "@/components/manual-dialog";
 import { toast } from "sonner";

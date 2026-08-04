@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { WorkOrderDialog } from "@/components/work-order-dialog";
+import { DeleteRequestDialog } from "@/components/delete-request-dialog";
 import { prettyLabel, WO_STATUSES } from "@/lib/cmms";
 import { useTeamMembers } from "@/hooks/use-team-members";
 import { memberLabel, notifyUser } from "@/lib/notify";
