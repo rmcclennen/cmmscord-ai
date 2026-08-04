@@ -164,13 +164,19 @@ function CaptureAsset() {
     }
     setSaving(true);
     try {
-      const payload: Record<string, string | null> = { name: form.name.trim(), criticality, status: "active" };
+      const extras: Partial<Record<keyof Form, string>> = {};
       for (const { key } of FIELDS) {
         const value = form[key].trim();
-        if (value) payload[key] = value;
+        if (value) extras[key] = value;
       }
-      if (form.notes.trim()) payload.notes = form.notes.trim();
-      if (building !== "auto") payload.building = building;
+      const payload = {
+        ...extras,
+        name: form.name.trim(),
+        criticality,
+        status: "active",
+        ...(form.notes.trim() ? { notes: form.notes.trim() } : {}),
+        ...(building !== "auto" ? { building } : {}),
+      };
 
       const { data: asset, error } = await supabase.from("assets").insert(payload).select("id").single();
       if (error) throw error;
