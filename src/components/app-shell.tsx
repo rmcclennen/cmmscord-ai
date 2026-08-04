@@ -35,7 +35,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="mx-auto flex h-14 max-w-[1600px] items-center gap-6 px-4">
           <Link to="/dashboard" className="flex items-center gap-2">
             <Waves className="size-5 text-sidebar-primary" />
-            <span className="text-sm font-bold tracking-wide uppercase">Plant Maintenance</span>
+            <span className="text-sm font-bold tracking-wide uppercase">CMMSCord AI</span>
           </Link>
           <nav className="hidden items-center gap-1 md:flex">
             {NAV.map((item) => {

@@ -21,7 +21,7 @@ const PAGE_SIZE = 50;
 export const Route = createFileRoute("/_authenticated/assets/")({
   head: () => ({
     meta: [
-      { title: "Plant Assets | Plant Maintenance" },
+      { title: "Plant Assets | CMMSCord AI" },
       { name: "description", content: "Searchable register of every wastewater plant asset with nameplate data." },
       { property: "og:title", content: "Plant Assets" },
       { property: "og:description", content: "Search the plant asset register by name, tag, make, or model." },

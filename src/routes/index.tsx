@@ -5,13 +5,13 @@ import { Boxes, CalendarClock, ClipboardList, Sparkles, Waves } from "lucide-rea
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Plant Maintenance | Wastewater Asset & Work Order System" },
+      { title: "CMMSCord AI | Wastewater Asset & Work Order System" },
       {
         name: "description",
         content:
           "Wastewater plant CMMS: 1,160 assets with nameplate data, PM schedules, manufacturer maintenance lookups, and work orders.",
       },
-      { property: "og:title", content: "Plant Maintenance | Wastewater Asset & Work Order System" },
+      { property: "og:title", content: "CMMSCord AI | Wastewater Asset & Work Order System" },
       {
         property: "og:description",
         content: "Assets, PM schedules, manufacturer maintenance data, and work orders for your treatment plant.",
@@ -51,7 +51,7 @@ function Landing() {
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
           <div className="flex items-center gap-2">
             <Waves className="size-5 text-sidebar-primary" />
-            <span className="text-sm font-bold uppercase tracking-widest">Plant Maintenance</span>
+            <span className="text-sm font-bold uppercase tracking-widest">CMMSCord AI</span>
           </div>
           <Link to="/auth">
             <Button size="sm" variant="secondary">
