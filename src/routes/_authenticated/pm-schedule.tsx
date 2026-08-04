@@ -179,7 +179,7 @@ function PmSchedulePage() {
                   {" · every "}
                   {pm.interval_days} days · {prettyLabel(pm.priority)}
                   {pm.estimated_hours != null && ` · ${pm.estimated_hours} hrs`}
-                  {pm.assigned_label && ` · ${pm.assigned_label}`}
+                  
                   {pm.last_completed && ` · last done ${pm.last_completed}`}
                 </p>
                 {pm.tasks && <p className="mt-1 text-xs text-muted-foreground">{pm.tasks}</p>}
