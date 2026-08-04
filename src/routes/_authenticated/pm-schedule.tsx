@@ -144,6 +144,7 @@ function PmSchedulePage() {
             <SelectItem value="overdue">Overdue</SelectItem>
             <SelectItem value="week">Next 7 days</SelectItem>
             <SelectItem value="month">Next 30 days</SelectItem>
+            <SelectItem value="history">Completed history</SelectItem>
           </SelectContent>
         </Select>
         <span className="font-mono text-xs text-muted-foreground">{total} schedules</span>
