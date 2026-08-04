@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { WorkOrderDialog } from "@/components/work-order-dialog";
 import { DeleteRequestDialog } from "@/components/delete-request-dialog";
+import { PartsLookupDialog } from "@/components/parts-lookup-dialog";
 import { prettyLabel, WO_STATUSES } from "@/lib/cmms";
 import { useTeamMembers } from "@/hooks/use-team-members";
 import { memberLabel, notifyUser } from "@/lib/notify";
@@ -67,7 +68,7 @@ function WorkOrdersPage() {
     queryFn: async () => {
       let query = supabase
         .from("work_orders")
-        .select("*, assets(id, name)")
+        .select("*, assets(id, name, manufacturer, manufacturer_url)")
         .order("created_at", { ascending: false })
         .limit(100);
       if (search.trim()) query = query.ilike("title", `%${search.trim()}%`);
@@ -197,11 +198,22 @@ function WorkOrdersPage() {
                 ))}
               </SelectContent>
             </Select>
+            <PartsLookupDialog
+              workOrder={{
+                id: wo.id,
+                wo_number: wo.wo_number,
+                title: wo.title,
+                parts_used: wo.parts_used,
+                assigned_to: wo.assigned_to,
+                asset: wo.assets ?? null,
+              }}
+            />
             <DeleteRequestDialog
               entityType="work_order"
               entityId={wo.id}
               entityLabel={`WO-${wo.wo_number} ${wo.title}`}
             />
+
           </div>
         ))}
         {wos.isLoading && <p className="p-3 text-sm text-muted-foreground">Loading work orders…</p>}
