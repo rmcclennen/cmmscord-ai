@@ -6,7 +6,14 @@ const schema = z.object({
   recipientUserId: z.string().uuid(),
   title: z.string().trim().min(1).max(140),
   body: z.string().trim().max(1000).default(""),
-  link: z.string().trim().max(300).optional(),
+  // Relative in-app path only — blocks javascript:/data:/absolute URLs.
+  link: z
+    .string()
+    .trim()
+    .max(300)
+    .regex(/^\/[A-Za-z0-9\-._~/?#=&%]*$/, "Link must be a relative app path")
+    .optional(),
+
   eventKey: z.string().trim().min(1).max(120),
 });
 
