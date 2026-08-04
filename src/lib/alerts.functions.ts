@@ -17,11 +17,14 @@ const schema = z.object({
 export const sendAssignmentAlert = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => schema.parse(input))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data }) => {
     const { smsGatewayAddress, truncateForSms } = await import("@/lib/carriers");
     const { dispatchMessage, emailConfigured } = await import("@/lib/alerts.server");
 
-    const { data: profile, error } = await context.supabase
+    // Contact details are private per-user, so this privileged lookup runs only
+    // after requireSupabaseAuth has verified the caller is signed in.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: profile, error } = await supabaseAdmin
       .from("profiles")
       .select("email, full_name, phone, carrier, notify_email, notify_sms")
       .eq("id", data.recipientUserId)

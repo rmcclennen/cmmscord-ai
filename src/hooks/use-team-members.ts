@@ -7,9 +7,13 @@ export function useTeamMembers(enabled = true) {
     queryKey: ["team-members"],
     enabled,
     queryFn: async (): Promise<TeamMember[]> => {
-      const { data, error } = await supabase.from("profiles").select("id, email, full_name").order("email");
+      // Names-only directory: personal contact details stay private to each user.
+      const { data, error } = await supabase
+        .from("team_directory")
+        .select("id, full_name")
+        .order("full_name");
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []).map((row) => ({ id: row.id, full_name: row.full_name, email: null }));
     },
   });
 }
