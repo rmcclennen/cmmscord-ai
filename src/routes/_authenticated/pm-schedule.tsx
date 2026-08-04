@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WorkOrderDialog } from "@/components/work-order-dialog";
 import { buildingOf, clampToSeason, dueTone, prettyLabel, seasonLabel } from "@/lib/cmms";
 import { useTeamMembers } from "@/hooks/use-team-members";
@@ -41,6 +42,7 @@ function PmSchedulePage() {
   const [window, setWindow] = useState("all");
   const [page, setPage] = useState(0);
   const [grouped, setGrouped] = useState(true);
+  const [tab, setTab] = useState("all");
   const queryClient = useQueryClient();
   const team = useTeamMembers();
 
@@ -224,6 +226,8 @@ function PmSchedulePage() {
     );
   })();
 
+  const activeTab = tab === "all" || groups.some(([b]) => b === tab) ? tab : "all";
+
 
   return (
     <div className="space-y-5">
@@ -277,22 +281,42 @@ function PmSchedulePage() {
       </div>
 
       {grouped ? (
-        <div className="space-y-4">
-          {groups.map(([building, rows]) => (
-            <div key={building} className="panel">
-              <div className="flex items-center justify-between border-b border-border px-3 py-2">
-                <h2 className="text-sm font-semibold">{building}</h2>
-                <span className="font-mono text-xs text-muted-foreground">{rows.length} PMs</span>
-              </div>
-              <div className="divide-y divide-border">{rows.map(renderRow)}</div>
+        <Tabs value={activeTab} onValueChange={setTab}>
+          <TabsList className="flex h-auto flex-wrap justify-start gap-1">
+            <TabsTrigger value="all">All ({pms.data?.rows?.length ?? 0})</TabsTrigger>
+            {groups.map(([building, rows]) => (
+              <TabsTrigger key={building} value={building}>
+                {building} ({rows.length})
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
+          <TabsContent value="all" className="mt-4">
+            <div className="space-y-4">
+              {groups.map(([building, rows]) => (
+                <div key={building} className="panel">
+                  <div className="flex items-center justify-between border-b border-border px-3 py-2">
+                    <h2 className="text-sm font-semibold">{building}</h2>
+                    <span className="font-mono text-xs text-muted-foreground">{rows.length} PMs</span>
+                  </div>
+                  <div className="divide-y divide-border">{rows.map(renderRow)}</div>
+                </div>
+              ))}
+              {pms.isLoading && <p className="panel p-3 text-sm text-muted-foreground">Loading PM schedule…</p>}
+              {!pms.isLoading && groups.length === 0 && (
+                <p className="panel p-3 text-sm text-muted-foreground">No PM schedules match this filter.</p>
+              )}
             </div>
+          </TabsContent>
+
+          {groups.map(([building, rows]) => (
+            <TabsContent key={building} value={building} className="mt-4">
+              <div className="panel divide-y divide-border">{rows.map(renderRow)}</div>
+            </TabsContent>
           ))}
-          {pms.isLoading && <p className="panel p-3 text-sm text-muted-foreground">Loading PM schedule…</p>}
-          {!pms.isLoading && groups.length === 0 && (
-            <p className="panel p-3 text-sm text-muted-foreground">No PM schedules match this filter.</p>
-          )}
-        </div>
+        </Tabs>
       ) : (
+
         <>
           <div className="panel divide-y divide-border">
             {(pms.data?.rows ?? []).map(renderRow)}

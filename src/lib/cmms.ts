@@ -91,6 +91,10 @@ export function clampToSeason(dueDate: string, startMd: string | null, endMd: st
 
 /** Plant areas / buildings, matched against asset + PM text (first match wins). */
 const BUILDING_RULES: Array<[string, RegExp]> = [
+  [
+    "Safety Equipment",
+    /fire extinguish|extinguisher|eye ?wash|safety shower|\bscba\b|\baed\b|gas detect|fall protection|first aid|fire alarm|sprinkler|confined space|lockout/i,
+  ],
   ["Headworks", /headworks|bar screen|washing compactor|grit|vortex|septic receiving|vac truck/i],
   ["Solids Handling", /centrifuge|rotary drum thickener|\brdt\b|dewater|sludge cake|silo|schwing|polymer/i],
   ["Digester Complex", /digester|gas |boiler|\bp4\b|methane/i],
@@ -100,8 +104,9 @@ const BUILDING_RULES: Array<[string, RegExp]> = [
   ["Disinfection / UV", /disinfection|\buv\b|trojan|chlorine|contact basin|hypo/i],
   ["Pump Houses", /pump house|wet well|lift station|effluent pump/i],
   ["Administration", /administration|admin building|lab |laboratory|office|maintenance shop|garage/i],
-  ["Plant Utilities", /air compressor|air dryer|hvac|make up air|generator|eyewash|eye wash|water system|plant water/i],
+  ["Plant Utilities", /air compressor|air dryer|hvac|make up air|generator|water system|plant water/i],
 ];
+
 
 export function buildingOf(assetName?: string | null, title?: string | null, location?: string | null) {
   const text = `${assetName ?? ""} ${title ?? ""}`;
