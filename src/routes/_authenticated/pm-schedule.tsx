@@ -174,6 +174,30 @@ function PmSchedulePage() {
               >
                 {pm.next_due}
               </Badge>
+              <Select
+                value={pm.assigned_to ?? "unassigned"}
+                onValueChange={(v) =>
+                  assign.mutate({
+                    id: pm.id,
+                    title: pm.title,
+                    next_due: pm.next_due,
+                    userId: v === "unassigned" ? null : v,
+                  })
+                }
+              >
+                <SelectTrigger className="w-44">
+                  <SelectValue placeholder="Send to…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {(team.data ?? []).map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {memberLabel(m)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
               <WorkOrderDialog
                 assetId={pm.asset_id}
                 pmScheduleId={pm.id}
