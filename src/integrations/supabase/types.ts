@@ -54,6 +54,7 @@ export type Database = {
       }
       assets: {
         Row: {
+          building: string | null
           category: string | null
           class: string | null
           commission_date: string | null
@@ -85,6 +86,7 @@ export type Database = {
           volts: string | null
         }
         Insert: {
+          building?: string | null
           category?: string | null
           class?: string | null
           commission_date?: string | null
@@ -116,6 +118,7 @@ export type Database = {
           volts?: string | null
         }
         Update: {
+          building?: string | null
           category?: string | null
           class?: string | null
           commission_date?: string | null
