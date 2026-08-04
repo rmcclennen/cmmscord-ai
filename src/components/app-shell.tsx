@@ -10,9 +10,9 @@ import { Waves, LayoutDashboard, Boxes, CalendarClock, ClipboardList, FileText, 
 import type { ReactNode } from "react";
 
 const NAV = [
+  { to: "/pm-schedule", label: "PM Schedule", icon: CalendarClock },
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/assets", label: "Assets", icon: Boxes },
-  { to: "/pm-schedule", label: "PM Schedule", icon: CalendarClock },
   { to: "/work-orders", label: "Work Orders", icon: ClipboardList },
   { to: "/manuals", label: "Manuals", icon: FileText },
   { to: "/approvals", label: "Approvals", icon: ShieldCheck },
@@ -37,7 +37,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-30 border-b border-sidebar-border bg-sidebar text-sidebar-foreground">
         <div className="mx-auto flex h-14 max-w-[1600px] items-center gap-6 px-4">
-          <Link to="/dashboard" className="flex items-center gap-2">
+          <Link to="/pm-schedule" className="flex items-center gap-2">
             <Waves className="size-5 text-sidebar-primary" />
             <span className="text-sm font-bold tracking-wide uppercase">CMMSCord AI</span>
           </Link>

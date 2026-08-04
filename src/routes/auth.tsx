@@ -21,7 +21,7 @@ export const Route = createFileRoute("/auth")({
   }),
   beforeLoad: async () => {
     const { data } = await supabase.auth.getUser();
-    if (data.user) throw redirect({ to: "/dashboard" });
+    if (data.user) throw redirect({ to: "/pm-schedule" });
   },
   component: AuthPage,
 });
@@ -34,7 +34,7 @@ function AuthPage() {
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-      if (session) window.location.replace("/dashboard");
+      if (session) window.location.replace("/pm-schedule");
     });
     return () => sub.subscription.unsubscribe();
   }, []);
