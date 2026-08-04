@@ -11,6 +11,7 @@ import { DeleteRequestDialog } from "@/components/delete-request-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ALL_BUILDING_OPTIONS, buildingOf, classLabel, dueTone, frequencyToDays, manualList, prettyLabel } from "@/lib/cmms";
 import { ManualDialog } from "@/components/manual-dialog";
+import { AssetPhotosPanel } from "@/components/asset-photos-panel";
 import { toast } from "sonner";
 import { ArrowLeft, CalendarPlus, ExternalLink, Plus, Sparkles, Trash2 } from "lucide-react";
 
@@ -259,9 +260,14 @@ function AssetDetail() {
           <TabsTrigger value="specs">Specifications</TabsTrigger>
           <TabsTrigger value="maintenance">Manufacturer data</TabsTrigger>
           <TabsTrigger value="pms">PMs ({pms.data?.length ?? 0})</TabsTrigger>
+          <TabsTrigger value="photos">Photos</TabsTrigger>
           <TabsTrigger value="manuals">Manuals ({manuals.data?.length ?? 0})</TabsTrigger>
           <TabsTrigger value="history">Work orders ({wos.data?.length ?? 0})</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="photos" className="mt-4">
+          <AssetPhotosPanel assetId={a.id} />
+        </TabsContent>
 
         <TabsContent value="manuals" className="mt-4">
           <div className="panel p-4">

@@ -52,6 +52,47 @@ export type Database = {
           },
         ]
       }
+      asset_photos: {
+        Row: {
+          asset_id: string
+          caption: string | null
+          created_at: string
+          id: string
+          kind: string
+          storage_path: string
+          updated_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          asset_id: string
+          caption?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          storage_path: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          asset_id?: string
+          caption?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          storage_path?: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_photos_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assets: {
         Row: {
           building: string | null
