@@ -226,6 +226,8 @@ function PmSchedulePage() {
     );
   })();
 
+  const activeTab = tab === "all" || groups.some(([b]) => b === tab) ? tab : "all";
+
 
   return (
     <div className="space-y-5">
