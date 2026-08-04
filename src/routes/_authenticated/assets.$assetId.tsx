@@ -386,18 +386,44 @@ function AssetDetail() {
 
               {intervals.length > 0 && (
                 <div className="panel p-4">
-                  <p className="label-caps">Recommended intervals</p>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="label-caps">Recommended intervals</p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={addPms.isPending}
+                      onClick={() => addPms.mutate(intervals)}
+                    >
+                      <CalendarPlus className="size-4" />
+                      Add all to PM schedule
+                    </Button>
+                  </div>
                   <ul className="mt-2 divide-y divide-border">
                     {intervals.map((i, idx) => (
                       <li key={idx} className="py-2">
                         <div className="flex flex-wrap items-baseline justify-between gap-2">
                           <span className="text-sm font-medium">{i.task}</span>
-                          <span className="font-mono text-xs text-primary">{i.frequency}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs text-primary">{i.frequency}</span>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              disabled={addPms.isPending}
+                              onClick={() => addPms.mutate([i])}
+                            >
+                              <CalendarPlus className="size-4" />
+                              Add PM
+                            </Button>
+                          </div>
                         </div>
                         {i.notes && <p className="mt-0.5 text-xs text-muted-foreground">{i.notes}</p>}
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          Every {frequencyToDays(i.frequency)} days
+                        </p>
                       </li>
                     ))}
                   </ul>
+
                 </div>
               )}
 
