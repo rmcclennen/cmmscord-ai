@@ -4,6 +4,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -15,7 +16,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { classLabel, CLASS_LABELS, BUILDING_NAMES, buildingOf } from "@/lib/cmms";
-import { Search } from "lucide-react";
+import { Camera, Search } from "lucide-react";
 
 const PAGE_SIZE = 50;
 
@@ -85,9 +86,16 @@ function AssetsPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <p className="label-caps">Asset register</p>
-        <h1 className="text-2xl font-bold">Plant assets</h1>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="label-caps">Asset register</p>
+          <h1 className="text-2xl font-bold">Plant assets</h1>
+        </div>
+        <Button asChild>
+          <Link to="/assets/capture">
+            <Camera className="size-4" /> Add by photo
+          </Link>
+        </Button>
       </div>
 
       <div className="panel flex flex-wrap items-center gap-3 p-3">
