@@ -67,7 +67,7 @@ function WorkOrdersPage() {
     queryFn: async () => {
       let query = supabase
         .from("work_orders")
-        .select("*, assets(id, name)")
+        .select("*, assets(id, name, manufacturer, manufacturer_url)")
         .order("created_at", { ascending: false })
         .limit(100);
       if (search.trim()) query = query.ilike("title", `%${search.trim()}%`);
