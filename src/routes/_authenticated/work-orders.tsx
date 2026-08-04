@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { WorkOrderDialog } from "@/components/work-order-dialog";
+import { DeleteRequestDialog } from "@/components/delete-request-dialog";
 import { prettyLabel, WO_STATUSES } from "@/lib/cmms";
 import { useTeamMembers } from "@/hooks/use-team-members";
 import { memberLabel, notifyUser } from "@/lib/notify";
@@ -196,7 +197,11 @@ function WorkOrdersPage() {
                 ))}
               </SelectContent>
             </Select>
-
+            <DeleteRequestDialog
+              entityType="work_order"
+              entityId={wo.id}
+              entityLabel={`WO-${wo.wo_number} ${wo.title}`}
+            />
           </div>
         ))}
         {wos.isLoading && <p className="p-3 text-sm text-muted-foreground">Loading work orders…</p>}

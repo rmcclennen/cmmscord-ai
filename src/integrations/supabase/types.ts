@@ -148,6 +148,51 @@ export type Database = {
         }
         Relationships: []
       }
+      deletion_requests: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          entity_id: string
+          entity_label: string
+          entity_type: string
+          id: string
+          reason: string | null
+          requested_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          entity_id: string
+          entity_label: string
+          entity_type: string
+          id?: string
+          reason?: string | null
+          requested_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          entity_id?: string
+          entity_label?: string
+          entity_type?: string
+          id?: string
+          reason?: string | null
+          requested_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       manuals: {
         Row: {
           added_by: string | null
@@ -448,6 +493,30 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_approve_deletions: { Args: { _user_id: string }; Returns: boolean }
+      decide_deletion_request: {
+        Args: { _approve: boolean; _note?: string; _request_id: string }
+        Returns: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          entity_id: string
+          entity_label: string
+          entity_type: string
+          id: string
+          reason: string | null
+          requested_by: string | null
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "deletion_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -457,7 +526,16 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "technician" | "viewer"
+      app_role:
+        | "admin"
+        | "technician"
+        | "viewer"
+        | "manager"
+        | "supervisor"
+        | "lead_operator"
+        | "operator"
+        | "electrician"
+        | "maintenance"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -585,7 +663,17 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "technician", "viewer"],
+      app_role: [
+        "admin",
+        "technician",
+        "viewer",
+        "manager",
+        "supervisor",
+        "lead_operator",
+        "operator",
+        "electrician",
+        "maintenance",
+      ],
     },
   },
 } as const

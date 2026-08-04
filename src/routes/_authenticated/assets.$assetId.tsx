@@ -7,10 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WorkOrderDialog } from "@/components/work-order-dialog";
+import { DeleteRequestDialog } from "@/components/delete-request-dialog";
 import { classLabel, dueTone, manualList, prettyLabel } from "@/lib/cmms";
 import { ManualDialog } from "@/components/manual-dialog";
 import { toast } from "sonner";
-import { ArrowLeft, ExternalLink, Plus, Sparkles } from "lucide-react";
+import { ArrowLeft, ExternalLink, Plus, Sparkles, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/assets/$assetId")({
   head: () => ({
@@ -155,16 +156,28 @@ function AssetDetail() {
             {a.tag_number && <span className="font-mono text-xs text-muted-foreground">{a.tag_number}</span>}
           </div>
         </div>
-        <WorkOrderDialog
-          assetId={a.id}
-          lockAsset
-          defaultTitle=""
-          trigger={
-            <Button>
-              <Plus className="size-4" /> Work order
-            </Button>
-          }
-        />
+        <div className="flex items-center gap-2">
+          <WorkOrderDialog
+            assetId={a.id}
+            lockAsset
+            defaultTitle=""
+            trigger={
+              <Button>
+                <Plus className="size-4" /> Work order
+              </Button>
+            }
+          />
+          <DeleteRequestDialog
+            entityType="asset"
+            entityId={a.id}
+            entityLabel={a.name}
+            trigger={
+              <Button variant="outline">
+                <Trash2 className="size-4" /> Delete
+              </Button>
+            }
+          />
+        </div>
       </div>
 
       <Tabs defaultValue="specs">
