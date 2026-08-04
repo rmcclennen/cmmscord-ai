@@ -14,8 +14,11 @@ import {
 } from "@/components/ui/select";
 import { WorkOrderDialog } from "@/components/work-order-dialog";
 import { dueTone, prettyLabel } from "@/lib/cmms";
+import { useTeamMembers } from "@/hooks/use-team-members";
+import { memberLabel, notifyUser } from "@/lib/notify";
 import { toast } from "sonner";
 import { CheckCircle2, Search } from "lucide-react";
+
 
 const PAGE_SIZE = 40;
 const today = () => new Date().toISOString().slice(0, 10);
@@ -38,6 +41,32 @@ function PmSchedulePage() {
   const [window, setWindow] = useState("all");
   const [page, setPage] = useState(0);
   const queryClient = useQueryClient();
+  const team = useTeamMembers();
+
+  const assign = useMutation({
+    mutationFn: async (pm: { id: string; title: string; next_due: string; userId: string | null }) => {
+      const { error } = await supabase
+        .from("pm_schedules")
+        .update({ assigned_to: pm.userId })
+        .eq("id", pm.id);
+      if (error) throw error;
+      if (pm.userId) {
+        await notifyUser({
+          userId: pm.userId,
+          title: "PM task assigned to you",
+          body: `${pm.title} · next due ${pm.next_due}`,
+          link: "/pm-schedule",
+        });
+      }
+    },
+    onSuccess: () => {
+      toast.success("PM assignment updated");
+      queryClient.invalidateQueries({ queryKey: ["pms"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
 
   const pms = useQuery({
     queryKey: ["pms", search, window, page],
@@ -145,6 +174,30 @@ function PmSchedulePage() {
               >
                 {pm.next_due}
               </Badge>
+              <Select
+                value={pm.assigned_to ?? "unassigned"}
+                onValueChange={(v) =>
+                  assign.mutate({
+                    id: pm.id,
+                    title: pm.title,
+                    next_due: pm.next_due,
+                    userId: v === "unassigned" ? null : v,
+                  })
+                }
+              >
+                <SelectTrigger className="w-44">
+                  <SelectValue placeholder="Send to…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {(team.data ?? []).map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {memberLabel(m)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
               <WorkOrderDialog
                 assetId={pm.asset_id}
                 pmScheduleId={pm.id}

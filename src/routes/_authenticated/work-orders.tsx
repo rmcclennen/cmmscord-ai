@@ -14,8 +14,11 @@ import {
 } from "@/components/ui/select";
 import { WorkOrderDialog } from "@/components/work-order-dialog";
 import { prettyLabel, WO_STATUSES } from "@/lib/cmms";
+import { useTeamMembers } from "@/hooks/use-team-members";
+import { memberLabel, notifyUser } from "@/lib/notify";
 import { toast } from "sonner";
 import { Plus, Search } from "lucide-react";
+
 
 export const Route = createFileRoute("/_authenticated/work-orders")({
   head: () => ({
@@ -33,6 +36,29 @@ function WorkOrdersPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("active");
   const queryClient = useQueryClient();
+  const team = useTeamMembers();
+
+  const reassign = useMutation({
+    mutationFn: async (wo: { id: string; wo_number: number; title: string; userId: string | null }) => {
+      const { error } = await supabase.from("work_orders").update({ assigned_to: wo.userId }).eq("id", wo.id);
+      if (error) throw error;
+      if (wo.userId) {
+        await notifyUser({
+          userId: wo.userId,
+          title: `WO-${wo.wo_number} assigned to you`,
+          body: wo.title,
+          link: "/work-orders",
+        });
+      }
+    },
+    onSuccess: () => {
+      toast.success("Work order assignment updated");
+      queryClient.invalidateQueries({ queryKey: ["work-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
 
   const wos = useQuery({
     queryKey: ["work-orders", search, status],
@@ -147,6 +173,30 @@ function WorkOrdersPage() {
                 ))}
               </SelectContent>
             </Select>
+            <Select
+              value={wo.assigned_to ?? "unassigned"}
+              onValueChange={(v) =>
+                reassign.mutate({
+                  id: wo.id,
+                  wo_number: wo.wo_number,
+                  title: wo.title,
+                  userId: v === "unassigned" ? null : v,
+                })
+              }
+            >
+              <SelectTrigger className="w-44">
+                <SelectValue placeholder="Send to…" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                {(team.data ?? []).map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {memberLabel(m)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
           </div>
         ))}
         {wos.isLoading && <p className="p-3 text-sm text-muted-foreground">Loading work orders…</p>}

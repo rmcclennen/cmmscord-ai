@@ -41,11 +41,13 @@ function AssetsPage() {
     queryFn: async () => {
       let query = supabase
         .from("assets")
-        .select("id, name, tag_number, class, type, make, model, location_name, criticality, status", {
-          count: "exact",
-        })
+        .select(
+          "id, name, tag_number, class, type, make, model, location_name, criticality, status, manufacturer, serial_number, supplier",
+          { count: "exact" },
+        )
         .order("name")
         .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
+
       if (search.trim()) {
         const term = `%${search.trim()}%`;
         query = query.or(
@@ -111,8 +113,12 @@ function AssetsPage() {
               <TableHead>Asset</TableHead>
               <TableHead>Class</TableHead>
               <TableHead>Make / Model</TableHead>
+              <TableHead>Manufacturer</TableHead>
+              <TableHead>Serial</TableHead>
+              <TableHead>Supplier</TableHead>
               <TableHead>Location</TableHead>
               <TableHead>Criticality</TableHead>
+
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -130,6 +136,9 @@ function AssetsPage() {
                 <TableCell className="text-sm text-muted-foreground">
                   {[a.make, a.model].filter(Boolean).join(" · ") || "—"}
                 </TableCell>
+                <TableCell className="text-sm text-muted-foreground">{a.manufacturer ?? "—"}</TableCell>
+                <TableCell className="font-mono text-xs text-muted-foreground">{a.serial_number ?? "—"}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">{a.supplier ?? "—"}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{a.location_name ?? "—"}</TableCell>
                 <TableCell>
                   <Badge variant={a.criticality === "high" ? "destructive" : "outline"}>{a.criticality}</Badge>
@@ -138,7 +147,8 @@ function AssetsPage() {
             ))}
             {assets.isLoading && (
               <TableRow>
-                <TableCell colSpan={5} className="text-sm text-muted-foreground">
+                <TableCell colSpan={8} className="text-sm text-muted-foreground">
+
                   Loading assets…
                 </TableCell>
               </TableRow>
