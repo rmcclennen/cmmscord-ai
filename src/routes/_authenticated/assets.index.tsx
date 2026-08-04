@@ -33,36 +33,53 @@ export const Route = createFileRoute("/_authenticated/assets/")({
 function AssetsPage() {
   const [search, setSearch] = useState("");
   const [cls, setCls] = useState("all");
+  const [building, setBuilding] = useState("all");
   const [page, setPage] = useState(0);
 
   const assets = useQuery({
-    queryKey: ["assets", search, cls, page],
+    queryKey: ["assets-all"],
     placeholderData: keepPreviousData,
     queryFn: async () => {
-      let query = supabase
+      const { data, error } = await supabase
         .from("assets")
         .select(
           "id, name, tag_number, class, type, make, model, location_name, criticality, status, manufacturer, serial_number, supplier",
-          { count: "exact" },
         )
         .order("name")
-        .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
-
-      if (search.trim()) {
-        const term = `%${search.trim()}%`;
-        query = query.or(
-          `name.ilike.${term},tag_number.ilike.${term},make.ilike.${term},model.ilike.${term},serial_number.ilike.${term}`,
-        );
-      }
-      if (cls !== "all") query = query.eq("class", cls);
-      const { data, error, count } = await query;
+        .limit(5000);
       if (error) throw error;
-      return { rows: data, count: count ?? 0 };
+      return (data ?? []).map((a) => ({ ...a, building: buildingOf(a.name, null, a.location_name) }));
     },
   });
 
-  const total = assets.data?.count ?? 0;
+  const all = assets.data ?? [];
+
+  const buildingCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const a of all) counts.set(a.building, (counts.get(a.building) ?? 0) + 1);
+    return counts;
+  }, [all]);
+
+  const buildingTabs = useMemo(
+    () => [...BUILDING_NAMES, "Lift Stations", "Other / Unassigned"].filter((b) => (buildingCounts.get(b) ?? 0) > 0),
+    [buildingCounts],
+  );
+
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return all.filter((a) => {
+      if (building !== "all" && a.building !== building) return false;
+      if (cls !== "all" && a.class !== cls) return false;
+      if (!term) return true;
+      return [a.name, a.tag_number, a.make, a.model, a.serial_number, a.manufacturer]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(term));
+    });
+  }, [all, search, cls, building]);
+
+  const total = filtered.length;
   const maxPage = Math.max(0, Math.ceil(total / PAGE_SIZE) - 1);
+  const rows = filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
 
   return (
     <div className="space-y-5">
@@ -106,11 +123,29 @@ function AssetsPage() {
         <span className="font-mono text-xs text-muted-foreground">{total} assets</span>
       </div>
 
+      <Tabs
+        value={building}
+        onValueChange={(v) => {
+          setBuilding(v);
+          setPage(0);
+        }}
+      >
+        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
+          <TabsTrigger value="all">All ({all.length})</TabsTrigger>
+          {buildingTabs.map((b) => (
+            <TabsTrigger key={b} value={b}>
+              {b} ({buildingCounts.get(b)})
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+
       <div className="panel overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Asset</TableHead>
+              <TableHead>Building / Area</TableHead>
               <TableHead>Class</TableHead>
               <TableHead>Make / Model</TableHead>
               <TableHead>Manufacturer</TableHead>
@@ -118,11 +153,10 @@ function AssetsPage() {
               <TableHead>Supplier</TableHead>
               <TableHead>Location</TableHead>
               <TableHead>Criticality</TableHead>
-
             </TableRow>
           </TableHeader>
           <TableBody>
-            {(assets.data?.rows ?? []).map((a) => (
+            {rows.map((a) => (
               <TableRow key={a.id}>
                 <TableCell>
                   <Link to="/assets/$assetId" params={{ assetId: a.id }} className="font-medium hover:underline">
@@ -132,6 +166,7 @@ function AssetsPage() {
                     <span className="ml-2 font-mono text-xs text-muted-foreground">{a.tag_number}</span>
                   )}
                 </TableCell>
+                <TableCell className="text-sm text-muted-foreground">{a.building}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{classLabel(a.class)}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {[a.make, a.model].filter(Boolean).join(" · ") || "—"}
@@ -147,8 +182,7 @@ function AssetsPage() {
             ))}
             {assets.isLoading && (
               <TableRow>
-                <TableCell colSpan={8} className="text-sm text-muted-foreground">
-
+                <TableCell colSpan={9} className="text-sm text-muted-foreground">
                   Loading assets…
                 </TableCell>
               </TableRow>
@@ -156,6 +190,7 @@ function AssetsPage() {
           </TableBody>
         </Table>
       </div>
+
 
       <div className="flex items-center justify-between">
         <span className="text-xs text-muted-foreground">
