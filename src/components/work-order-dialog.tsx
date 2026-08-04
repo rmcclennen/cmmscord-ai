@@ -183,6 +183,26 @@ export function WorkOrderDialog({ trigger, assetId, pmScheduleId, defaultTitle, 
             </div>
           </div>
           <div className="space-y-1.5">
+            <Label>Send to / assign</Label>
+            <Select value={assignee} onValueChange={setAssignee}>
+              <SelectTrigger>
+                <SelectValue placeholder="Nobody (unassigned)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unassigned">Nobody (unassigned)</SelectItem>
+                {(team.data ?? []).map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {memberLabel(m)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              The person you pick gets an in-app notification on their account email.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
             <Label htmlFor="wo-desc">Scope / notes</Label>
             <Textarea
               id="wo-desc"
