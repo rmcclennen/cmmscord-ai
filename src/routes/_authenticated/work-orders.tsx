@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { WorkOrderDialog } from "@/components/work-order-dialog";
 import { DeleteRequestDialog } from "@/components/delete-request-dialog";
+import { PartsLookupDialog } from "@/components/parts-lookup-dialog";
 import { prettyLabel, WO_STATUSES } from "@/lib/cmms";
 import { useTeamMembers } from "@/hooks/use-team-members";
 import { memberLabel, notifyUser } from "@/lib/notify";
