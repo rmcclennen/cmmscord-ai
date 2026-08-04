@@ -44,7 +44,9 @@ export function WorkOrderDialog({ trigger, assetId, pmScheduleId, defaultTitle, 
   const [dueDate, setDueDate] = useState("");
   const [asset, setAsset] = useState<string | null>(assetId ?? null);
   const [assetSearch, setAssetSearch] = useState("");
+  const [assignee, setAssignee] = useState("unassigned");
   const queryClient = useQueryClient();
+  const team = useTeamMembers(open);
 
   const assetOptions = useQuery({
     queryKey: ["asset-options", assetSearch],
@@ -61,6 +63,7 @@ export function WorkOrderDialog({ trigger, assetId, pmScheduleId, defaultTitle, 
   const create = useMutation({
     mutationFn: async () => {
       const { data: userData } = await supabase.auth.getUser();
+      const assignedTo = assignee === "unassigned" ? null : assignee;
       const { data, error } = await supabase
         .from("work_orders")
         .insert({
@@ -72,23 +75,35 @@ export function WorkOrderDialog({ trigger, assetId, pmScheduleId, defaultTitle, 
           asset_id: asset,
           pm_schedule_id: pmScheduleId ?? null,
           created_by: userData.user?.id ?? null,
+          assigned_to: assignedTo,
         })
         .select("wo_number")
         .single();
       if (error) throw error;
+      if (assignedTo) {
+        await notifyUser({
+          userId: assignedTo,
+          title: `WO-${data.wo_number} assigned to you`,
+          body: `${title.trim()}${dueDate ? ` · due ${dueDate}` : ""} · ${prettyLabel(priority)} priority`,
+          link: "/work-orders",
+        });
+      }
       return data;
     },
     onSuccess: (data) => {
       toast.success(`Work order WO-${data.wo_number} created`);
       queryClient.invalidateQueries({ queryKey: ["work-orders"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
       setOpen(false);
       setTitle(defaultTitle ?? "");
       setDescription("");
       setDueDate("");
+      setAssignee("unassigned");
     },
     onError: (error: Error) => toast.error(error.message),
   });
+
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
