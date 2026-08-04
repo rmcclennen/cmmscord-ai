@@ -55,3 +55,36 @@ export function manualList(manuals: string | null) {
     .map((m) => m.trim())
     .filter(Boolean);
 }
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** "03-15" -> "Mar 15" */
+export function seasonLabel(startMd: string | null, endMd: string | null) {
+  if (!startMd || !endMd) return null;
+  const fmt = (md: string) => {
+    const [m, d] = md.split("-").map(Number);
+    return `${MONTHS[(m ?? 1) - 1]} ${d}`;
+  };
+  return `${fmt(startMd)} – ${fmt(endMd)}`;
+}
+
+function mdOf(date: Date) {
+  return `${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+const iso = (d: Date) => d.toISOString().slice(0, 10);
+
+/**
+ * Pushes a due date into the seasonal operating window (e.g. UV runs Mar 15 – Nov 15).
+ * Dates before the season start move to the start; dates after the season end move to
+ * next year's season start.
+ */
+export function clampToSeason(dueDate: string, startMd: string | null, endMd: string | null) {
+  if (!startMd || !endMd) return dueDate;
+  const due = new Date(dueDate + "T00:00:00");
+  const md = mdOf(due);
+  const year = due.getFullYear();
+  if (md < startMd) return iso(new Date(`${year}-${startMd}T00:00:00`));
+  if (md > endMd) return iso(new Date(`${year + 1}-${startMd}T00:00:00`));
+  return dueDate;
+}
