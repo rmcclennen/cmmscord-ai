@@ -329,6 +329,24 @@ export type Database = {
         }
         Relationships: []
       }
+      team_directory: {
+        Row: {
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -427,21 +445,7 @@ export type Database = {
       }
     }
     Views: {
-      team_directory: {
-        Row: {
-          full_name: string | null
-          id: string | null
-        }
-        Insert: {
-          full_name?: string | null
-          id?: string | null
-        }
-        Update: {
-          full_name?: string | null
-          id?: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       has_role: {
