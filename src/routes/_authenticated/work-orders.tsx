@@ -197,11 +197,22 @@ function WorkOrdersPage() {
                 ))}
               </SelectContent>
             </Select>
+            <PartsLookupDialog
+              workOrder={{
+                id: wo.id,
+                wo_number: wo.wo_number,
+                title: wo.title,
+                parts_used: wo.parts_used,
+                assigned_to: wo.assigned_to,
+                asset: wo.assets ?? null,
+              }}
+            />
             <DeleteRequestDialog
               entityType="work_order"
               entityId={wo.id}
               entityLabel={`WO-${wo.wo_number} ${wo.title}`}
             />
+
           </div>
         ))}
         {wos.isLoading && <p className="p-3 text-sm text-muted-foreground">Loading work orders…</p>}
