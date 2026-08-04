@@ -229,7 +229,14 @@ function PmSchedulePage() {
                 size="sm"
                 variant="ghost"
                 disabled={complete.isPending}
-                onClick={() => complete.mutate({ id: pm.id, interval_days: pm.interval_days })}
+                onClick={() =>
+                  complete.mutate({
+                    id: pm.id,
+                    interval_days: pm.interval_days,
+                    season_start_md: pm.season_start_md,
+                    season_end_md: pm.season_end_md,
+                  })
+                }
               >
                 <CheckCircle2 className="size-4" /> Complete
               </Button>
