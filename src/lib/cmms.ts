@@ -88,3 +88,24 @@ export function clampToSeason(dueDate: string, startMd: string | null, endMd: st
   if (md > endMd) return iso(new Date(`${year + 1}-${startMd}T00:00:00`));
   return dueDate;
 }
+
+/** Plant areas / buildings, matched against asset + PM text (first match wins). */
+const BUILDING_RULES: Array<[string, RegExp]> = [
+  ["Headworks", /headworks|bar screen|washing compactor|grit|vortex|septic receiving|vac truck/i],
+  ["Solids Handling", /centrifuge|rotary drum thickener|\brdt\b|dewater|sludge cake|silo|schwing|polymer/i],
+  ["Digester Complex", /digester|gas |boiler|\bp4\b|methane/i],
+  ["Primary Clarifiers", /primary clarifier|primary sludge|scum/i],
+  ["Aeration", /aeration|blower|mixer|\bras\b|\bwas\b|diffuser/i],
+  ["Final Clarifiers", /final clarifier/i],
+  ["Disinfection / UV", /disinfection|\buv\b|trojan|chlorine|contact basin|hypo/i],
+  ["Pump Houses", /pump house|wet well|lift station|effluent pump/i],
+  ["Administration", /administration|admin building|lab |laboratory|office|maintenance shop|garage/i],
+  ["Plant Utilities", /air compressor|air dryer|hvac|make up air|generator|eyewash|eye wash|water system|plant water/i],
+];
+
+export function buildingOf(assetName?: string | null, title?: string | null, location?: string | null) {
+  const text = `${assetName ?? ""} ${title ?? ""}`;
+  for (const [name, re] of BUILDING_RULES) if (re.test(text)) return name;
+  if (location && /lift/i.test(location)) return "Lift Stations";
+  return "Other / Unassigned";
+}
