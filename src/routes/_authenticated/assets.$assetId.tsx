@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WorkOrderDialog } from "@/components/work-order-dialog";
 import { DeleteRequestDialog } from "@/components/delete-request-dialog";
-import { classLabel, dueTone, manualList, prettyLabel } from "@/lib/cmms";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ALL_BUILDING_OPTIONS, buildingOf, classLabel, dueTone, manualList, prettyLabel } from "@/lib/cmms";
 import { ManualDialog } from "@/components/manual-dialog";
 import { toast } from "sonner";
 import { ArrowLeft, ExternalLink, Plus, Sparkles, Trash2 } from "lucide-react";
@@ -107,6 +108,25 @@ function AssetDetail() {
     },
     onError: (error: Error) => toast.error(error.message),
   });
+
+  const moveBuilding = useMutation({
+    mutationFn: async (value: string) => {
+      const { error } = await supabase
+        .from("assets")
+        .update({ building: value === "auto" ? null : value })
+        .eq("id", assetId);
+      if (error) throw error;
+      return value;
+    },
+    onSuccess: (value) => {
+      toast.success(value === "auto" ? "Reset to automatic building" : `Moved to ${value}`);
+      queryClient.invalidateQueries({ queryKey: ["asset", assetId] });
+      queryClient.invalidateQueries({ queryKey: ["assets-all"] });
+      queryClient.invalidateQueries({ queryKey: ["pms"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
 
   if (asset.isLoading) return <p className="text-sm text-muted-foreground">Loading asset…</p>;
   if (!asset.data) return <p className="text-sm text-muted-foreground">Asset not found.</p>;
