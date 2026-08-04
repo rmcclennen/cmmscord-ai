@@ -51,10 +51,11 @@ function ApprovalsPage() {
 
   const decide = useMutation({
     mutationFn: async ({ id, approve }: { id: string; approve: boolean }) => {
+      const note = notes[id]?.trim();
       const { error } = await supabase.rpc("decide_deletion_request", {
         _request_id: id,
         _approve: approve,
-        _note: notes[id]?.trim() || undefined,
+        ...(note ? { _note: note } : {}),
       });
       if (error) throw error;
     },
