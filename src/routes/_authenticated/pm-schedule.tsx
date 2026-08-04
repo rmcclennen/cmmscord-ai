@@ -263,6 +263,16 @@ function PmSchedulePage() {
             <SelectItem value="history">Completed history</SelectItem>
           </SelectContent>
         </Select>
+        <Button
+          variant={grouped ? "default" : "outline"}
+          size="sm"
+          onClick={() => {
+            setGrouped((g) => !g);
+            setPage(0);
+          }}
+        >
+          {grouped ? "Grouped by building" : "Group by building"}
+        </Button>
         <span className="font-mono text-xs text-muted-foreground">{total} schedules</span>
       </div>
 
