@@ -55,7 +55,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             })}
           </nav>
           <div className="ml-auto flex items-center gap-3">
+            <NotificationBell />
             <span className="hidden text-xs text-sidebar-foreground/70 sm:inline">{user?.email}</span>
+
             <Button
               size="sm"
               variant="ghost"
