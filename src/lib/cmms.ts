@@ -105,6 +105,7 @@ const BUILDING_RULES: Array<[string, RegExp]> = [
   ["Pump Houses", /pump house|wet well|lift station|effluent pump/i],
   ["Administration", /administration|admin building|lab |laboratory|office|maintenance shop|garage/i],
   ["Plant Utilities", /air compressor|air dryer|hvac|make up air|generator|water system|plant water/i],
+  ["Renewable Fuels", /\bRF\b|renewable fuel/i],
 ];
 
 
