@@ -173,6 +173,30 @@ function WorkOrdersPage() {
                 ))}
               </SelectContent>
             </Select>
+            <Select
+              value={wo.assigned_to ?? "unassigned"}
+              onValueChange={(v) =>
+                reassign.mutate({
+                  id: wo.id,
+                  wo_number: wo.wo_number,
+                  title: wo.title,
+                  userId: v === "unassigned" ? null : v,
+                })
+              }
+            >
+              <SelectTrigger className="w-44">
+                <SelectValue placeholder="Send to…" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                {(team.data ?? []).map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {memberLabel(m)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
           </div>
         ))}
         {wos.isLoading && <p className="p-3 text-sm text-muted-foreground">Loading work orders…</p>}
