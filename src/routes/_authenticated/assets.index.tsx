@@ -44,12 +44,13 @@ function AssetsPage() {
       const { data, error } = await supabase
         .from("assets")
         .select(
-          "id, name, tag_number, class, type, make, model, location_name, criticality, status, manufacturer, serial_number, supplier",
+          "id, name, tag_number, class, type, make, model, location_name, criticality, status, manufacturer, serial_number, supplier, building",
         )
         .order("name")
         .limit(5000);
       if (error) throw error;
-      return (data ?? []).map((a) => ({ ...a, building: buildingOf(a.name, null, a.location_name) }));
+      return (data ?? []).map((a) => ({ ...a, building: buildingOf(a.name, null, a.location_name, a.building) }));
+
     },
   });
 

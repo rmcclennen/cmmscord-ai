@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WorkOrderDialog } from "@/components/work-order-dialog";
 import { DeleteRequestDialog } from "@/components/delete-request-dialog";
-import { classLabel, dueTone, manualList, prettyLabel } from "@/lib/cmms";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ALL_BUILDING_OPTIONS, buildingOf, classLabel, dueTone, manualList, prettyLabel } from "@/lib/cmms";
 import { ManualDialog } from "@/components/manual-dialog";
 import { toast } from "sonner";
 import { ArrowLeft, ExternalLink, Plus, Sparkles, Trash2 } from "lucide-react";
@@ -108,6 +109,25 @@ function AssetDetail() {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const moveBuilding = useMutation({
+    mutationFn: async (value: string) => {
+      const { error } = await supabase
+        .from("assets")
+        .update({ building: value === "auto" ? null : value })
+        .eq("id", assetId);
+      if (error) throw error;
+      return value;
+    },
+    onSuccess: (value) => {
+      toast.success(value === "auto" ? "Reset to automatic building" : `Moved to ${value}`);
+      queryClient.invalidateQueries({ queryKey: ["asset", assetId] });
+      queryClient.invalidateQueries({ queryKey: ["assets-all"] });
+      queryClient.invalidateQueries({ queryKey: ["pms"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+
   if (asset.isLoading) return <p className="text-sm text-muted-foreground">Loading asset…</p>;
   if (!asset.data) return <p className="text-sm text-muted-foreground">Asset not found.</p>;
 
@@ -129,6 +149,7 @@ function AssetDetail() {
     ["RPM", a.rpm],
     ["Frame", a.frame],
     ["Enclosure", a.enclosure],
+    ["Building / area", buildingOf(a.name, null, a.location_name, a.building)],
     ["Location", a.location_name],
     ["Commissioned", a.commission_date],
     ["Limble ID", a.limble_asset_id ? String(a.limble_asset_id) : null],
@@ -155,7 +176,30 @@ function AssetDetail() {
             </Badge>
             {a.tag_number && <span className="font-mono text-xs text-muted-foreground">{a.tag_number}</span>}
           </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="label-caps">Building / area</span>
+            <Select
+              value={a.building ?? "auto"}
+              onValueChange={(v) => moveBuilding.mutate(v)}
+              disabled={moveBuilding.isPending}
+            >
+              <SelectTrigger className="h-8 w-56 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">
+                  Auto — {buildingOf(a.name, null, a.location_name)}
+                </SelectItem>
+                {ALL_BUILDING_OPTIONS.map((b) => (
+                  <SelectItem key={b} value={b}>
+                    {b}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
+
         <div className="flex items-center gap-2">
           <WorkOrderDialog
             assetId={a.id}

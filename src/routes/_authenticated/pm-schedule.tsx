@@ -81,7 +81,7 @@ function PmSchedulePage() {
       const to = grouped ? 999 : page * PAGE_SIZE + PAGE_SIZE - 1;
       let query = supabase
         .from("pm_schedules")
-        .select("*, assets(id, name, location_name)", { count: "exact" })
+        .select("*, assets(id, name, location_name, building)", { count: "exact" })
         .eq("active", !history)
         .order("next_due", { ascending: !history })
         .range(from, to);
@@ -218,7 +218,7 @@ function PmSchedulePage() {
   const groups = (() => {
     const map = new Map<string, Row[]>();
     for (const pm of pms.data?.rows ?? []) {
-      const key = buildingOf(pm.assets?.name, pm.title, pm.assets?.location_name);
+      const key = buildingOf(pm.assets?.name, pm.title, pm.assets?.location_name, pm.assets?.building);
       const list = map.get(key);
       if (list) list.push(pm);
       else map.set(key, [pm]);
