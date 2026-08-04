@@ -136,6 +136,9 @@ function AssetsPage() {
                 <TableCell className="text-sm text-muted-foreground">
                   {[a.make, a.model].filter(Boolean).join(" · ") || "—"}
                 </TableCell>
+                <TableCell className="text-sm text-muted-foreground">{a.manufacturer ?? "—"}</TableCell>
+                <TableCell className="font-mono text-xs text-muted-foreground">{a.serial_number ?? "—"}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">{a.supplier ?? "—"}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{a.location_name ?? "—"}</TableCell>
                 <TableCell>
                   <Badge variant={a.criticality === "high" ? "destructive" : "outline"}>{a.criticality}</Badge>
@@ -144,7 +147,8 @@ function AssetsPage() {
             ))}
             {assets.isLoading && (
               <TableRow>
-                <TableCell colSpan={5} className="text-sm text-muted-foreground">
+                <TableCell colSpan={8} className="text-sm text-muted-foreground">
+
                   Loading assets…
                 </TableCell>
               </TableRow>
