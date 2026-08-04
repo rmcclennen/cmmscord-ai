@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WorkOrderDialog } from "@/components/work-order-dialog";
 import { classLabel, dueTone, manualList, prettyLabel } from "@/lib/cmms";
+import { assetDocuments } from "@/lib/asset-documents";
 import { toast } from "sonner";
 import { ArrowLeft, ExternalLink, Plus, Sparkles } from "lucide-react";
 
