@@ -184,6 +184,11 @@ function PmSchedulePage() {
                 </p>
                 {pm.tasks && <p className="mt-1 text-xs text-muted-foreground">{pm.tasks}</p>}
               </div>
+              {seasonLabel(pm.season_start_md, pm.season_end_md) && (
+                <Badge variant="outline" className="border-primary/40 text-primary">
+                  Seasonal · {seasonLabel(pm.season_start_md, pm.season_end_md)}
+                </Badge>
+              )}
               <Badge
                 variant={tone === "overdue" ? "destructive" : tone === "due" ? "secondary" : "outline"}
                 className="font-mono"
