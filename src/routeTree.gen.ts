@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedManualsRouteImport } from './routes/_authenticated/manuals'
 import { Route as AuthenticatedPmScheduleRouteImport } from './routes/_authenticated/pm-schedule'
 import { Route as AuthenticatedWorkOrdersRouteImport } from './routes/_authenticated/work-orders'
 import { Route as AuthenticatedAssetsIndexRouteImport } from './routes/_authenticated/assets.index'
@@ -35,6 +36,11 @@ const AuthRoute = AuthRouteImport.update({
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedManualsRoute = AuthenticatedManualsRouteImport.update({
+  id: '/manuals',
+  path: '/manuals',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedPmScheduleRoute = AuthenticatedPmScheduleRouteImport.update({
@@ -64,6 +70,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/manuals': typeof AuthenticatedManualsRoute
   '/pm-schedule': typeof AuthenticatedPmScheduleRoute
   '/work-orders': typeof AuthenticatedWorkOrdersRoute
   '/assets/$assetId': typeof AuthenticatedAssetsAssetIdRoute
@@ -73,6 +80,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/manuals': typeof AuthenticatedManualsRoute
   '/pm-schedule': typeof AuthenticatedPmScheduleRoute
   '/work-orders': typeof AuthenticatedWorkOrdersRoute
   '/assets/$assetId': typeof AuthenticatedAssetsAssetIdRoute
@@ -84,6 +92,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/manuals': typeof AuthenticatedManualsRoute
   '/_authenticated/pm-schedule': typeof AuthenticatedPmScheduleRoute
   '/_authenticated/work-orders': typeof AuthenticatedWorkOrdersRoute
   '/_authenticated/assets/$assetId': typeof AuthenticatedAssetsAssetIdRoute
@@ -95,6 +104,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/dashboard'
+    | '/manuals'
     | '/pm-schedule'
     | '/work-orders'
     | '/assets/$assetId'
@@ -104,6 +114,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/dashboard'
+    | '/manuals'
     | '/pm-schedule'
     | '/work-orders'
     | '/assets/$assetId'
@@ -114,6 +125,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/dashboard'
+    | '/_authenticated/manuals'
     | '/_authenticated/pm-schedule'
     | '/_authenticated/work-orders'
     | '/_authenticated/assets/$assetId'
@@ -156,6 +168,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/manuals': {
+      id: '/_authenticated/manuals'
+      path: '/manuals'
+      fullPath: '/manuals'
+      preLoaderRoute: typeof AuthenticatedManualsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/pm-schedule': {
       id: '/_authenticated/pm-schedule'
       path: '/pm-schedule'
@@ -189,6 +208,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedManualsRoute: typeof AuthenticatedManualsRoute
   AuthenticatedPmScheduleRoute: typeof AuthenticatedPmScheduleRoute
   AuthenticatedWorkOrdersRoute: typeof AuthenticatedWorkOrdersRoute
   AuthenticatedAssetsAssetIdRoute: typeof AuthenticatedAssetsAssetIdRoute
@@ -197,6 +217,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedManualsRoute: AuthenticatedManualsRoute,
   AuthenticatedPmScheduleRoute: AuthenticatedPmScheduleRoute,
   AuthenticatedWorkOrdersRoute: AuthenticatedWorkOrdersRoute,
   AuthenticatedAssetsAssetIdRoute: AuthenticatedAssetsAssetIdRoute,

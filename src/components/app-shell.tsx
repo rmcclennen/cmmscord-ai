@@ -6,7 +6,7 @@ import { useSessionUser } from "@/hooks/use-session-user";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/notification-bell";
 
-import { Waves, LayoutDashboard, Boxes, CalendarClock, ClipboardList, LogOut } from "lucide-react";
+import { Waves, LayoutDashboard, Boxes, CalendarClock, ClipboardList, FileText, LogOut } from "lucide-react";
 import type { ReactNode } from "react";
 
 const NAV = [
@@ -14,6 +14,7 @@ const NAV = [
   { to: "/assets", label: "Assets", icon: Boxes },
   { to: "/pm-schedule", label: "PM Schedule", icon: CalendarClock },
   { to: "/work-orders", label: "Work Orders", icon: ClipboardList },
+  { to: "/manuals", label: "Manuals", icon: FileText },
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
