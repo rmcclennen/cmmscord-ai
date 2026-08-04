@@ -44,29 +44,36 @@ export const sendAssignmentAlert = createServerFn({ method: "POST" })
     const smsTo = profile.notify_sms ? smsGatewayAddress(profile.phone, profile.carrier) : null;
     if (smsTo) targets.push({ to: smsTo, channel: "sms" });
 
-    const results = [];
+    // Never echo the resolved contact address back to the browser: the caller
+    // supplies an arbitrary recipient id, so only opaque per-channel status
+    // leaves the server. Contact details stay server-side.
+    const results: Array<{ channel: "email" | "sms"; sent: boolean; reason?: string }> = [];
     for (const target of targets) {
       const isSms = target.channel === "sms";
       const text = isSms
         ? truncateForSms(`${data.title}${data.body ? ` — ${data.body}` : ""} ${url}`)
         : `${data.body || data.title}\n\nOpen in CMMSCord AI: ${url}`;
+      const outcome = await dispatchMessage({
+        to: target.to,
+        channel: target.channel,
+        // Carrier gateways prepend the subject to the text body, so keep it empty-ish there.
+        subject: isSms ? "CMMSCord AI" : data.title,
+        text,
+        html: `<p style="font-family:Arial,sans-serif;font-size:14px;color:#111"><strong>${escapeHtml(
+          data.title,
+        )}</strong><br/>${escapeHtml(data.body)}</p><p style="font-family:Arial,sans-serif;font-size:14px"><a href="${url}">Open in CMMSCord AI</a></p>`,
+        idempotencyKey: `${data.eventKey}-${target.channel}-${data.recipientUserId}`,
+      });
       results.push(
-        await dispatchMessage({
-          to: target.to,
-          channel: target.channel,
-          // Carrier gateways prepend the subject to the text body, so keep it empty-ish there.
-          subject: isSms ? "CMMSCord AI" : data.title,
-          text,
-          html: `<p style="font-family:Arial,sans-serif;font-size:14px;color:#111"><strong>${escapeHtml(
-            data.title,
-          )}</strong><br/>${escapeHtml(data.body)}</p><p style="font-family:Arial,sans-serif;font-size:14px"><a href="${url}">Open in CMMSCord AI</a></p>`,
-          idempotencyKey: `${data.eventKey}-${target.channel}-${data.recipientUserId}`,
-        }),
+        outcome.sent
+          ? { channel: outcome.channel, sent: true }
+          : { channel: outcome.channel, sent: false, reason: outcome.reason },
       );
     }
 
     return { configured: true, results };
   });
+
 
 function escapeHtml(value: string) {
   return value
