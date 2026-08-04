@@ -103,7 +103,7 @@ export function AssetPhotosPanel({ assetId }: { assetId: string }) {
         .single();
       if (currentError) throw currentError;
 
-      const patch: Record<string, string> = {};
+      const patch: Partial<Record<(typeof FILLABLE)[number], string>> = {};
       for (const key of FILLABLE) {
         const value = reading[key];
         if (value && !current[key]) patch[key] = value;
