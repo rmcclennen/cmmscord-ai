@@ -195,6 +195,8 @@ export type Database = {
           limble_task_id: number | null
           next_due: string
           priority: string
+          season_end_md: string | null
+          season_start_md: string | null
           tasks: string | null
           title: string
           updated_at: string
@@ -212,6 +214,8 @@ export type Database = {
           limble_task_id?: number | null
           next_due?: string
           priority?: string
+          season_end_md?: string | null
+          season_start_md?: string | null
           tasks?: string | null
           title: string
           updated_at?: string
@@ -229,6 +233,8 @@ export type Database = {
           limble_task_id?: number | null
           next_due?: string
           priority?: string
+          season_end_md?: string | null
+          season_start_md?: string | null
           tasks?: string | null
           title?: string
           updated_at?: string

@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { WorkOrderDialog } from "@/components/work-order-dialog";
-import { dueTone, prettyLabel } from "@/lib/cmms";
+import { clampToSeason, dueTone, prettyLabel, seasonLabel } from "@/lib/cmms";
 import { useTeamMembers } from "@/hooks/use-team-members";
 import { memberLabel, notifyUser } from "@/lib/notify";
 import { toast } from "sonner";
@@ -90,8 +90,14 @@ function PmSchedulePage() {
   });
 
   const complete = useMutation({
-    mutationFn: async (pm: { id: string; interval_days: number }) => {
-      const next = new Date(Date.now() + pm.interval_days * 86400000).toISOString().slice(0, 10);
+    mutationFn: async (pm: {
+      id: string;
+      interval_days: number;
+      season_start_md: string | null;
+      season_end_md: string | null;
+    }) => {
+      const raw = new Date(Date.now() + pm.interval_days * 86400000).toISOString().slice(0, 10);
+      const next = clampToSeason(raw, pm.season_start_md, pm.season_end_md);
       const { error } = await supabase
         .from("pm_schedules")
         .update({ last_completed: today(), next_due: next })
@@ -178,6 +184,11 @@ function PmSchedulePage() {
                 </p>
                 {pm.tasks && <p className="mt-1 text-xs text-muted-foreground">{pm.tasks}</p>}
               </div>
+              {seasonLabel(pm.season_start_md, pm.season_end_md) && (
+                <Badge variant="outline" className="border-primary/40 text-primary">
+                  Seasonal · {seasonLabel(pm.season_start_md, pm.season_end_md)}
+                </Badge>
+              )}
               <Badge
                 variant={tone === "overdue" ? "destructive" : tone === "due" ? "secondary" : "outline"}
                 className="font-mono"
@@ -223,7 +234,14 @@ function PmSchedulePage() {
                 size="sm"
                 variant="ghost"
                 disabled={complete.isPending}
-                onClick={() => complete.mutate({ id: pm.id, interval_days: pm.interval_days })}
+                onClick={() =>
+                  complete.mutate({
+                    id: pm.id,
+                    interval_days: pm.interval_days,
+                    season_start_md: pm.season_start_md,
+                    season_end_md: pm.season_end_md,
+                  })
+                }
               >
                 <CheckCircle2 className="size-4" /> Complete
               </Button>
