@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WorkOrderDialog } from "@/components/work-order-dialog";
 import { classLabel, dueTone, manualList, prettyLabel } from "@/lib/cmms";
-import { assetDocuments } from "@/lib/asset-documents";
+import { ManualDialog } from "@/components/manual-dialog";
 import { toast } from "sonner";
 import { ArrowLeft, ExternalLink, Plus, Sparkles } from "lucide-react";
 
@@ -67,6 +67,21 @@ function AssetDetail() {
       return data;
     },
   });
+
+  const manuals = useQuery({
+    queryKey: ["asset-manuals", assetId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("manuals")
+        .select("*")
+        .eq("asset_id", assetId)
+        .order("title");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+
 
   const info = useQuery({
     queryKey: ["asset-info", assetId],
@@ -157,8 +172,62 @@ function AssetDetail() {
           <TabsTrigger value="specs">Specifications</TabsTrigger>
           <TabsTrigger value="maintenance">Manufacturer data</TabsTrigger>
           <TabsTrigger value="pms">PMs ({pms.data?.length ?? 0})</TabsTrigger>
+          <TabsTrigger value="manuals">Manuals ({manuals.data?.length ?? 0})</TabsTrigger>
           <TabsTrigger value="history">Work orders ({wos.data?.length ?? 0})</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="manuals" className="mt-4">
+          <div className="panel p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="label-caps">Manuals for this asset</p>
+                <p className="text-xs text-muted-foreground">
+                  O&amp;M manuals, cut sheets, and drawings attached to {a.name}.
+                </p>
+              </div>
+              <ManualDialog
+                assetId={a.id}
+                lockAsset
+                trigger={
+                  <Button variant="outline" size="sm">
+                    <Plus className="size-4" /> Add manual
+                  </Button>
+                }
+              />
+            </div>
+            <ul className="mt-4 space-y-2 text-sm">
+              {(manuals.data ?? []).map((m) => (
+                <li key={m.id} className="border-t border-border pt-2 first:border-0 first:pt-0">
+                  <a href={m.file_url} target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">
+                    {m.title}
+                    <ExternalLink className="ml-1 inline size-3" />
+                  </a>
+                  <p className="text-xs text-muted-foreground">
+                    {m.manufacturer && `${m.manufacturer}`}
+                    {m.manufacturer && m.notes && " · "}
+                    {m.notes}
+                  </p>
+                </li>
+              ))}
+              {(manuals.data ?? []).length === 0 && (
+                <li className="text-muted-foreground">
+                  No manuals attached yet. Add one here, or attach an existing document from the Manuals page.
+                </li>
+              )}
+            </ul>
+            {manualList(a.manuals).length > 0 && (
+              <div className="mt-5 border-t border-border pt-4">
+                <p className="label-caps">Referenced in Limble</p>
+                <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                  {manualList(a.manuals).map((m) => (
+                    <li key={m}>{m}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
 
         <TabsContent value="specs" className="mt-4">
           <div className="panel p-4">
@@ -170,33 +239,17 @@ function AssetDetail() {
                 </div>
               ))}
             </dl>
-            {assetDocuments(a.name).length > 0 && (
+
+
+            {(manuals.data ?? []).length > 0 && (
               <div className="mt-5 border-t border-border pt-4">
-                <p className="label-caps">Documents</p>
+                <p className="label-caps">Manuals</p>
                 <ul className="mt-2 space-y-1 text-sm">
-                  {assetDocuments(a.name).map((d) => (
-                    <li key={d.url}>
-                      <a
-                        href={d.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-primary hover:underline"
-                      >
-                        {d.label}
+                  {(manuals.data ?? []).map((m) => (
+                    <li key={m.id}>
+                      <a href={m.file_url} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                        {m.title}
                       </a>
-                      {d.note && <span className="ml-2 text-xs text-muted-foreground">{d.note}</span>}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {manualList(a.manuals).length > 0 && (
-              <div className="mt-5 border-t border-border pt-4">
-                <p className="label-caps">Manuals on file</p>
-                <ul className="mt-2 space-y-1 text-sm">
-                  {manualList(a.manuals).map((m) => (
-                    <li key={m} className="text-muted-foreground">
-                      {m}
                     </li>
                   ))}
                 </ul>
