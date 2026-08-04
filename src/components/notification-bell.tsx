@@ -64,22 +64,26 @@ export function NotificationBell() {
           )}
         </div>
         <div className="max-h-80 divide-y divide-border overflow-y-auto">
-          {(notes.data ?? []).map((n) => (
-            <div key={n.id} className={`px-3 py-2 ${n.read_at ? "" : "bg-accent/40"}`}>
-              <p className="text-sm font-medium">{n.title}</p>
-              {n.body && <p className="text-xs text-muted-foreground">{n.body}</p>}
-              <div className="mt-1 flex items-center justify-between">
-                <span className="font-mono text-[10px] text-muted-foreground">
-                  {new Date(n.created_at).toLocaleString()}
-                </span>
-                {n.link && (
-                  <a href={n.link} className="text-xs text-primary underline">
-                    Open
-                  </a>
-                )}
+          {(notes.data ?? []).map((n) => {
+            const link = safeAppLink(n.link);
+            return (
+              <div key={n.id} className={`px-3 py-2 ${n.read_at ? "" : "bg-accent/40"}`}>
+                <p className="text-sm font-medium">{n.title}</p>
+                {n.body && <p className="text-xs text-muted-foreground">{n.body}</p>}
+                <div className="mt-1 flex items-center justify-between">
+                  <span className="font-mono text-[10px] text-muted-foreground">
+                    {new Date(n.created_at).toLocaleString()}
+                  </span>
+                  {link && (
+                    <Link to={link} className="text-xs text-primary underline" rel="noopener noreferrer">
+                      Open
+                    </Link>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
+
           {(notes.data ?? []).length === 0 && (
             <p className="px-3 py-4 text-sm text-muted-foreground">No notifications yet.</p>
           )}
