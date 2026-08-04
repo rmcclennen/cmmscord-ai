@@ -90,8 +90,14 @@ function PmSchedulePage() {
   });
 
   const complete = useMutation({
-    mutationFn: async (pm: { id: string; interval_days: number }) => {
-      const next = new Date(Date.now() + pm.interval_days * 86400000).toISOString().slice(0, 10);
+    mutationFn: async (pm: {
+      id: string;
+      interval_days: number;
+      season_start_md: string | null;
+      season_end_md: string | null;
+    }) => {
+      const raw = new Date(Date.now() + pm.interval_days * 86400000).toISOString().slice(0, 10);
+      const next = clampToSeason(raw, pm.season_start_md, pm.season_end_md);
       const { error } = await supabase
         .from("pm_schedules")
         .update({ last_completed: today(), next_due: next })
