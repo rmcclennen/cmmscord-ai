@@ -209,6 +209,7 @@ function PmSchedulePage() {
         >
           <CheckCircle2 className="size-4" /> Complete
         </Button>
+        <DeleteRequestDialog entityType="pm_schedule" entityId={pm.id} entityLabel={pm.title} />
       </div>
     );
   };
