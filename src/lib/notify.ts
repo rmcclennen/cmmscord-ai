@@ -42,7 +42,7 @@ export async function notifyUser(input: {
         recipientUserId: input.userId,
         title: input.title,
         body: input.body ?? "",
-        link: input.link,
+        link: link ?? undefined,
         eventKey: input.eventKey ?? `${input.userId}-${input.title}-${new Date().toISOString().slice(0, 16)}`,
       },
     });
