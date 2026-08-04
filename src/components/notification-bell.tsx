@@ -1,5 +1,4 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useSessionUser } from "@/hooks/use-session-user";
 import { Button } from "@/components/ui/button";
@@ -74,9 +73,9 @@ export function NotificationBell() {
                   {new Date(n.created_at).toLocaleString()}
                 </span>
                 {n.link && (
-                  <Link to={n.link} className="text-xs text-primary underline">
+                  <a href={n.link} className="text-xs text-primary underline">
                     Open
-                  </Link>
+                  </a>
                 )}
               </div>
             </div>
