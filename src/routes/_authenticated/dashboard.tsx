@@ -10,7 +10,7 @@ import { AlertTriangle, Boxes, CalendarClock, ClipboardList, Plus } from "lucide
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
-      { title: "Maintenance Dashboard | Plant Maintenance" },
+      { title: "Maintenance Dashboard | CMMSCord AI" },
       { name: "description", content: "Overdue PMs, upcoming preventive maintenance, and open work orders." },
       { property: "og:title", content: "Maintenance Dashboard" },
       { property: "og:description", content: "Plant maintenance status at a glance." },

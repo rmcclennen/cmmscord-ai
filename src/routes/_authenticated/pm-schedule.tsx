@@ -27,7 +27,7 @@ const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().
 export const Route = createFileRoute("/_authenticated/pm-schedule")({
   head: () => ({
     meta: [
-      { title: "PM Schedule | Plant Maintenance" },
+      { title: "PM Schedule | CMMSCord AI" },
       { name: "description", content: "Preventive maintenance schedule with overdue, due-soon, and upcoming tasks." },
       { property: "og:title", content: "PM Schedule" },
       { property: "og:description", content: "Track and complete preventive maintenance across the plant." },

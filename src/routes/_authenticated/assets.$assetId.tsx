@@ -14,7 +14,7 @@ import { ArrowLeft, ExternalLink, Plus, Sparkles } from "lucide-react";
 export const Route = createFileRoute("/_authenticated/assets/$assetId")({
   head: () => ({
     meta: [
-      { title: "Asset Detail | Plant Maintenance" },
+      { title: "Asset Detail | CMMSCord AI" },
       { name: "description", content: "Nameplate specs, manufacturer maintenance data, PMs, and work order history." },
       { property: "og:title", content: "Asset Detail" },
       { property: "og:description", content: "Specifications, maintenance program, and work order history." },

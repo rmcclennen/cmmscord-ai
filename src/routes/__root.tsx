@@ -79,9 +79,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Plant Maintenance" },
+      { title: "CMMSCord AI" },
       { name: "description", content: "Wastewater plant asset, PM schedule, and work order management." },
-      { property: "og:title", content: "Plant Maintenance" },
+      { property: "og:title", content: "CMMSCord AI" },
       { property: "og:description", content: "Wastewater plant asset, PM schedule, and work order management." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

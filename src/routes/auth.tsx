@@ -13,9 +13,9 @@ export const Route = createFileRoute("/auth")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Sign in | Plant Maintenance" },
+      { title: "Sign in | CMMSCord AI" },
       { name: "description", content: "Sign in to the wastewater plant asset, PM, and work order system." },
-      { property: "og:title", content: "Sign in | Plant Maintenance" },
+      { property: "og:title", content: "Sign in | CMMSCord AI" },
       { property: "og:description", content: "Team access to plant assets, PM schedules, and work orders." },
     ],
   }),
@@ -71,7 +71,7 @@ function AuthPage() {
       <div className="hidden flex-col justify-between bg-sidebar p-10 text-sidebar-foreground lg:flex">
         <div className="flex items-center gap-2">
           <Waves className="size-6 text-sidebar-primary" />
-          <span className="text-sm font-bold uppercase tracking-widest">Plant Maintenance</span>
+          <span className="text-sm font-bold uppercase tracking-widest">CMMSCord AI</span>
         </div>
         <div>
           <h1 className="text-4xl font-bold leading-tight">
@@ -89,6 +89,22 @@ function AuthPage() {
         <div className="w-full max-w-sm panel p-6">
           <h2 className="text-lg font-semibold">Team access</h2>
           <p className="mt-1 text-sm text-muted-foreground">Sign in to your plant maintenance account.</p>
+
+          <div className="mt-4 rounded-md border border-border bg-muted/40 p-3">
+            <p className="label-caps">Demo access</p>
+            <p className="mt-1 font-mono text-xs text-muted-foreground">demo@cmmscord.ai / CMMSdemo2026!</p>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="mt-2 w-full"
+              onClick={() => {
+                setEmail("demo@cmmscord.ai");
+                setPassword("CMMSdemo2026!");
+              }}
+            >
+              Fill demo credentials
+            </Button>
+          </div>
 
           <Button variant="outline" className="mt-5 w-full" onClick={google}>
             Continue with Google
