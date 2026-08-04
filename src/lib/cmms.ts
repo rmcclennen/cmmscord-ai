@@ -109,6 +109,9 @@ const BUILDING_RULES: Array<[string, RegExp]> = [
 ];
 
 
+/** Ordered list of building/area names used for tabs and filters. */
+export const BUILDING_NAMES = BUILDING_RULES.map(([name]) => name);
+
 export function buildingOf(assetName?: string | null, title?: string | null, location?: string | null) {
   const text = `${assetName ?? ""} ${title ?? ""}`;
   for (const [name, re] of BUILDING_RULES) if (re.test(text)) return name;
