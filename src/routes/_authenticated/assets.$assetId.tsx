@@ -169,6 +169,26 @@ function AssetDetail() {
                 </div>
               ))}
             </dl>
+            {assetDocuments(a.name).length > 0 && (
+              <div className="mt-5 border-t border-border pt-4">
+                <p className="label-caps">Documents</p>
+                <ul className="mt-2 space-y-1 text-sm">
+                  {assetDocuments(a.name).map((d) => (
+                    <li key={d.url}>
+                      <a
+                        href={d.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        {d.label}
+                      </a>
+                      {d.note && <span className="ml-2 text-xs text-muted-foreground">{d.note}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {manualList(a.manuals).length > 0 && (
               <div className="mt-5 border-t border-border pt-4">
                 <p className="label-caps">Manuals on file</p>
