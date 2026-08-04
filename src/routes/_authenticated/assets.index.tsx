@@ -113,8 +113,12 @@ function AssetsPage() {
               <TableHead>Asset</TableHead>
               <TableHead>Class</TableHead>
               <TableHead>Make / Model</TableHead>
+              <TableHead>Manufacturer</TableHead>
+              <TableHead>Serial</TableHead>
+              <TableHead>Supplier</TableHead>
               <TableHead>Location</TableHead>
               <TableHead>Criticality</TableHead>
+
             </TableRow>
           </TableHeader>
           <TableBody>
