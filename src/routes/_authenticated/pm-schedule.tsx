@@ -41,6 +41,32 @@ function PmSchedulePage() {
   const [window, setWindow] = useState("all");
   const [page, setPage] = useState(0);
   const queryClient = useQueryClient();
+  const team = useTeamMembers();
+
+  const assign = useMutation({
+    mutationFn: async (pm: { id: string; title: string; next_due: string; userId: string | null }) => {
+      const { error } = await supabase
+        .from("pm_schedules")
+        .update({ assigned_to: pm.userId })
+        .eq("id", pm.id);
+      if (error) throw error;
+      if (pm.userId) {
+        await notifyUser({
+          userId: pm.userId,
+          title: "PM task assigned to you",
+          body: `${pm.title} · next due ${pm.next_due}`,
+          link: "/pm-schedule",
+        });
+      }
+    },
+    onSuccess: () => {
+      toast.success("PM assignment updated");
+      queryClient.invalidateQueries({ queryKey: ["pms"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
 
   const pms = useQuery({
     queryKey: ["pms", search, window, page],
