@@ -13,7 +13,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { classLabel, CLASS_LABELS } from "@/lib/cmms";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { classLabel, CLASS_LABELS, BUILDING_NAMES, buildingOf } from "@/lib/cmms";
 import { Search } from "lucide-react";
 
 const PAGE_SIZE = 50;
