@@ -1,9 +1,11 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useSessionUser } from "@/hooks/use-session-user";
+import { safeAppLink } from "@/lib/notify";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Bell } from "lucide-react";
+
 
 export function NotificationBell() {
   const { user } = useSessionUser();
