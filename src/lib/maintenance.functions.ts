@@ -71,6 +71,7 @@ Rules:
 
     const gateway = createOpenAICompatible({
       name: "lovable-ai-gateway",
+      supportsStructuredOutputs: true,
       baseURL: "https://ai.gateway.lovable.dev/v1",
       headers: { "Lovable-API-Key": apiKey },
     });
