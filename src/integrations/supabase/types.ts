@@ -148,6 +148,53 @@ export type Database = {
         }
         Relationships: []
       }
+      manuals: {
+        Row: {
+          added_by: string | null
+          asset_id: string | null
+          created_at: string
+          file_url: string
+          id: string
+          kind: string
+          manufacturer: string | null
+          notes: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          added_by?: string | null
+          asset_id?: string | null
+          created_at?: string
+          file_url: string
+          id?: string
+          kind?: string
+          manufacturer?: string | null
+          notes?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          added_by?: string | null
+          asset_id?: string | null
+          created_at?: string
+          file_url?: string
+          id?: string
+          kind?: string
+          manufacturer?: string | null
+          notes?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manuals_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           body: string | null
