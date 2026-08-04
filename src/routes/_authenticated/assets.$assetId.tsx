@@ -68,6 +68,21 @@ function AssetDetail() {
     },
   });
 
+  const manuals = useQuery({
+    queryKey: ["asset-manuals", assetId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("manuals")
+        .select("*")
+        .eq("asset_id", assetId)
+        .order("title");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+
+
   const info = useQuery({
     queryKey: ["asset-info", assetId],
     queryFn: async () => {
