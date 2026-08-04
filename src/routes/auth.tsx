@@ -90,6 +90,22 @@ function AuthPage() {
           <h2 className="text-lg font-semibold">Team access</h2>
           <p className="mt-1 text-sm text-muted-foreground">Sign in to your plant maintenance account.</p>
 
+          <div className="mt-4 rounded-md border border-border bg-muted/40 p-3">
+            <p className="label-caps">Demo access</p>
+            <p className="mt-1 font-mono text-xs text-muted-foreground">demo@cmmscord.ai / CMMSdemo2026!</p>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="mt-2 w-full"
+              onClick={() => {
+                setEmail("demo@cmmscord.ai");
+                setPassword("CMMSdemo2026!");
+              }}
+            >
+              Fill demo credentials
+            </Button>
+          </div>
+
           <Button variant="outline" className="mt-5 w-full" onClick={google}>
             Continue with Google
           </Button>
