@@ -72,11 +72,12 @@ function PmSchedulePage() {
     queryKey: ["pms", search, window, page],
     placeholderData: keepPreviousData,
     queryFn: async () => {
+      const history = window === "history";
       let query = supabase
         .from("pm_schedules")
         .select("*, assets(id, name)", { count: "exact" })
-        .eq("active", true)
-        .order("next_due")
+        .eq("active", !history)
+        .order("next_due", { ascending: !history })
         .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
       if (search.trim()) query = query.ilike("title", `%${search.trim()}%`);
       if (window === "overdue") query = query.lt("next_due", today());
@@ -143,6 +144,7 @@ function PmSchedulePage() {
             <SelectItem value="overdue">Overdue</SelectItem>
             <SelectItem value="week">Next 7 days</SelectItem>
             <SelectItem value="month">Next 30 days</SelectItem>
+            <SelectItem value="history">Completed history</SelectItem>
           </SelectContent>
         </Select>
         <span className="font-mono text-xs text-muted-foreground">{total} schedules</span>
@@ -154,7 +156,12 @@ function PmSchedulePage() {
           return (
             <div key={pm.id} className="flex flex-wrap items-center gap-3 p-3">
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium">{pm.title}</p>
+                <p className="text-sm font-medium">
+                  {pm.title}
+                  {pm.limble_task_id != null && (
+                    <span className="ml-2 font-mono text-xs text-muted-foreground">#{pm.limble_task_id}</span>
+                  )}
+                </p>
                 <p className="text-xs text-muted-foreground">
                   {pm.assets ? (
                     <Link to="/assets/$assetId" params={{ assetId: pm.assets.id }} className="hover:underline">
@@ -165,6 +172,9 @@ function PmSchedulePage() {
                   )}
                   {" · every "}
                   {pm.interval_days} days · {prettyLabel(pm.priority)}
+                  {pm.estimated_hours != null && ` · ${pm.estimated_hours} hrs`}
+                  {pm.assigned_label && ` · ${pm.assigned_label}`}
+                  {pm.last_completed && ` · last done ${pm.last_completed}`}
                 </p>
                 {pm.tasks && <p className="mt-1 text-xs text-muted-foreground">{pm.tasks}</p>}
               </div>
