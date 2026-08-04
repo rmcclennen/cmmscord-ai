@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ALL_BUILDING_OPTIONS, buildingOf, classLabel, dueTone, frequencyToDays, manualList, prettyLabel } from "@/lib/cmms";
 import { ManualDialog } from "@/components/manual-dialog";
 import { toast } from "sonner";
-import { ArrowLeft, ExternalLink, Plus, Sparkles, Trash2 } from "lucide-react";
+import { ArrowLeft, CalendarPlus, ExternalLink, Plus, Sparkles, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/assets/$assetId")({
   head: () => ({
