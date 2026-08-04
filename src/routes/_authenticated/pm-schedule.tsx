@@ -118,6 +118,112 @@ function PmSchedulePage() {
 
   const total = pms.data?.count ?? 0;
   const maxPage = Math.max(0, Math.ceil(total / PAGE_SIZE) - 1);
+  type Row = NonNullable<typeof pms.data>["rows"][number];
+
+  const renderRow = (pm: Row) => {
+    const tone = dueTone(pm.next_due);
+    return (
+      <div key={pm.id} className="flex flex-wrap items-center gap-3 p-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium">
+            {pm.title}
+            {pm.limble_task_id != null && (
+              <span className="ml-2 font-mono text-xs text-muted-foreground">#{pm.limble_task_id}</span>
+            )}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {pm.assets ? (
+              <Link to="/assets/$assetId" params={{ assetId: pm.assets.id }} className="hover:underline">
+                {pm.assets.name}
+              </Link>
+            ) : (
+              "Unassigned asset"
+            )}
+            {" · every "}
+            {pm.interval_days} days · {prettyLabel(pm.priority)}
+            {pm.estimated_hours != null && ` · ${pm.estimated_hours} hrs`}
+            {pm.last_completed && ` · last done ${pm.last_completed}`}
+          </p>
+          {pm.tasks && <p className="mt-1 text-xs text-muted-foreground">{pm.tasks}</p>}
+        </div>
+        {seasonLabel(pm.season_start_md, pm.season_end_md) && (
+          <Badge variant="outline" className="border-primary/40 text-primary">
+            Seasonal · {seasonLabel(pm.season_start_md, pm.season_end_md)}
+          </Badge>
+        )}
+        <Badge
+          variant={tone === "overdue" ? "destructive" : tone === "due" ? "secondary" : "outline"}
+          className="font-mono"
+        >
+          {pm.next_due}
+        </Badge>
+        <Select
+          value={pm.assigned_to ?? "unassigned"}
+          onValueChange={(v) =>
+            assign.mutate({
+              id: pm.id,
+              title: pm.title,
+              next_due: pm.next_due,
+              userId: v === "unassigned" ? null : v,
+            })
+          }
+        >
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="Send to…" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="unassigned">Unassigned</SelectItem>
+            {(team.data ?? []).map((m) => (
+              <SelectItem key={m.id} value={m.id}>
+                {memberLabel(m)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <WorkOrderDialog
+          assetId={pm.asset_id}
+          pmScheduleId={pm.id}
+          defaultTitle={pm.title}
+          lockAsset
+          trigger={
+            <Button size="sm" variant="outline">
+              Issue WO
+            </Button>
+          }
+        />
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={complete.isPending}
+          onClick={() =>
+            complete.mutate({
+              id: pm.id,
+              interval_days: pm.interval_days,
+              season_start_md: pm.season_start_md,
+              season_end_md: pm.season_end_md,
+            })
+          }
+        >
+          <CheckCircle2 className="size-4" /> Complete
+        </Button>
+      </div>
+    );
+  };
+
+  const groups = (() => {
+    const map = new Map<string, Row[]>();
+    for (const pm of pms.data?.rows ?? []) {
+      const key = buildingOf(pm.assets?.name, pm.title, pm.assets?.location_name);
+      const list = map.get(key);
+      if (list) list.push(pm);
+      else map.set(key, [pm]);
+    }
+    return [...map.entries()].sort((a, b) =>
+      a[0] === "Other / Unassigned" ? 1 : b[0] === "Other / Unassigned" ? -1 : a[0].localeCompare(b[0]),
+    );
+  })();
+
 
   return (
     <div className="space-y-5">
