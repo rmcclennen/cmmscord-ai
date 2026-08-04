@@ -41,11 +41,13 @@ function AssetsPage() {
     queryFn: async () => {
       let query = supabase
         .from("assets")
-        .select("id, name, tag_number, class, type, make, model, location_name, criticality, status", {
-          count: "exact",
-        })
+        .select(
+          "id, name, tag_number, class, type, make, model, location_name, criticality, status, manufacturer, serial_number, supplier",
+          { count: "exact" },
+        )
         .order("name")
         .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
+
       if (search.trim()) {
         const term = `%${search.trim()}%`;
         query = query.or(
