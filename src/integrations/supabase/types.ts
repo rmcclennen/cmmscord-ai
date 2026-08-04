@@ -298,22 +298,34 @@ export type Database = {
       }
       profiles: {
         Row: {
+          carrier: string | null
           created_at: string
           email: string | null
           full_name: string | null
           id: string
+          notify_email: boolean
+          notify_sms: boolean
+          phone: string | null
         }
         Insert: {
+          carrier?: string | null
           created_at?: string
           email?: string | null
           full_name?: string | null
           id: string
+          notify_email?: boolean
+          notify_sms?: boolean
+          phone?: string | null
         }
         Update: {
+          carrier?: string | null
           created_at?: string
           email?: string | null
           full_name?: string | null
           id?: string
+          notify_email?: boolean
+          notify_sms?: boolean
+          phone?: string | null
         }
         Relationships: []
       }
