@@ -156,7 +156,12 @@ function PmSchedulePage() {
           return (
             <div key={pm.id} className="flex flex-wrap items-center gap-3 p-3">
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium">{pm.title}</p>
+                <p className="text-sm font-medium">
+                  {pm.title}
+                  {pm.limble_task_id != null && (
+                    <span className="ml-2 font-mono text-xs text-muted-foreground">#{pm.limble_task_id}</span>
+                  )}
+                </p>
                 <p className="text-xs text-muted-foreground">
                   {pm.assets ? (
                     <Link to="/assets/$assetId" params={{ assetId: pm.assets.id }} className="hover:underline">
@@ -167,6 +172,9 @@ function PmSchedulePage() {
                   )}
                   {" · every "}
                   {pm.interval_days} days · {prettyLabel(pm.priority)}
+                  {pm.estimated_hours != null && ` · ${pm.estimated_hours} hrs`}
+                  {pm.assigned_label && ` · ${pm.assigned_label}`}
+                  {pm.last_completed && ` · last done ${pm.last_completed}`}
                 </p>
                 {pm.tasks && <p className="mt-1 text-xs text-muted-foreground">{pm.tasks}</p>}
               </div>
