@@ -185,11 +185,14 @@ export type Database = {
         Row: {
           active: boolean
           asset_id: string | null
+          assigned_label: string | null
           assigned_to: string | null
           created_at: string
+          estimated_hours: number | null
           id: string
           interval_days: number
           last_completed: string | null
+          limble_task_id: number | null
           next_due: string
           priority: string
           tasks: string | null
@@ -199,11 +202,14 @@ export type Database = {
         Insert: {
           active?: boolean
           asset_id?: string | null
+          assigned_label?: string | null
           assigned_to?: string | null
           created_at?: string
+          estimated_hours?: number | null
           id?: string
           interval_days?: number
           last_completed?: string | null
+          limble_task_id?: number | null
           next_due?: string
           priority?: string
           tasks?: string | null
@@ -213,11 +219,14 @@ export type Database = {
         Update: {
           active?: boolean
           asset_id?: string | null
+          assigned_label?: string | null
           assigned_to?: string | null
           created_at?: string
+          estimated_hours?: number | null
           id?: string
           interval_days?: number
           last_completed?: string | null
+          limble_task_id?: number | null
           next_due?: string
           priority?: string
           tasks?: string | null
