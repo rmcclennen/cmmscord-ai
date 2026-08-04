@@ -156,16 +156,28 @@ function AssetDetail() {
             {a.tag_number && <span className="font-mono text-xs text-muted-foreground">{a.tag_number}</span>}
           </div>
         </div>
-        <WorkOrderDialog
-          assetId={a.id}
-          lockAsset
-          defaultTitle=""
-          trigger={
-            <Button>
-              <Plus className="size-4" /> Work order
-            </Button>
-          }
-        />
+        <div className="flex items-center gap-2">
+          <WorkOrderDialog
+            assetId={a.id}
+            lockAsset
+            defaultTitle=""
+            trigger={
+              <Button>
+                <Plus className="size-4" /> Work order
+              </Button>
+            }
+          />
+          <DeleteRequestDialog
+            entityType="asset"
+            entityId={a.id}
+            entityLabel={a.name}
+            trigger={
+              <Button variant="outline">
+                <Trash2 className="size-4" /> Delete
+              </Button>
+            }
+          />
+        </div>
       </div>
 
       <Tabs defaultValue="specs">
