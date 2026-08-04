@@ -126,6 +126,36 @@ function AssetDetail() {
     },
     onError: (error: Error) => toast.error(error.message),
   });
+  const addPms = useMutation({
+    mutationFn: async (items: Interval[]) => {
+      const today = new Date();
+      const rows = items.map((i) => {
+        const days = frequencyToDays(i.frequency);
+        const due = new Date(today.getTime() + days * 86400000);
+        return {
+          asset_id: assetId,
+          title: i.task,
+          tasks: [i.frequency ? `Manufacturer interval: ${i.frequency}` : null, i.notes]
+            .filter(Boolean)
+            .join("\n"),
+          interval_days: days,
+          next_due: due.toISOString().slice(0, 10),
+          priority: "medium",
+          active: true,
+        };
+      });
+      const { error } = await supabase.from("pm_schedules").insert(rows);
+      if (error) throw error;
+      return rows.length;
+    },
+    onSuccess: (n) => {
+      toast.success(n === 1 ? "PM added to schedule" : `${n} PMs added to schedule`);
+      queryClient.invalidateQueries({ queryKey: ["pms"] });
+      queryClient.invalidateQueries({ queryKey: ["asset-pms", assetId] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
 
 
   if (asset.isLoading) return <p className="text-sm text-muted-foreground">Loading asset…</p>;
