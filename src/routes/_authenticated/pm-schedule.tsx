@@ -69,16 +69,18 @@ function PmSchedulePage() {
 
 
   const pms = useQuery({
-    queryKey: ["pms", search, window, page],
+    queryKey: ["pms", search, window, page, grouped],
     placeholderData: keepPreviousData,
     queryFn: async () => {
       const history = window === "history";
+      const from = grouped ? 0 : page * PAGE_SIZE;
+      const to = grouped ? 999 : page * PAGE_SIZE + PAGE_SIZE - 1;
       let query = supabase
         .from("pm_schedules")
-        .select("*, assets(id, name)", { count: "exact" })
+        .select("*, assets(id, name, location_name)", { count: "exact" })
         .eq("active", !history)
         .order("next_due", { ascending: !history })
-        .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
+        .range(from, to);
       if (search.trim()) query = query.ilike("title", `%${search.trim()}%`);
       if (window === "overdue") query = query.lt("next_due", today());
       if (window === "week") query = query.gte("next_due", today()).lte("next_due", inDays(7));
@@ -88,6 +90,7 @@ function PmSchedulePage() {
       return { rows: data, count: count ?? 0 };
     },
   });
+
 
   const complete = useMutation({
     mutationFn: async (pm: {
