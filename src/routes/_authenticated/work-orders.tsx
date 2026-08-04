@@ -36,6 +36,29 @@ function WorkOrdersPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("active");
   const queryClient = useQueryClient();
+  const team = useTeamMembers();
+
+  const reassign = useMutation({
+    mutationFn: async (wo: { id: string; wo_number: number; title: string; userId: string | null }) => {
+      const { error } = await supabase.from("work_orders").update({ assigned_to: wo.userId }).eq("id", wo.id);
+      if (error) throw error;
+      if (wo.userId) {
+        await notifyUser({
+          userId: wo.userId,
+          title: `WO-${wo.wo_number} assigned to you`,
+          body: wo.title,
+          link: "/work-orders",
+        });
+      }
+    },
+    onSuccess: () => {
+      toast.success("Work order assignment updated");
+      queryClient.invalidateQueries({ queryKey: ["work-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
 
   const wos = useQuery({
     queryKey: ["work-orders", search, status],
