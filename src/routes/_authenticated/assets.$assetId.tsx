@@ -11,7 +11,7 @@ import { DeleteRequestDialog } from "@/components/delete-request-dialog";
 import { classLabel, dueTone, manualList, prettyLabel } from "@/lib/cmms";
 import { ManualDialog } from "@/components/manual-dialog";
 import { toast } from "sonner";
-import { ArrowLeft, ExternalLink, Plus, Sparkles } from "lucide-react";
+import { ArrowLeft, ExternalLink, Plus, Sparkles, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/assets/$assetId")({
   head: () => ({
