@@ -21,6 +21,7 @@ import { Route as AuthenticatedTeamRouteImport } from './routes/_authenticated/t
 import { Route as AuthenticatedWorkOrdersRouteImport } from './routes/_authenticated/work-orders'
 import { Route as AuthenticatedAssetsIndexRouteImport } from './routes/_authenticated/assets.index'
 import { Route as AuthenticatedAssetsAssetIdRouteImport } from './routes/_authenticated/assets.$assetId'
+import { Route as AuthenticatedAssetsCaptureRouteImport } from './routes/_authenticated/assets.capture'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -83,6 +84,12 @@ const AuthenticatedAssetsAssetIdRoute =
     path: '/assets/$assetId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAssetsCaptureRoute =
+  AuthenticatedAssetsCaptureRouteImport.update({
+    id: '/assets/capture',
+    path: '/assets/capture',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -95,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/team': typeof AuthenticatedTeamRoute
   '/work-orders': typeof AuthenticatedWorkOrdersRoute
   '/assets/$assetId': typeof AuthenticatedAssetsAssetIdRoute
+  '/assets/capture': typeof AuthenticatedAssetsCaptureRoute
   '/assets/': typeof AuthenticatedAssetsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -108,6 +116,7 @@ export interface FileRoutesByTo {
   '/team': typeof AuthenticatedTeamRoute
   '/work-orders': typeof AuthenticatedWorkOrdersRoute
   '/assets/$assetId': typeof AuthenticatedAssetsAssetIdRoute
+  '/assets/capture': typeof AuthenticatedAssetsCaptureRoute
   '/assets': typeof AuthenticatedAssetsIndexRoute
 }
 export interface FileRoutesById {
@@ -123,6 +132,7 @@ export interface FileRoutesById {
   '/_authenticated/team': typeof AuthenticatedTeamRoute
   '/_authenticated/work-orders': typeof AuthenticatedWorkOrdersRoute
   '/_authenticated/assets/$assetId': typeof AuthenticatedAssetsAssetIdRoute
+  '/_authenticated/assets/capture': typeof AuthenticatedAssetsCaptureRoute
   '/_authenticated/assets/': typeof AuthenticatedAssetsIndexRoute
 }
 export interface FileRouteTypes {
@@ -138,6 +148,7 @@ export interface FileRouteTypes {
     | '/team'
     | '/work-orders'
     | '/assets/$assetId'
+    | '/assets/capture'
     | '/assets/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -151,6 +162,7 @@ export interface FileRouteTypes {
     | '/team'
     | '/work-orders'
     | '/assets/$assetId'
+    | '/assets/capture'
     | '/assets'
   id:
     | '__root__'
@@ -165,6 +177,7 @@ export interface FileRouteTypes {
     | '/_authenticated/team'
     | '/_authenticated/work-orders'
     | '/_authenticated/assets/$assetId'
+    | '/_authenticated/assets/capture'
     | '/_authenticated/assets/'
   fileRoutesById: FileRoutesById
 }
@@ -260,6 +273,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAssetsAssetIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/assets/capture': {
+      id: '/_authenticated/assets/capture'
+      path: '/assets/capture'
+      fullPath: '/assets/capture'
+      preLoaderRoute: typeof AuthenticatedAssetsCaptureRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -272,6 +292,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTeamRoute: typeof AuthenticatedTeamRoute
   AuthenticatedWorkOrdersRoute: typeof AuthenticatedWorkOrdersRoute
   AuthenticatedAssetsAssetIdRoute: typeof AuthenticatedAssetsAssetIdRoute
+  AuthenticatedAssetsCaptureRoute: typeof AuthenticatedAssetsCaptureRoute
   AuthenticatedAssetsIndexRoute: typeof AuthenticatedAssetsIndexRoute
 }
 
@@ -284,6 +305,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTeamRoute: AuthenticatedTeamRoute,
   AuthenticatedWorkOrdersRoute: AuthenticatedWorkOrdersRoute,
   AuthenticatedAssetsAssetIdRoute: AuthenticatedAssetsAssetIdRoute,
+  AuthenticatedAssetsCaptureRoute: AuthenticatedAssetsCaptureRoute,
   AuthenticatedAssetsIndexRoute: AuthenticatedAssetsIndexRoute,
 }
 
