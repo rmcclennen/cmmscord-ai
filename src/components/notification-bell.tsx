@@ -77,10 +77,11 @@ export function NotificationBell() {
                     {new Date(n.created_at).toLocaleString()}
                   </span>
                   {link && (
-                    <Link to={link} className="text-xs text-primary underline" rel="noopener noreferrer">
+                    <a href={link} className="text-xs text-primary underline" rel="noopener noreferrer">
                       Open
-                    </Link>
+                    </a>
                   )}
+
                 </div>
               </div>
             );
