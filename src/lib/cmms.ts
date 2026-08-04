@@ -128,3 +128,19 @@ export function buildingOf(
   return "Other / Unassigned";
 }
 
+
+/** Best-effort parse of a manufacturer-stated maintenance frequency into days. */
+export function frequencyToDays(frequency: string | null | undefined): number {
+  const f = (frequency ?? "").toLowerCase();
+  if (!f) return 90;
+  const num = Number((f.match(/(\d+(?:\.\d+)?)/) ?? [])[1] ?? 1);
+  if (/daily|every day|shift/.test(f)) return 1;
+  if (/week/.test(f)) return Math.max(1, Math.round(num * 7)) || 7;
+  if (/month/.test(f)) return Math.max(1, Math.round(num * 30)) || 30;
+  if (/quarter/.test(f)) return Math.max(1, Math.round(num * 90)) || 90;
+  if (/semi[- ]?annual|biannual|6 ?months/.test(f)) return 182;
+  if (/annual|year/.test(f)) return Math.max(1, Math.round(num * 365)) || 365;
+  if (/hour/.test(f)) return Math.max(7, Math.round(num / 24));
+  if (/day/.test(f)) return Math.max(1, Math.round(num));
+  return 90;
+}
