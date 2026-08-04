@@ -9,10 +9,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WorkOrderDialog } from "@/components/work-order-dialog";
 import { DeleteRequestDialog } from "@/components/delete-request-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ALL_BUILDING_OPTIONS, buildingOf, classLabel, dueTone, manualList, prettyLabel } from "@/lib/cmms";
+import { ALL_BUILDING_OPTIONS, buildingOf, classLabel, dueTone, frequencyToDays, manualList, prettyLabel } from "@/lib/cmms";
 import { ManualDialog } from "@/components/manual-dialog";
 import { toast } from "sonner";
-import { ArrowLeft, ExternalLink, Plus, Sparkles, Trash2 } from "lucide-react";
+import { ArrowLeft, CalendarPlus, ExternalLink, Plus, Sparkles, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/assets/$assetId")({
   head: () => ({
@@ -126,6 +126,36 @@ function AssetDetail() {
     },
     onError: (error: Error) => toast.error(error.message),
   });
+  const addPms = useMutation({
+    mutationFn: async (items: Interval[]) => {
+      const today = new Date();
+      const rows = items.map((i) => {
+        const days = frequencyToDays(i.frequency);
+        const due = new Date(today.getTime() + days * 86400000);
+        return {
+          asset_id: assetId,
+          title: i.task,
+          tasks: [i.frequency ? `Manufacturer interval: ${i.frequency}` : null, i.notes]
+            .filter(Boolean)
+            .join("\n"),
+          interval_days: days,
+          next_due: due.toISOString().slice(0, 10),
+          priority: "medium",
+          active: true,
+        };
+      });
+      const { error } = await supabase.from("pm_schedules").insert(rows);
+      if (error) throw error;
+      return rows.length;
+    },
+    onSuccess: (n) => {
+      toast.success(n === 1 ? "PM added to schedule" : `${n} PMs added to schedule`);
+      queryClient.invalidateQueries({ queryKey: ["pms"] });
+      queryClient.invalidateQueries({ queryKey: ["asset-pms", assetId] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
 
 
   if (asset.isLoading) return <p className="text-sm text-muted-foreground">Loading asset…</p>;
@@ -356,18 +386,44 @@ function AssetDetail() {
 
               {intervals.length > 0 && (
                 <div className="panel p-4">
-                  <p className="label-caps">Recommended intervals</p>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="label-caps">Recommended intervals</p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={addPms.isPending}
+                      onClick={() => addPms.mutate(intervals)}
+                    >
+                      <CalendarPlus className="size-4" />
+                      Add all to PM schedule
+                    </Button>
+                  </div>
                   <ul className="mt-2 divide-y divide-border">
                     {intervals.map((i, idx) => (
                       <li key={idx} className="py-2">
                         <div className="flex flex-wrap items-baseline justify-between gap-2">
                           <span className="text-sm font-medium">{i.task}</span>
-                          <span className="font-mono text-xs text-primary">{i.frequency}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs text-primary">{i.frequency}</span>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              disabled={addPms.isPending}
+                              onClick={() => addPms.mutate([i])}
+                            >
+                              <CalendarPlus className="size-4" />
+                              Add PM
+                            </Button>
+                          </div>
                         </div>
                         {i.notes && <p className="mt-0.5 text-xs text-muted-foreground">{i.notes}</p>}
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          Every {frequencyToDays(i.frequency)} days
+                        </p>
                       </li>
                     ))}
                   </ul>
+
                 </div>
               )}
 
