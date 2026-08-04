@@ -42,6 +42,7 @@ function PmSchedulePage() {
   const [window, setWindow] = useState("all");
   const [page, setPage] = useState(0);
   const [grouped, setGrouped] = useState(true);
+  const [tab, setTab] = useState("all");
   const queryClient = useQueryClient();
   const team = useTeamMembers();
 
