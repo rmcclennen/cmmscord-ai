@@ -241,13 +241,15 @@ function AssetDetail() {
             </dl>
 
 
-            {manualList(a.manuals).length > 0 && (
+            {(manuals.data ?? []).length > 0 && (
               <div className="mt-5 border-t border-border pt-4">
-                <p className="label-caps">Manuals on file</p>
+                <p className="label-caps">Manuals</p>
                 <ul className="mt-2 space-y-1 text-sm">
-                  {manualList(a.manuals).map((m) => (
-                    <li key={m} className="text-muted-foreground">
-                      {m}
+                  {(manuals.data ?? []).map((m) => (
+                    <li key={m.id}>
+                      <a href={m.file_url} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                        {m.title}
+                      </a>
                     </li>
                   ))}
                 </ul>
