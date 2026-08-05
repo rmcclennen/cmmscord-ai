@@ -315,9 +315,12 @@ export function PartsLookupDialog({
               <Button onClick={() => submit.mutate()} disabled={submit.isPending || chosen.length === 0}>
                 <Send className="size-4" />
                 {submit.isPending
-                  ? "Saving…"
-                  : `Attach ${chosen.length} part${chosen.length === 1 ? "" : "s"} to WO`}
+                  ? "Sending…"
+                  : recipient === "none"
+                    ? `Attach ${chosen.length} part${chosen.length === 1 ? "" : "s"} to WO`
+                    : `Attach & send ${chosen.length} part${chosen.length === 1 ? "" : "s"}`}
               </Button>
+
             </div>
           </div>
         )}
