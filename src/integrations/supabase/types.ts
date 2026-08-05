@@ -317,6 +317,157 @@ export type Database = {
         }
         Relationships: []
       }
+      part_assets: {
+        Row: {
+          asset_id: string
+          created_at: string
+          id: string
+          note: string | null
+          part_id: string
+        }
+        Insert: {
+          asset_id: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          part_id: string
+        }
+        Update: {
+          asset_id?: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          part_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "part_assets_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "part_assets_part_id_fkey"
+            columns: ["part_id"]
+            isOneToOne: false
+            referencedRelation: "parts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      part_transactions: {
+        Row: {
+          asset_id: string | null
+          created_at: string
+          id: string
+          kind: string
+          note: string | null
+          part_id: string
+          performed_by: string | null
+          qty: number
+          work_order_id: string | null
+        }
+        Insert: {
+          asset_id?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          note?: string | null
+          part_id: string
+          performed_by?: string | null
+          qty: number
+          work_order_id?: string | null
+        }
+        Update: {
+          asset_id?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          note?: string | null
+          part_id?: string
+          performed_by?: string | null
+          qty?: number
+          work_order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "part_transactions_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "part_transactions_part_id_fkey"
+            columns: ["part_id"]
+            isOneToOne: false
+            referencedRelation: "parts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "part_transactions_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      parts: {
+        Row: {
+          bin: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          location: string | null
+          manufacturer: string | null
+          min_qty: number
+          name: string
+          part_number: string | null
+          qty_on_hand: number
+          unit: string
+          unit_cost: number | null
+          updated_at: string
+          where_to_buy: string | null
+        }
+        Insert: {
+          bin?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          location?: string | null
+          manufacturer?: string | null
+          min_qty?: number
+          name: string
+          part_number?: string | null
+          qty_on_hand?: number
+          unit?: string
+          unit_cost?: number | null
+          updated_at?: string
+          where_to_buy?: string | null
+        }
+        Update: {
+          bin?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          location?: string | null
+          manufacturer?: string | null
+          min_qty?: number
+          name?: string
+          part_number?: string | null
+          qty_on_hand?: number
+          unit?: string
+          unit_cost?: number | null
+          updated_at?: string
+          where_to_buy?: string | null
+        }
+        Relationships: []
+      }
       pm_schedules: {
         Row: {
           active: boolean

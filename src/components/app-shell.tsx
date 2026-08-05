@@ -14,6 +14,7 @@ const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/assets", label: "Assets", icon: Boxes },
   { to: "/work-orders", label: "Work Orders", icon: ClipboardList },
+  { to: "/inventory", label: "Inventory", icon: Boxes },
   { to: "/manuals", label: "Manuals", icon: FileText },
   { to: "/approvals", label: "Approvals", icon: ShieldCheck },
   { to: "/team", label: "Team", icon: Users },

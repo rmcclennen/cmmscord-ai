@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { lookupAssetParts, type PartsLookupResult } from "@/lib/parts.functions";
 import { useTeamMembers } from "@/hooks/use-team-members";
+import { upsertPartAndLink } from "@/lib/inventory";
 import { memberLabel, notifyUser } from "@/lib/notify";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ExternalLink, PackageSearch, Send } from "lucide-react";
+import { Boxes, ExternalLink, PackageSearch, Send } from "lucide-react";
 
 type Part = PartsLookupResult["parts"][number];
 
@@ -91,6 +92,30 @@ export function PartsLookupDialog({
 
   const chosen = (result?.parts ?? []).filter((_, i) => selected[String(i)]);
 
+  const addToInventory = useMutation({
+    mutationFn: async () => {
+      if (chosen.length === 0) throw new Error("Select at least one part.");
+      for (const p of chosen) {
+        await upsertPartAndLink({
+          name: p.name,
+          part_number: p.part_number ?? null,
+          manufacturer: p.manufacturer ?? null,
+          where_to_buy: p.where_to_buy ?? null,
+          assetId: asset?.id ?? null,
+        });
+      }
+    },
+    onSuccess: () => {
+      toast.success(
+        asset
+          ? `${chosen.length} part${chosen.length === 1 ? "" : "s"} in inventory, linked to ${asset.name}`
+          : "Parts added to inventory",
+      );
+      queryClient.invalidateQueries({ queryKey: ["parts"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   const submit = useMutation({
     mutationFn: async () => {
       if (chosen.length === 0) throw new Error("Select at least one part.");
@@ -109,7 +134,11 @@ export function PartsLookupDialog({
       }
     },
     onSuccess: () => {
-      toast.success(recipient === "none" ? "Parts added to work order" : "Parts request sent");
+      toast.success(
+        recipient === "none"
+          ? "Parts attached to the work order"
+          : "Parts attached and request sent",
+      );
       queryClient.invalidateQueries({ queryKey: ["work-orders"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       setOpen(false);
@@ -230,9 +259,19 @@ export function PartsLookupDialog({
                   </SelectContent>
                 </Select>
               </div>
+              <Button
+                variant="outline"
+                onClick={() => addToInventory.mutate()}
+                disabled={addToInventory.isPending || chosen.length === 0}
+              >
+                <Boxes className="size-4" />
+                {addToInventory.isPending ? "Adding…" : "Add to inventory"}
+              </Button>
               <Button onClick={() => submit.mutate()} disabled={submit.isPending || chosen.length === 0}>
                 <Send className="size-4" />
-                {submit.isPending ? "Sending…" : `Send ${chosen.length} part${chosen.length === 1 ? "" : "s"}`}
+                {submit.isPending
+                  ? "Saving…"
+                  : `Attach ${chosen.length} part${chosen.length === 1 ? "" : "s"} to WO`}
               </Button>
             </div>
           </div>
