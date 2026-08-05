@@ -259,9 +259,19 @@ export function PartsLookupDialog({
                   </SelectContent>
                 </Select>
               </div>
+              <Button
+                variant="outline"
+                onClick={() => addToInventory.mutate()}
+                disabled={addToInventory.isPending || chosen.length === 0}
+              >
+                <Boxes className="size-4" />
+                {addToInventory.isPending ? "Adding…" : "Add to inventory"}
+              </Button>
               <Button onClick={() => submit.mutate()} disabled={submit.isPending || chosen.length === 0}>
                 <Send className="size-4" />
-                {submit.isPending ? "Sending…" : `Send ${chosen.length} part${chosen.length === 1 ? "" : "s"}`}
+                {submit.isPending
+                  ? "Saving…"
+                  : `Attach ${chosen.length} part${chosen.length === 1 ? "" : "s"} to WO`}
               </Button>
             </div>
           </div>
