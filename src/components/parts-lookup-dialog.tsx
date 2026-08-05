@@ -257,8 +257,8 @@ export function PartsLookupDialog({
               </div>
             )}
 
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="min-w-56 flex-1 space-y-2">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
                 <Label>Send request to</Label>
                 <Select value={recipient} onValueChange={setRecipient}>
                   <SelectTrigger>
@@ -266,6 +266,7 @@ export function PartsLookupDialog({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Just save to work order</SelectItem>
+                    <SelectItem value="supervisors">Supervisors / CMMS buyers (order or bid out)</SelectItem>
                     {(team.data ?? []).map((m) => (
                       <SelectItem key={m.id} value={m.id}>
                         {memberLabel(m)}
@@ -274,6 +275,35 @@ export function PartsLookupDialog({
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="needed-by">Needed by</Label>
+                <Input
+                  id="needed-by"
+                  type="date"
+                  value={neededBy}
+                  onChange={(e) => setNeededBy(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="request-photos">Photos to send with the request</Label>
+                <Input
+                  id="request-photos"
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  capture="environment"
+                  onChange={(e) => setPhotos(Array.from(e.target.files ?? []))}
+                />
+                {photos.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {photos.length} photo{photos.length === 1 ? "" : "s"} will be attached to the notification.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-end justify-end gap-3">
+
               <Button
                 variant="outline"
                 onClick={() => addToInventory.mutate()}
