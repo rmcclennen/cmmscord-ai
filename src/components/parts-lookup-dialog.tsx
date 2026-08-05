@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ExternalLink, PackageSearch, Send } from "lucide-react";
+import { Boxes, ExternalLink, PackageSearch, Send } from "lucide-react";
 
 type Part = PartsLookupResult["parts"][number];
 
