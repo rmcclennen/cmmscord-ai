@@ -183,7 +183,7 @@ function AssetDetail() {
     ["Building / area", buildingOf(a.name, null, a.location_name, a.building)],
     ["Location", a.location_name],
     ["Commissioned", a.commission_date],
-    ["Limble ID", a.limble_asset_id ? String(a.limble_asset_id) : null],
+    
   ];
 
   const intervals = (info.data?.intervals as Interval[] | null) ?? [];
@@ -310,7 +310,7 @@ function AssetDetail() {
             </ul>
             {manualList(a.manuals).length > 0 && (
               <div className="mt-5 border-t border-border pt-4">
-                <p className="label-caps">Referenced in Limble</p>
+                <p className="label-caps">Referenced documents</p>
                 <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
                   {manualList(a.manuals).map((m) => (
                     <li key={m}>{m}</li>
