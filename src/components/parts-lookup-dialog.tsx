@@ -129,11 +129,16 @@ export function PartsLookupDialog({
       if (error) throw error;
 
       if (recipient !== "none") {
-        await notifyUser({
-          userId: recipient,
-          title: `Parts needed — WO-${workOrder.wo_number}`,
-          body: `${workOrder.title}${asset ? ` (${asset.name})` : ""}\n${lines}`,
-          link: "/work-orders",
+        await createPartRequest({
+          title: `WO-${workOrder.wo_number} — ${workOrder.title}`,
+          partLines: lines,
+          note: asset ? `Asset: ${asset.name}` : null,
+          neededBy: neededBy || null,
+          routeTo: recipient === "supervisors" ? "supervisors" : "person",
+          sentTo: recipient === "supervisors" ? null : recipient,
+          workOrderId: workOrder.id,
+          assetId: asset?.id ?? null,
+          photos,
         });
       }
     },
@@ -141,15 +146,21 @@ export function PartsLookupDialog({
       toast.success(
         recipient === "none"
           ? "Parts attached to the work order"
-          : "Parts attached and request sent",
+          : recipient === "supervisors"
+            ? "Sent to supervisors to order or bid out"
+            : "Parts attached and request sent",
       );
       queryClient.invalidateQueries({ queryKey: ["work-orders"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["part-requests"] });
       setOpen(false);
       setResult(null);
+      setPhotos([]);
+      setNeededBy("");
     },
     onError: (error: Error) => toast.error(error.message),
   });
+
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
