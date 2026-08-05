@@ -356,21 +356,78 @@ export type Database = {
           },
         ]
       }
+      part_request_bids: {
+        Row: {
+          amount: number | null
+          contact: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_winner: boolean
+          lead_time_days: number | null
+          note: string | null
+          request_id: string
+          updated_at: string
+          vendor: string
+        }
+        Insert: {
+          amount?: number | null
+          contact?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_winner?: boolean
+          lead_time_days?: number | null
+          note?: string | null
+          request_id: string
+          updated_at?: string
+          vendor: string
+        }
+        Update: {
+          amount?: number | null
+          contact?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_winner?: boolean
+          lead_time_days?: number | null
+          note?: string | null
+          request_id?: string
+          updated_at?: string
+          vendor?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "part_request_bids_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "part_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       part_requests: {
         Row: {
           asset_id: string | null
+          awarded_cost: number | null
+          awarded_vendor: string | null
           created_at: string
           decision_note: string | null
+          expected_date: string | null
           handled_at: string | null
           handled_by: string | null
           id: string
+          lead_time_days: number | null
           needed_by: string | null
           note: string | null
+          ordered_at: string | null
           part_id: string | null
           part_lines: string
           photo_paths: string[]
+          po_number: string | null
           priority: string
           quoted_cost: number | null
+          received_at: string | null
           requested_by: string | null
           route_to: string
           sent_to: string | null
@@ -382,18 +439,25 @@ export type Database = {
         }
         Insert: {
           asset_id?: string | null
+          awarded_cost?: number | null
+          awarded_vendor?: string | null
           created_at?: string
           decision_note?: string | null
+          expected_date?: string | null
           handled_at?: string | null
           handled_by?: string | null
           id?: string
+          lead_time_days?: number | null
           needed_by?: string | null
           note?: string | null
+          ordered_at?: string | null
           part_id?: string | null
           part_lines: string
           photo_paths?: string[]
+          po_number?: string | null
           priority?: string
           quoted_cost?: number | null
+          received_at?: string | null
           requested_by?: string | null
           route_to?: string
           sent_to?: string | null
@@ -405,18 +469,25 @@ export type Database = {
         }
         Update: {
           asset_id?: string | null
+          awarded_cost?: number | null
+          awarded_vendor?: string | null
           created_at?: string
           decision_note?: string | null
+          expected_date?: string | null
           handled_at?: string | null
           handled_by?: string | null
           id?: string
+          lead_time_days?: number | null
           needed_by?: string | null
           note?: string | null
+          ordered_at?: string | null
           part_id?: string | null
           part_lines?: string
           photo_paths?: string[]
+          po_number?: string | null
           priority?: string
           quoted_cost?: number | null
+          received_at?: string | null
           requested_by?: string | null
           route_to?: string
           sent_to?: string | null
