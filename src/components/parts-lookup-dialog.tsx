@@ -91,6 +91,30 @@ export function PartsLookupDialog({
 
   const chosen = (result?.parts ?? []).filter((_, i) => selected[String(i)]);
 
+  const addToInventory = useMutation({
+    mutationFn: async () => {
+      if (chosen.length === 0) throw new Error("Select at least one part.");
+      for (const p of chosen) {
+        await upsertPartAndLink({
+          name: p.name,
+          part_number: p.part_number ?? null,
+          manufacturer: p.manufacturer ?? null,
+          where_to_buy: p.where_to_buy ?? null,
+          assetId: asset?.id ?? null,
+        });
+      }
+    },
+    onSuccess: () => {
+      toast.success(
+        asset
+          ? `${chosen.length} part${chosen.length === 1 ? "" : "s"} in inventory, linked to ${asset.name}`
+          : "Parts added to inventory",
+      );
+      queryClient.invalidateQueries({ queryKey: ["parts"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   const submit = useMutation({
     mutationFn: async () => {
       if (chosen.length === 0) throw new Error("Select at least one part.");
@@ -109,7 +133,11 @@ export function PartsLookupDialog({
       }
     },
     onSuccess: () => {
-      toast.success(recipient === "none" ? "Parts added to work order" : "Parts request sent");
+      toast.success(
+        recipient === "none"
+          ? "Parts attached to the work order"
+          : "Parts attached and request sent",
+      );
       queryClient.invalidateQueries({ queryKey: ["work-orders"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       setOpen(false);
