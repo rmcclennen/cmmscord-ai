@@ -170,15 +170,23 @@ export async function updateRequestOrder(input: {
   expectedDate?: string | null;
   status?: RequestStatus;
 }) {
-  const patch: Record<string, unknown> = {
+  const patch: {
+    awarded_vendor: string | null;
+    awarded_cost: number | null;
+    lead_time_days: number | null;
+    po_number: string | null;
+    expected_date: string | null;
+    ordered_at?: string;
+    received_at?: string;
+  } = {
     awarded_vendor: input.awardedVendor?.trim() || null,
     awarded_cost: num(input.awardedCost),
     lead_time_days: int(input.leadTimeDays),
     po_number: input.poNumber?.trim() || null,
     expected_date: input.expectedDate || null,
   };
-  if (input.status === "ordered") patch['ordered_at'] = new Date().toISOString();
-  if (input.status === "received") patch['received_at'] = new Date().toISOString();
+  if (input.status === "ordered") patch.ordered_at = new Date().toISOString();
+  if (input.status === "received") patch.received_at = new Date().toISOString();
   const { error } = await supabase.from("part_requests").update(patch).eq("id", input.id);
   if (error) throw error;
 }
