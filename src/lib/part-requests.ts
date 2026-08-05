@@ -18,6 +18,18 @@ export const ROUTE_OPTIONS = [
   { value: "person", label: "A specific person" },
 ] as const;
 
+export type PartRequestBid = {
+  id: string;
+  request_id: string;
+  vendor: string;
+  amount: number | null;
+  lead_time_days: number | null;
+  contact: string | null;
+  note: string | null;
+  is_winner: boolean;
+  created_at: string;
+};
+
 export type PartRequestRow = {
   id: string;
   title: string;
@@ -35,9 +47,17 @@ export type PartRequestRow = {
   requested_by: string | null;
   sent_to: string | null;
   work_order_id: string | null;
+  awarded_vendor: string | null;
+  awarded_cost: number | null;
+  lead_time_days: number | null;
+  po_number: string | null;
+  expected_date: string | null;
+  ordered_at: string | null;
+  received_at: string | null;
   work_orders: { id: string; wo_number: number; title: string } | null;
   assets: { id: string; name: string } | null;
 };
+
 
 function dataUrlToBlob(dataUrl: string): Blob {
   const [meta, base64] = dataUrl.split(",");
