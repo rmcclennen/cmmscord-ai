@@ -356,6 +356,100 @@ export type Database = {
           },
         ]
       }
+      part_requests: {
+        Row: {
+          asset_id: string | null
+          created_at: string
+          decision_note: string | null
+          handled_at: string | null
+          handled_by: string | null
+          id: string
+          needed_by: string | null
+          note: string | null
+          part_id: string | null
+          part_lines: string
+          photo_paths: string[]
+          priority: string
+          quoted_cost: number | null
+          requested_by: string | null
+          route_to: string
+          sent_to: string | null
+          status: string
+          title: string
+          updated_at: string
+          vendor: string | null
+          work_order_id: string | null
+        }
+        Insert: {
+          asset_id?: string | null
+          created_at?: string
+          decision_note?: string | null
+          handled_at?: string | null
+          handled_by?: string | null
+          id?: string
+          needed_by?: string | null
+          note?: string | null
+          part_id?: string | null
+          part_lines: string
+          photo_paths?: string[]
+          priority?: string
+          quoted_cost?: number | null
+          requested_by?: string | null
+          route_to?: string
+          sent_to?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+          vendor?: string | null
+          work_order_id?: string | null
+        }
+        Update: {
+          asset_id?: string | null
+          created_at?: string
+          decision_note?: string | null
+          handled_at?: string | null
+          handled_by?: string | null
+          id?: string
+          needed_by?: string | null
+          note?: string | null
+          part_id?: string | null
+          part_lines?: string
+          photo_paths?: string[]
+          priority?: string
+          quoted_cost?: number | null
+          requested_by?: string | null
+          route_to?: string
+          sent_to?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          vendor?: string | null
+          work_order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "part_requests_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "part_requests_part_id_fkey"
+            columns: ["part_id"]
+            isOneToOne: false
+            referencedRelation: "parts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "part_requests_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       part_transactions: {
         Row: {
           asset_id: string | null
