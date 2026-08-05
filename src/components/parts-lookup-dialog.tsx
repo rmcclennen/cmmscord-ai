@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { lookupAssetParts, type PartsLookupResult } from "@/lib/parts.functions";
 import { useTeamMembers } from "@/hooks/use-team-members";
+import { upsertPartAndLink } from "@/lib/inventory";
 import { memberLabel, notifyUser } from "@/lib/notify";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
