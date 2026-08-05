@@ -72,6 +72,9 @@ export function PartsLookupDialog({
   const [need, setNeed] = useState("");
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [recipient, setRecipient] = useState<string>("none");
+  const [neededBy, setNeededBy] = useState("");
+  const [photos, setPhotos] = useState<File[]>([]);
+
   const [result, setResult] = useState<PartsLookupResult | null>(null);
   const queryClient = useQueryClient();
   const team = useTeamMembers();
