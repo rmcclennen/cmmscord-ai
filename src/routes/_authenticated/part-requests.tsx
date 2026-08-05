@@ -6,6 +6,7 @@ import { signedPhotoUrls } from "@/lib/photos";
 import {
   REQUEST_STATUSES,
   STATUS_LABEL,
+  updateRequestOrder,
   updateRequestStatus,
   type PartRequestRow,
   type RequestStatus,
@@ -32,6 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PartRequestBids } from "@/components/part-request-bids";
 import { toast } from "sonner";
 import { PackageSearch, ShoppingCart } from "lucide-react";
 
@@ -95,14 +97,33 @@ function HandleDialog({ request }: { request: PartRequestRow }) {
   const [vendor, setVendor] = useState(request.vendor ?? "");
   const [cost, setCost] = useState(request.quoted_cost != null ? String(request.quoted_cost) : "");
   const [note, setNote] = useState("");
+  const [awardedVendor, setAwardedVendor] = useState(request.awarded_vendor ?? "");
+  const [awardedCost, setAwardedCost] = useState(
+    request.awarded_cost != null ? String(request.awarded_cost) : "",
+  );
+  const [lead, setLead] = useState(request.lead_time_days != null ? String(request.lead_time_days) : "");
+  const [po, setPo] = useState(request.po_number ?? "");
+  const [expected, setExpected] = useState(request.expected_date ?? "");
   const queryClient = useQueryClient();
 
   const save = useMutation({
-    mutationFn: () => updateRequestStatus({ id: request.id, status, vendor, quotedCost: cost, note }),
+    mutationFn: async () => {
+      await updateRequestStatus({ id: request.id, status, vendor, quotedCost: cost, note });
+      await updateRequestOrder({
+        id: request.id,
+        awardedVendor,
+        awardedCost,
+        leadTimeDays: lead,
+        poNumber: po,
+        expectedDate: expected,
+        status,
+      });
+    },
     onSuccess: () => {
       toast.success(`Marked ${STATUS_LABEL[status].toLowerCase()}`);
       queryClient.invalidateQueries({ queryKey: ["part-requests"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["part-request-bids", request.id] });
       setOpen(false);
     },
     onError: (error: Error) => toast.error(error.message),
@@ -115,7 +136,7 @@ function HandleDialog({ request }: { request: PartRequestRow }) {
           Update
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Update parts request</DialogTitle>
           <DialogDescription>{request.title}</DialogDescription>
@@ -146,6 +167,47 @@ function HandleDialog({ request }: { request: PartRequestRow }) {
               <Input id="cost" inputMode="decimal" value={cost} onChange={(e) => setCost(e.target.value)} />
             </div>
           </div>
+          <div className="rounded-md border border-border p-3">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Award & order details
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="awardedVendor">Who won the bid</Label>
+                <Input
+                  id="awardedVendor"
+                  value={awardedVendor}
+                  onChange={(e) => setAwardedVendor(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="awardedCost">Awarded cost</Label>
+                <Input
+                  id="awardedCost"
+                  inputMode="decimal"
+                  value={awardedCost}
+                  onChange={(e) => setAwardedCost(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lead">Lead time (days)</Label>
+                <Input id="lead" inputMode="numeric" value={lead} onChange={(e) => setLead(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="po">PO number</Label>
+                <Input id="po" value={po} onChange={(e) => setPo(e.target.value)} />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="expected">Expected arrival</Label>
+                <Input
+                  id="expected"
+                  type="date"
+                  value={expected}
+                  onChange={(e) => setExpected(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
           <div className="space-y-2">
             <Label htmlFor="note">Note back to the requester</Label>
             <Textarea id="note" value={note} onChange={(e) => setNote(e.target.value)} rows={3} />
@@ -169,7 +231,7 @@ function PartRequestsPage() {
       const { data, error } = await supabase
         .from("part_requests")
         .select(
-          "id, title, part_lines, note, priority, needed_by, status, route_to, vendor, quoted_cost, decision_note, photo_paths, created_at, requested_by, sent_to, work_order_id, work_orders(id, wo_number, title), assets(id, name)",
+          "id, title, part_lines, note, priority, needed_by, status, route_to, vendor, quoted_cost, decision_note, photo_paths, created_at, requested_by, sent_to, work_order_id, awarded_vendor, awarded_cost, lead_time_days, po_number, expected_date, ordered_at, received_at, work_orders(id, wo_number, title), assets(id, name)",
         )
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -255,6 +317,9 @@ function PartRequestsPage() {
               </p>
             )}
             <RequestPhotos paths={r.photo_paths ?? []} />
+            {(r.status === "bidding" || r.status === "ordered" || r.status === "received" || isApprover) && (
+              <PartRequestBids request={r} canManage={isApprover} />
+            )}
           </article>
         ))}
       </div>
