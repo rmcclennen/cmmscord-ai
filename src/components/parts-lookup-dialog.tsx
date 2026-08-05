@@ -5,7 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { lookupAssetParts, type PartsLookupResult } from "@/lib/parts.functions";
 import { useTeamMembers } from "@/hooks/use-team-members";
 import { upsertPartAndLink } from "@/lib/inventory";
-import { memberLabel, notifyUser } from "@/lib/notify";
+import { memberLabel } from "@/lib/notify";
+import { createPartRequest } from "@/lib/part-requests";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -71,6 +72,9 @@ export function PartsLookupDialog({
   const [need, setNeed] = useState("");
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [recipient, setRecipient] = useState<string>("none");
+  const [neededBy, setNeededBy] = useState("");
+  const [photos, setPhotos] = useState<File[]>([]);
+
   const [result, setResult] = useState<PartsLookupResult | null>(null);
   const queryClient = useQueryClient();
   const team = useTeamMembers();
@@ -125,11 +129,16 @@ export function PartsLookupDialog({
       if (error) throw error;
 
       if (recipient !== "none") {
-        await notifyUser({
-          userId: recipient,
-          title: `Parts needed — WO-${workOrder.wo_number}`,
-          body: `${workOrder.title}${asset ? ` (${asset.name})` : ""}\n${lines}`,
-          link: "/work-orders",
+        await createPartRequest({
+          title: `WO-${workOrder.wo_number} — ${workOrder.title}`,
+          partLines: lines,
+          note: asset ? `Asset: ${asset.name}` : null,
+          neededBy: neededBy || null,
+          routeTo: recipient === "supervisors" ? "supervisors" : "person",
+          sentTo: recipient === "supervisors" ? null : recipient,
+          workOrderId: workOrder.id,
+          assetId: asset?.id ?? null,
+          photos,
         });
       }
     },
@@ -137,15 +146,21 @@ export function PartsLookupDialog({
       toast.success(
         recipient === "none"
           ? "Parts attached to the work order"
-          : "Parts attached and request sent",
+          : recipient === "supervisors"
+            ? "Sent to supervisors to order or bid out"
+            : "Parts attached and request sent",
       );
       queryClient.invalidateQueries({ queryKey: ["work-orders"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["part-requests"] });
       setOpen(false);
       setResult(null);
+      setPhotos([]);
+      setNeededBy("");
     },
     onError: (error: Error) => toast.error(error.message),
   });
+
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -242,8 +257,8 @@ export function PartsLookupDialog({
               </div>
             )}
 
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="min-w-56 flex-1 space-y-2">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
                 <Label>Send request to</Label>
                 <Select value={recipient} onValueChange={setRecipient}>
                   <SelectTrigger>
@@ -251,6 +266,7 @@ export function PartsLookupDialog({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Just save to work order</SelectItem>
+                    <SelectItem value="supervisors">Supervisors / CMMS buyers (order or bid out)</SelectItem>
                     {(team.data ?? []).map((m) => (
                       <SelectItem key={m.id} value={m.id}>
                         {memberLabel(m)}
@@ -259,6 +275,35 @@ export function PartsLookupDialog({
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="needed-by">Needed by</Label>
+                <Input
+                  id="needed-by"
+                  type="date"
+                  value={neededBy}
+                  onChange={(e) => setNeededBy(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="request-photos">Photos to send with the request</Label>
+                <Input
+                  id="request-photos"
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  capture="environment"
+                  onChange={(e) => setPhotos(Array.from(e.target.files ?? []))}
+                />
+                {photos.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {photos.length} photo{photos.length === 1 ? "" : "s"} will be attached to the notification.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-end justify-end gap-3">
+
               <Button
                 variant="outline"
                 onClick={() => addToInventory.mutate()}
@@ -270,9 +315,12 @@ export function PartsLookupDialog({
               <Button onClick={() => submit.mutate()} disabled={submit.isPending || chosen.length === 0}>
                 <Send className="size-4" />
                 {submit.isPending
-                  ? "Saving…"
-                  : `Attach ${chosen.length} part${chosen.length === 1 ? "" : "s"} to WO`}
+                  ? "Sending…"
+                  : recipient === "none"
+                    ? `Attach ${chosen.length} part${chosen.length === 1 ? "" : "s"} to WO`
+                    : `Attach & send ${chosen.length} part${chosen.length === 1 ? "" : "s"}`}
               </Button>
+
             </div>
           </div>
         )}

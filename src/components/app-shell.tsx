@@ -6,7 +6,7 @@ import { useSessionUser } from "@/hooks/use-session-user";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/notification-bell";
 
-import { Waves, LayoutDashboard, Boxes, CalendarClock, ClipboardList, FileText, LogOut, Settings, ShieldCheck, Users } from "lucide-react";
+import { Waves, LayoutDashboard, Boxes, CalendarClock, ClipboardList, FileText, LogOut, Settings, ShieldCheck, ShoppingCart, Users } from "lucide-react";
 import type { ReactNode } from "react";
 
 const NAV = [
@@ -15,6 +15,7 @@ const NAV = [
   { to: "/assets", label: "Assets", icon: Boxes },
   { to: "/work-orders", label: "Work Orders", icon: ClipboardList },
   { to: "/inventory", label: "Inventory", icon: Boxes },
+  { to: "/part-requests", label: "Parts Requests", icon: ShoppingCart },
   { to: "/manuals", label: "Manuals", icon: FileText },
   { to: "/approvals", label: "Approvals", icon: ShieldCheck },
   { to: "/team", label: "Team", icon: Users },
