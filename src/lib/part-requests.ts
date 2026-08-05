@@ -149,3 +149,93 @@ export async function updateRequestStatus(input: {
     .eq("id", input.id);
   if (error) throw error;
 }
+
+const num = (v?: string | null) => {
+  const n = v?.trim() ? Number(v) : null;
+  return n != null && Number.isFinite(n) ? n : null;
+};
+
+const int = (v?: string | null) => {
+  const n = num(v);
+  return n != null ? Math.round(n) : null;
+};
+
+/** Order/award details captured once a bid is chosen. */
+export async function updateRequestOrder(input: {
+  id: string;
+  awardedVendor?: string | null;
+  awardedCost?: string | null;
+  leadTimeDays?: string | null;
+  poNumber?: string | null;
+  expectedDate?: string | null;
+  status?: RequestStatus;
+}) {
+  const patch: Record<string, unknown> = {
+    awarded_vendor: input.awardedVendor?.trim() || null,
+    awarded_cost: num(input.awardedCost),
+    lead_time_days: int(input.leadTimeDays),
+    po_number: input.poNumber?.trim() || null,
+    expected_date: input.expectedDate || null,
+  };
+  if (input.status === "ordered") patch['ordered_at'] = new Date().toISOString();
+  if (input.status === "received") patch['received_at'] = new Date().toISOString();
+  const { error } = await supabase.from("part_requests").update(patch).eq("id", input.id);
+  if (error) throw error;
+}
+
+export async function listBids(requestId: string): Promise<PartRequestBid[]> {
+  const { data, error } = await supabase
+    .from("part_request_bids")
+    .select("id, request_id, vendor, amount, lead_time_days, contact, note, is_winner, created_at")
+    .eq("request_id", requestId)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as PartRequestBid[];
+}
+
+export async function addBid(input: {
+  requestId: string;
+  vendor: string;
+  amount?: string | null;
+  leadTimeDays?: string | null;
+  contact?: string | null;
+  note?: string | null;
+}) {
+  const userId = (await supabase.auth.getUser()).data.user?.id ?? null;
+  if (!userId) throw new Error("Sign in again to log a bid.");
+  const { error } = await supabase.from("part_request_bids").insert({
+    request_id: input.requestId,
+    vendor: input.vendor.trim(),
+    amount: num(input.amount),
+    lead_time_days: int(input.leadTimeDays),
+    contact: input.contact?.trim() || null,
+    note: input.note?.trim() || null,
+    created_by: userId,
+  });
+  if (error) throw error;
+}
+
+export async function deleteBid(id: string) {
+  const { error } = await supabase.from("part_request_bids").delete().eq("id", id);
+  if (error) throw error;
+}
+
+/** Marks one bid the winner and copies vendor/cost/lead time onto the request. */
+export async function awardBid(bid: PartRequestBid) {
+  const clear = await supabase
+    .from("part_request_bids")
+    .update({ is_winner: false })
+    .eq("request_id", bid.request_id);
+  if (clear.error) throw clear.error;
+  const win = await supabase.from("part_request_bids").update({ is_winner: true }).eq("id", bid.id);
+  if (win.error) throw win.error;
+  const { error } = await supabase
+    .from("part_requests")
+    .update({
+      awarded_vendor: bid.vendor,
+      awarded_cost: bid.amount,
+      lead_time_days: bid.lead_time_days,
+    })
+    .eq("id", bid.request_id);
+  if (error) throw error;
+}
