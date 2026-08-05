@@ -159,7 +159,14 @@ function WorkOrdersPage() {
                 {prettyLabel(wo.wo_type)} · {wo.due_date ? `due ${wo.due_date}` : "no due date"}
               </p>
               {wo.description && <p className="mt-1 text-xs text-muted-foreground">{wo.description}</p>}
+              {wo.parts_used && (
+                <div className="mt-2 rounded-md border border-border bg-muted/40 p-2">
+                  <p className="label-caps text-[10px]">Parts</p>
+                  <p className="whitespace-pre-line text-xs text-muted-foreground">{wo.parts_used}</p>
+                </div>
+              )}
             </div>
+
             <Badge variant={wo.priority === "critical" || wo.priority === "high" ? "destructive" : "outline"}>
               {prettyLabel(wo.priority)}
             </Badge>
