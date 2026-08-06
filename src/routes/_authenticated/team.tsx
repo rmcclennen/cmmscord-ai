@@ -332,36 +332,11 @@ function TeamPage() {
     onError: (error: Error) => toast.error(error.message),
   });
 
-  // Helper to remove all related records for a user ID
+  // Full server-side removal (roles, profile, directory, and the login itself)
   const cleanUserData = async (memberId: string) => {
-    // 1. Unassign any pending/assigned PM schedules or work orders
-    try {
-      await Promise.all([
-        supabase
-          .from("pm_schedules")
-          .update({ assigned_to: null, assigned_label: null })
-          .eq("assigned_to", memberId),
-        supabase
-          .from("work_orders")
-          .update({ assigned_to: null })
-          .eq("assigned_to", memberId),
-      ]);
-    } catch (err) {
-      console.warn("Could not unassign work items:", err);
-    }
-
-    // 2. Remove assigned roles
-    const { error: roleError } = await supabase.from("user_roles").delete().eq("user_id", memberId);
-    if (roleError) console.warn("Error deleting roles:", roleError.message);
-
-    // 3. Remove from profiles
-    const { error: profError } = await supabase.from("profiles").delete().eq("id", memberId);
-    if (profError) console.warn("Error deleting profile:", profError.message);
-
-    // 4. Remove from team directory
-    const { error: dirError } = await supabase.from("team_directory").delete().eq("id", memberId);
-    if (dirError) throw dirError;
+    await removeTeamMember({ data: { userId: memberId } });
   };
+
 
   // Single Member Deletion Mutation
   const deleteMemberMutation = useMutation({
