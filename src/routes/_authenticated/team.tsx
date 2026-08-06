@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useMyRoles } from "@/hooks/use-my-roles";
 import { useSessionUser } from "@/hooks/use-session-user";
 import { ROLE_OPTIONS, roleLabel, type AppRole } from "@/lib/roles";
-import { CARRIERS, carrierLabel } from "@/lib/carriers";
+import { CARRIERS, carrierLabel, formatPhone } from "@/lib/carriers";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -55,6 +55,19 @@ import {
   UserX,
   X,
 } from "lucide-react";
+
+const APPROVER_ROLE_SET: AppRole[] = ["admin", "manager", "supervisor"];
+
+function isApproverRole(role: AppRole | string) {
+  return APPROVER_ROLE_SET.includes(role as AppRole);
+}
+
+function roleBadgeClass(role: AppRole | string) {
+  if (role === "admin") return "border-destructive/40 text-destructive";
+  if (role === "manager") return "border-primary/50 text-primary";
+  if (role === "supervisor") return "border-primary/40 text-primary";
+  return "border-border text-muted-foreground";
+}
 
 export const Route = createFileRoute("/_authenticated/team")({
   head: () => ({
@@ -330,7 +343,7 @@ function TeamPage() {
           .eq("assigned_to", memberId),
         supabase
           .from("work_orders")
-          .update({ assigned_to: null, assigned_to_name: null })
+          .update({ assigned_to: null })
           .eq("assigned_to", memberId),
       ]);
     } catch (err) {
