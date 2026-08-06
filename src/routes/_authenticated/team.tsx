@@ -2,6 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { deleteTeamMember as removeTeamMember } from "@/lib/team.functions";
+
 import { useMyRoles } from "@/hooks/use-my-roles";
 import { useSessionUser } from "@/hooks/use-session-user";
 import { ROLE_OPTIONS, roleLabel, type AppRole } from "@/lib/roles";
