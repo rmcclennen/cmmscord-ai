@@ -40,8 +40,9 @@ export const addTeamMember = createServerFn({ method: "POST" })
         .eq("email", trimmedEmail)
         .limit(1);
 
-      if (existingProfiles && existingProfiles.length > 0 && existingProfiles[0].id) {
-        memberId = existingProfiles[0].id;
+      const existingId = existingProfiles?.[0]?.id;
+      if (existingId) {
+        memberId = existingId;
       } else {
         // Create an auth user via Admin API
         try {
