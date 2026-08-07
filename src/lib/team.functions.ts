@@ -26,7 +26,7 @@ export const addTeamMember = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    let memberId = crypto.randomUUID();
+    let memberId: string = crypto.randomUUID();
     const trimmedEmail = data.email?.trim() || null;
     const trimmedName = data.fullName.trim();
     const trimmedPhone = data.phone?.trim() || null;
