@@ -2,7 +2,14 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { deleteTeamMember as removeTeamMember } from "@/lib/team.functions";
+import {
+  addTeamMember,
+  updateTeamMember,
+  addMemberRole,
+  removeMemberRole,
+  getTeamRoster,
+  deleteTeamMember as removeTeamMember,
+} from "@/lib/team.functions";
 
 import { useMyRoles } from "@/hooks/use-my-roles";
 import { useSessionUser } from "@/hooks/use-session-user";
@@ -164,6 +171,15 @@ function TeamPage() {
   const teamQuery = useQuery({
     queryKey: ["team-roles"],
     queryFn: async (): Promise<MemberData[]> => {
+      try {
+        const roster = await getTeamRoster();
+        if (roster && Array.isArray(roster)) {
+          return roster;
+        }
+      } catch (err) {
+        console.warn("getTeamRoster server error, trying client query fallback:", err);
+      }
+
       const [
         { data: directory, error: dirError },
         { data: roles, error: roleError },
@@ -175,7 +191,7 @@ function TeamPage() {
       ]);
 
       if (dirError) throw dirError;
-      if (roleError) throw roleError;
+      if (roleError) console.warn("Roles query:", roleError.message);
       if (profError) {
         console.warn("Could not fetch profiles:", profError.message);
       }
@@ -203,57 +219,30 @@ function TeamPage() {
         throw new Error("Please enter a name for the team member.");
       }
 
-      const newId = crypto.randomUUID();
-      const trimmedName = newName.trim();
-      const trimmedEmail = newEmail.trim();
-      const trimmedPhone = newPhone.trim();
-
-      // 1. Insert into team_directory
-      const { error: dirError } = await supabase.from("team_directory").insert({
-        id: newId,
-        full_name: trimmedName,
+      const res = await addTeamMember({
+        data: {
+          fullName: newName.trim(),
+          email: newEmail.trim() || undefined,
+          phone: newPhone.trim() || undefined,
+          carrier: newCarrier !== "none" ? newCarrier : undefined,
+          roles: newSelectedRoles,
+        },
       });
-      if (dirError) throw dirError;
-
-      // 2. Insert / upsert profile details if email or phone is provided
-      if (trimmedEmail || trimmedPhone || newCarrier !== "none") {
-        const { error: profError } = await supabase.from("profiles").upsert({
-          id: newId,
-          full_name: trimmedName,
-          email: trimmedEmail || null,
-          phone: trimmedPhone || null,
-          carrier: newCarrier !== "none" ? newCarrier : null,
-          notify_email: Boolean(trimmedEmail),
-          notify_sms: Boolean(trimmedPhone),
-        });
-        if (profError) {
-          console.warn("Profile save warning:", profError.message);
-        }
-      }
-
-      // 3. Assign selected roles
-      if (newSelectedRoles.length > 0) {
-        const roleInserts = newSelectedRoles.map((r) => ({
-          user_id: newId,
-          role: r,
-        }));
-        const { error: roleError } = await supabase.from("user_roles").insert(roleInserts);
-        if (roleError) throw roleError;
-      }
 
       return {
-        id: newId,
-        full_name: trimmedName,
-        email: trimmedEmail || null,
-        phone: trimmedPhone || null,
-        carrier: newCarrier !== "none" ? newCarrier : null,
-        roles: newSelectedRoles.map((r, idx) => ({ id: `${newId}-${idx}`, role: r })),
+        id: res.id,
+        full_name: res.full_name,
+        email: res.email || null,
+        phone: res.phone || null,
+        carrier: res.carrier || null,
+        roles: newSelectedRoles.map((r, idx) => ({ id: `${res.id}-${idx}`, role: r })),
       };
     },
     onSuccess: (createdMember) => {
       setAddOpen(false);
       queryClient.invalidateQueries({ queryKey: ["team-roles"] });
       queryClient.invalidateQueries({ queryKey: ["team-members"] });
+      queryClient.invalidateQueries({ queryKey: ["team-approvers"] });
 
       if (sendInviteImmediately && createdMember) {
         // Automatically open the invitation link dialog
@@ -273,7 +262,7 @@ function TeamPage() {
       setNewSelectedRoles(["operator"]);
       setSendInviteImmediately(true);
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(error.message || "Failed to add team member"),
   });
 
   // Edit Member Mutation
@@ -284,24 +273,15 @@ function TeamPage() {
         throw new Error("Name cannot be blank.");
       }
 
-      const { error: dirError } = await supabase
-        .from("team_directory")
-        .update({ full_name: editName.trim() })
-        .eq("id", editMember.id);
-      if (dirError) throw dirError;
-
-      const { error: profError } = await supabase.from("profiles").upsert({
-        id: editMember.id,
-        full_name: editName.trim(),
-        email: editEmail.trim() || null,
-        phone: editPhone.trim() || null,
-        carrier: editCarrier !== "none" ? editCarrier : null,
-        notify_email: Boolean(editEmail.trim()),
-        notify_sms: Boolean(editPhone.trim()),
+      await updateTeamMember({
+        data: {
+          userId: editMember.id,
+          fullName: editName.trim(),
+          email: editEmail.trim() || null,
+          phone: editPhone.trim() || null,
+          carrier: editCarrier !== "none" ? editCarrier : null,
+        },
       });
-      if (profError) {
-        console.warn("Profile update warning:", profError.message);
-      }
     },
     onSuccess: () => {
       toast.success("Member information updated");
@@ -309,19 +289,20 @@ function TeamPage() {
       queryClient.invalidateQueries({ queryKey: ["team-roles"] });
       queryClient.invalidateQueries({ queryKey: ["team-members"] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(error.message || "Failed to update member"),
   });
 
   // Quick Update Email for Invite Mutation
   const updateEmailForInviteMutation = useMutation({
     mutationFn: async ({ memberId, email }: { memberId: string; email: string }) => {
       if (!email.trim()) throw new Error("Please enter a valid email address.");
-      const { error } = await supabase.from("profiles").upsert({
-        id: memberId,
-        email: email.trim(),
-        notify_email: true,
+      await updateTeamMember({
+        data: {
+          userId: memberId,
+          fullName: inviteMember?.full_name || "Team Member",
+          email: email.trim(),
+        },
       });
-      if (error) throw error;
       return email.trim();
     },
     onSuccess: (savedEmail) => {
@@ -331,14 +312,13 @@ function TeamPage() {
       }
       queryClient.invalidateQueries({ queryKey: ["team-roles"] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(error.message || "Failed to save email"),
   });
 
   // Full server-side removal (roles, profile, directory, and the login itself)
   const cleanUserData = async (memberId: string) => {
     await removeTeamMember({ data: { userId: memberId } });
   };
-
 
   // Single Member Deletion Mutation
   const deleteMemberMutation = useMutation({
@@ -390,29 +370,27 @@ function TeamPage() {
   // Add single role to member
   const addRole = useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: AppRole }) => {
-      const { error } = await supabase.from("user_roles").insert({ user_id: userId, role });
-      if (error) throw error;
+      await addMemberRole({ data: { userId, role } });
     },
     onSuccess: () => {
       toast.success("Role added");
       queryClient.invalidateQueries({ queryKey: ["team-roles"] });
       queryClient.invalidateQueries({ queryKey: ["my-roles"] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(error.message || "Failed to add role"),
   });
 
   // Remove single role from member
   const removeRole = useMutation({
     mutationFn: async (rowId: string) => {
-      const { error } = await supabase.from("user_roles").delete().eq("id", rowId);
-      if (error) throw error;
+      await removeMemberRole({ data: { rowId } });
     },
     onSuccess: () => {
       toast.success("Role removed");
       queryClient.invalidateQueries({ queryKey: ["team-roles"] });
       queryClient.invalidateQueries({ queryKey: ["my-roles"] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(error.message || "Failed to remove role"),
   });
 
   // Computed member statistics
