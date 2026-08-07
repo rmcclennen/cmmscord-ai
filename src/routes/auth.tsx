@@ -14,9 +14,15 @@ export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
       { title: "Sign in | CMMSCord AI" },
-      { name: "description", content: "Sign in to the wastewater plant asset, PM, and work order system." },
+      {
+        name: "description",
+        content: "Sign in to the wastewater plant asset, PM, and work order system.",
+      },
       { property: "og:title", content: "Sign in | CMMSCord AI" },
-      { property: "og:description", content: "Team access to plant assets, PM schedules, and work orders." },
+      {
+        property: "og:description",
+        content: "Team access to plant assets, PM schedules, and work orders.",
+      },
     ],
   }),
   beforeLoad: async () => {
@@ -30,7 +36,26 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [tab, setTab] = useState<string>("signin");
+  const [invitedRole, setInvitedRole] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const inviteParam = params.get("invite");
+      const emailParam = params.get("email");
+      const nameParam = params.get("name");
+      const roleParam = params.get("role");
+
+      if (emailParam) setEmail(emailParam);
+      if (nameParam) setFullName(nameParam);
+      if (roleParam) setInvitedRole(roleParam);
+      if (inviteParam === "1" || (emailParam && !params.has("signin"))) {
+        setTab("signup");
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
@@ -57,12 +82,14 @@ function AuthPage() {
     if (error) {
       toast.error(error.message);
     } else if (!data.session) {
-      toast.success("Check your email to confirm your account.");
+      toast.success("Account created! Check your email to confirm if required or sign in.");
     }
   }
 
   async function google() {
-    const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin,
+    });
     if (result.error) toast.error("Google sign-in failed. Please try again.");
   }
 
@@ -78,21 +105,38 @@ function AuthPage() {
             Every asset, every PM, every work order — one control room.
           </h1>
           <p className="mt-4 max-w-md text-sm text-sidebar-foreground/70">
-            1,160 plant assets with full nameplate data, seeded PM programs by equipment class, AI-assisted
-            manufacturer maintenance lookups, and work orders your crew can act on.
+            1,160 plant assets with full nameplate data, seeded PM programs by equipment class,
+            AI-assisted manufacturer maintenance lookups, and work orders your crew can act on.
           </p>
         </div>
-        <p className="font-mono text-xs text-sidebar-foreground/50">WASTEWATER TREATMENT / MAINTENANCE OPS</p>
+        <p className="font-mono text-xs text-sidebar-foreground/50">
+          WASTEWATER TREATMENT / MAINTENANCE OPS
+        </p>
       </div>
 
       <div className="flex items-center justify-center p-6">
         <div className="w-full max-w-sm panel p-6">
+          {invitedRole && (
+            <div className="mb-4 rounded-lg border border-primary/30 bg-primary/10 p-3 text-xs">
+              <p className="font-semibold text-primary">Team Access Invitation</p>
+              <p className="mt-0.5 text-muted-foreground">
+                You've been invited as{" "}
+                <strong className="text-foreground">{invitedRole.replace(/_/g, " ")}</strong>.
+                Create your password to activate your plant workspace access.
+              </p>
+            </div>
+          )}
+
           <h2 className="text-lg font-semibold">Team access</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Sign in to your plant maintenance account.</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Sign in to your plant maintenance account.
+          </p>
 
           <div className="mt-4 rounded-md border border-border bg-muted/40 p-3">
             <p className="label-caps">Demo access</p>
-            <p className="mt-1 font-mono text-xs text-muted-foreground">demo@cmmscord.ai / CMMSdemo2026!</p>
+            <p className="mt-1 font-mono text-xs text-muted-foreground">
+              demo@cmmscord.ai / CMMSdemo2026!
+            </p>
             <Button
               size="sm"
               variant="secondary"
@@ -100,6 +144,7 @@ function AuthPage() {
               onClick={() => {
                 setEmail("demo@cmmscord.ai");
                 setPassword("CMMSdemo2026!");
+                setTab("signin");
               }}
             >
               Fill demo credentials
@@ -116,7 +161,7 @@ function AuthPage() {
             <div className="h-px flex-1 bg-border" />
           </div>
 
-          <Tabs defaultValue="signin">
+          <Tabs value={tab} onValueChange={setTab}>
             <TabsList className="w-full">
               <TabsTrigger value="signin" className="flex-1">
                 Sign in
@@ -129,7 +174,12 @@ function AuthPage() {
             <TabsContent value="signin" className="mt-4 space-y-3">
               <div className="space-y-1.5">
                 <Label htmlFor="email">Work email</Label>
-                <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="password">Password</Label>
@@ -152,7 +202,12 @@ function AuthPage() {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="email2">Work email</Label>
-                <Input id="email2" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                <Input
+                  id="email2"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="password2">Password</Label>
