@@ -241,8 +241,8 @@ function TeamPage() {
       // 1. Add current authenticated user
       if (currentUser) {
         const currentName =
-          (currentUser.user_metadata?.['full_name'] as string) ||
-          (currentUser.user_metadata?.['name'] as string) ||
+          (currentUser.user_metadata?.["full_name"] as string) ||
+          (currentUser.user_metadata?.["name"] as string) ||
           formatNameFromEmail(currentUser.email);
 
         const existingDbUser = dbRoster.find((m) => m.id === currentUser.id);
