@@ -122,7 +122,7 @@ export function EditAssetPartsDialog({
         if (existing) {
           const { error } = await supabase
             .from("asset_maintenance_info")
-            .update({ parts: updated })
+            .update({ parts: updated as unknown as Json })
             .eq("id", existing.id);
           if (error) throw error;
         } else {
@@ -130,7 +130,7 @@ export function EditAssetPartsDialog({
             asset_id: assetId,
             summary: "Parts list customized by operator.",
             intervals: [],
-            parts: updated,
+            parts: updated as unknown as Json,
             sources: [],
           });
           if (error) throw error;
@@ -176,6 +176,7 @@ export function EditAssetPartsDialog({
 
   const handleStartEdit = (index: number) => {
     const p = partsList[index];
+    if (!p) return;
     setEditingIndex(index);
     setEditName(p.name);
     setEditPartNumber(p.part_number || "");
