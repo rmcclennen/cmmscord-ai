@@ -1,3 +1,4 @@
+import type { Json } from "@/integrations/supabase/types";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -162,9 +163,9 @@ function AssetDetail() {
           .insert({
             asset_id: assetId,
             summary: fallbackData.summary,
-            intervals: fallbackData.intervals,
-            parts: fallbackData.parts,
-            sources: fallbackData.sources,
+            intervals: fallbackData.intervals as unknown as Json,
+            parts: fallbackData.parts as unknown as Json,
+            sources: fallbackData.sources as unknown as Json,
           })
           .select()
           .single();
@@ -841,7 +842,7 @@ function AssetDetail() {
                             lockAsset
                             initialPart={{
                               name: p.name,
-                              part_number: p.part_number,
+                              part_number: p.part_number ?? null,
                               manufacturer: a.manufacturer,
                               qty: 1,
                             }}

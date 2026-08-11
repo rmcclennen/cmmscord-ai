@@ -15,6 +15,7 @@ import {
   addCustomLocalCrewMember,
   removeCustomLocalCrewMember,
   getCustomLocalCrew,
+  saveCustomLocalCrew,
   ensureUserSynced,
   formatNameFromEmail,
 } from "@/lib/team-sync";
@@ -240,8 +241,8 @@ function TeamPage() {
       // 1. Add current authenticated user
       if (currentUser) {
         const currentName =
-          (currentUser.user_metadata?.full_name as string) ||
-          (currentUser.user_metadata?.name as string) ||
+          (currentUser.user_metadata?.['full_name'] as string) ||
+          (currentUser.user_metadata?.['name'] as string) ||
           formatNameFromEmail(currentUser.email);
 
         const existingDbUser = dbRoster.find((m) => m.id === currentUser.id);
@@ -441,7 +442,7 @@ function TeamPage() {
       if (inviteMember) {
         addCustomLocalCrewMember({
           id: memberId,
-          full_name: inviteMember.full_name,
+          full_name: inviteMember.full_name ?? "",
           email: cleanEmail,
           phone: inviteMember.phone,
           carrier: inviteMember.carrier,

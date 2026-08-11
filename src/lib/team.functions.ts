@@ -26,7 +26,7 @@ export const addTeamMember = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    let memberId = crypto.randomUUID();
+    let memberId: string = crypto.randomUUID();
     const trimmedEmail = data.email?.trim() || null;
     const trimmedName = data.fullName.trim();
     const trimmedPhone = data.phone?.trim() || null;
@@ -40,8 +40,9 @@ export const addTeamMember = createServerFn({ method: "POST" })
         .eq("email", trimmedEmail)
         .limit(1);
 
-      if (existingProfiles && existingProfiles.length > 0 && existingProfiles[0].id) {
-        memberId = existingProfiles[0].id;
+      const existingId = existingProfiles?.[0]?.id;
+      if (existingId) {
+        memberId = existingId;
       } else {
         // Create an auth user via Admin API
         try {
