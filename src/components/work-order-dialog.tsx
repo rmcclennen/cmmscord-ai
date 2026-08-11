@@ -26,7 +26,6 @@ import { memberLabel, notifyUser } from "@/lib/notify";
 import { toast } from "sonner";
 import type { ReactNode } from "react";
 
-
 type Props = {
   trigger: ReactNode;
   assetId?: string | null;
@@ -35,7 +34,13 @@ type Props = {
   lockAsset?: boolean;
 };
 
-export function WorkOrderDialog({ trigger, assetId, pmScheduleId, defaultTitle, lockAsset }: Props) {
+export function WorkOrderDialog({
+  trigger,
+  assetId,
+  pmScheduleId,
+  defaultTitle,
+  lockAsset,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState(defaultTitle ?? "");
   const [description, setDescription] = useState("");
@@ -104,14 +109,15 @@ export function WorkOrderDialog({ trigger, assetId, pmScheduleId, defaultTitle, 
     onError: (error: Error) => toast.error(error.message),
   });
 
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <span onClick={() => setOpen(true)}>{trigger}</span>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>New work order</DialogTitle>
-          <DialogDescription>Log corrective, preventive, or emergency work for the plant.</DialogDescription>
+          <DialogDescription>
+            Log corrective, preventive, or emergency work for the plant.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
@@ -179,7 +185,12 @@ export function WorkOrderDialog({ trigger, assetId, pmScheduleId, defaultTitle, 
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="wo-due">Due date</Label>
-              <Input id="wo-due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+              <Input
+                id="wo-due"
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+              />
             </div>
           </div>
           <div className="space-y-1.5">

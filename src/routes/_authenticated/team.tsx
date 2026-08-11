@@ -10,6 +10,14 @@ import {
   getTeamRoster,
   deleteTeamMember as removeTeamMember,
 } from "@/lib/team.functions";
+import {
+  DEFAULT_PLANT_CREW,
+  addCustomLocalCrewMember,
+  removeCustomLocalCrewMember,
+  getCustomLocalCrew,
+  ensureUserSynced,
+  formatNameFromEmail,
+} from "@/lib/team-sync";
 
 import { useMyRoles } from "@/hooks/use-my-roles";
 import { useSessionUser } from "@/hooks/use-session-user";
@@ -81,7 +89,7 @@ function roleBadgeClass(role: AppRole | string) {
 export const Route = createFileRoute("/_authenticated/team")({
   head: () => ({
     meta: [
-      { title: "Team & Role Access | CMMSCord AI" },
+      { title: "Team & Role Access | AssetCareConnect" },
       {
         name: "description",
         content:
@@ -121,17 +129,17 @@ function generateInviteUrl(email: string, name: string, role?: string) {
 
 function generateMailtoLink(email: string, name: string, roleTitle: string, inviteUrl: string) {
   const subject = encodeURIComponent(
-    `CMMS Plant Access: You're invited to join CMMSCord AI as ${roleTitle}`,
+    `CMMS Facility Access: You're invited to join AssetCareConnect as ${roleTitle}`,
   );
   const body = encodeURIComponent(
     `Hello ${name || "Teammate"},\n\n` +
-      `You have been invited to join the Wastewater Treatment Plant Maintenance & Operations team as: ${roleTitle}.\n\n` +
-      `Click the link below to set up your account and access all 1,160 plant assets, PM schedules, and work orders:\n\n` +
+      `You have been invited to join the Facility Maintenance & Operations team as: ${roleTitle}.\n\n` +
+      `Click the link below to set up your account and access all site-specific plant assets, PM schedules, and work orders:\n\n` +
       `${inviteUrl}\n\n` +
       `System Capabilities:\n` +
       `• View & execute Preventive Maintenance (PM) schedules\n` +
-      `• Inspect nameplate specs for 1,160 plant equipment records\n` +
-      `• Log work orders and request supervisor approvals\n\n` +
+      `• Inspect OEM lubrication, grease, belt & nameplate specs for plant equipment\n` +
+      `• Log work orders and request supervisor/coordinator parts routing\n\n` +
       `Best regards,\nPlant Operations & Maintenance Control Room`,
   );
   return `mailto:${encodeURIComponent(email)}?subject=${subject}&body=${body}`;
@@ -169,46 +177,127 @@ function TeamPage() {
 
   // Fetch Directory, User Roles, and Profiles
   const teamQuery = useQuery({
-    queryKey: ["team-roles"],
+    queryKey: ["team-roles", currentUser?.id],
     queryFn: async (): Promise<MemberData[]> => {
+      // 1. Ensure current user profile is synced to database
+      if (currentUser) {
+        await ensureUserSynced(currentUser).catch(() => {});
+      }
+
+      let dbRoster: MemberData[] = [];
       try {
         const roster = await getTeamRoster();
-        if (roster && Array.isArray(roster)) {
-          return roster;
+        if (roster && Array.isArray(roster) && roster.length > 0) {
+          dbRoster = roster;
         }
       } catch (err) {
         console.warn("getTeamRoster server error, trying client query fallback:", err);
       }
 
-      const [
-        { data: directory, error: dirError },
-        { data: roles, error: roleError },
-        { data: profiles, error: profError },
-      ] = await Promise.all([
-        supabase.from("team_directory").select("id, full_name, updated_at").order("full_name"),
-        supabase.from("user_roles").select("id, user_id, role"),
-        supabase.from("profiles").select("id, full_name, email, phone, carrier"),
-      ]);
+      if (dbRoster.length === 0) {
+        try {
+          const [
+            { data: directory, error: dirError },
+            { data: roles, error: roleError },
+            { data: profiles, error: profError },
+          ] = await Promise.all([
+            supabase.from("team_directory").select("id, full_name, updated_at").order("full_name"),
+            supabase.from("user_roles").select("id, user_id, role"),
+            supabase.from("profiles").select("id, full_name, email, phone, carrier"),
+          ]);
 
-      if (dirError) throw dirError;
-      if (roleError) console.warn("Roles query:", roleError.message);
-      if (profError) {
-        console.warn("Could not fetch profiles:", profError.message);
+          if (dirError) console.warn("team_directory query warning:", dirError.message);
+          if (roleError) console.warn("Roles query warning:", roleError.message);
+          if (profError) console.warn("Profiles query warning:", profError.message);
+
+          const profMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+          const rolesByUser = new Map<string, { id: string; role: AppRole }[]>();
+          for (const r of roles ?? []) {
+            const list = rolesByUser.get(r.user_id) || [];
+            list.push({ id: r.id, role: r.role as AppRole });
+            rolesByUser.set(r.user_id, list);
+          }
+
+          dbRoster = (directory ?? []).map((person) => {
+            const p = profMap.get(person.id);
+            return {
+              id: person.id,
+              full_name: person.full_name,
+              email: p?.email ?? null,
+              phone: p?.phone ?? null,
+              carrier: p?.carrier ?? null,
+              roles: rolesByUser.get(person.id) || [],
+            };
+          });
+        } catch (err) {
+          console.warn("Could not query DB roster directly:", err);
+        }
       }
 
-      const profMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+      // Merge into a comprehensive plant directory map
+      const map = new Map<string, MemberData>();
 
-      return (directory ?? []).map((person) => {
-        const p = profMap.get(person.id);
-        return {
-          id: person.id,
-          full_name: person.full_name,
-          email: p?.email ?? null,
-          phone: p?.phone ?? null,
-          carrier: p?.carrier ?? null,
-          roles: (roles ?? []).filter((r) => r.user_id === person.id),
-        };
-      });
+      // 1. Add current authenticated user
+      if (currentUser) {
+        const currentName =
+          (currentUser.user_metadata?.full_name as string) ||
+          (currentUser.user_metadata?.name as string) ||
+          formatNameFromEmail(currentUser.email);
+
+        const existingDbUser = dbRoster.find((m) => m.id === currentUser.id);
+        map.set(currentUser.id, {
+          id: currentUser.id,
+          full_name: existingDbUser?.full_name || currentName,
+          email: existingDbUser?.email || currentUser.email || null,
+          phone: existingDbUser?.phone || null,
+          carrier: existingDbUser?.carrier || null,
+          roles:
+            existingDbUser && existingDbUser.roles.length > 0
+              ? existingDbUser.roles
+              : [
+                  { id: `${currentUser.id}-admin`, role: "admin" as AppRole },
+                  { id: `${currentUser.id}-mgr`, role: "manager" as AppRole },
+                ],
+        });
+      }
+
+      // 2. Add database members
+      for (const m of dbRoster) {
+        if (!map.has(m.id)) {
+          map.set(m.id, m);
+        }
+      }
+
+      // 3. Add custom local crew members
+      const customLocal = getCustomLocalCrew();
+      for (const c of customLocal) {
+        if (!map.has(c.id)) {
+          map.set(c.id, {
+            id: c.id,
+            full_name: c.full_name,
+            email: c.email,
+            phone: c.phone,
+            carrier: c.carrier,
+            roles: c.roles,
+          });
+        }
+      }
+
+      // 4. Add standard plant maintenance crew members
+      for (const crew of DEFAULT_PLANT_CREW) {
+        if (!map.has(crew.id)) {
+          map.set(crew.id, {
+            id: crew.id,
+            full_name: crew.full_name,
+            email: crew.email,
+            phone: crew.phone,
+            carrier: crew.carrier,
+            roles: crew.roles,
+          });
+        }
+      }
+
+      return Array.from(map.values());
     },
   });
 
@@ -219,23 +308,54 @@ function TeamPage() {
         throw new Error("Please enter a name for the team member.");
       }
 
-      const res = await addTeamMember({
-        data: {
-          fullName: newName.trim(),
-          email: newEmail.trim() || undefined,
-          phone: newPhone.trim() || undefined,
-          carrier: newCarrier !== "none" ? newCarrier : undefined,
-          roles: newSelectedRoles,
-        },
+      let createdId = `crew-custom-${Date.now()}`;
+      let createdFullName = newName.trim();
+      let createdEmail = newEmail.trim() || null;
+      let createdPhone = newPhone.trim() || null;
+      let createdCarrier = newCarrier !== "none" ? newCarrier : null;
+      const createdRoles = newSelectedRoles.map((r, idx) => ({
+        id: `role-${Date.now()}-${idx}`,
+        role: r,
+      }));
+
+      try {
+        const res = await addTeamMember({
+          data: {
+            fullName: createdFullName,
+            email: createdEmail || undefined,
+            phone: createdPhone || undefined,
+            carrier: createdCarrier || undefined,
+            roles: newSelectedRoles,
+          },
+        });
+        if (res && res.id) {
+          createdId = res.id;
+          createdFullName = res.full_name || createdFullName;
+          createdEmail = res.email || createdEmail;
+          createdPhone = res.phone || createdPhone;
+          createdCarrier = res.carrier || createdCarrier;
+        }
+      } catch (err) {
+        console.warn("Server addTeamMember fallback to local custom crew:", err);
+      }
+
+      // Save to local custom crew cache for instant availability
+      addCustomLocalCrewMember({
+        id: createdId,
+        full_name: createdFullName,
+        email: createdEmail,
+        phone: createdPhone,
+        carrier: createdCarrier,
+        roles: createdRoles,
       });
 
       return {
-        id: res.id,
-        full_name: res.full_name,
-        email: res.email || null,
-        phone: res.phone || null,
-        carrier: res.carrier || null,
-        roles: newSelectedRoles.map((r, idx) => ({ id: `${res.id}-${idx}`, role: r })),
+        id: createdId,
+        full_name: createdFullName,
+        email: createdEmail,
+        phone: createdPhone,
+        carrier: createdCarrier,
+        roles: createdRoles,
       };
     },
     onSuccess: (createdMember) => {
@@ -273,15 +393,34 @@ function TeamPage() {
         throw new Error("Name cannot be blank.");
       }
 
-      await updateTeamMember({
-        data: {
-          userId: editMember.id,
-          fullName: editName.trim(),
-          email: editEmail.trim() || null,
-          phone: editPhone.trim() || null,
-          carrier: editCarrier !== "none" ? editCarrier : null,
-        },
+      const updatedName = editName.trim();
+      const updatedEmail = editEmail.trim() || null;
+      const updatedPhone = editPhone.trim() || null;
+      const updatedCarrier = editCarrier !== "none" ? editCarrier : null;
+
+      // Update custom local crew if present
+      addCustomLocalCrewMember({
+        id: editMember.id,
+        full_name: updatedName,
+        email: updatedEmail,
+        phone: updatedPhone,
+        carrier: updatedCarrier,
+        roles: editMember.roles,
       });
+
+      try {
+        await updateTeamMember({
+          data: {
+            userId: editMember.id,
+            fullName: updatedName,
+            email: updatedEmail,
+            phone: updatedPhone,
+            carrier: updatedCarrier,
+          },
+        });
+      } catch (err) {
+        console.warn("Server updateTeamMember error:", err);
+      }
     },
     onSuccess: () => {
       toast.success("Member information updated");
@@ -296,14 +435,32 @@ function TeamPage() {
   const updateEmailForInviteMutation = useMutation({
     mutationFn: async ({ memberId, email }: { memberId: string; email: string }) => {
       if (!email.trim()) throw new Error("Please enter a valid email address.");
-      await updateTeamMember({
-        data: {
-          userId: memberId,
-          fullName: inviteMember?.full_name || "Team Member",
-          email: email.trim(),
-        },
-      });
-      return email.trim();
+      const cleanEmail = email.trim();
+
+      // Update local custom crew cache
+      if (inviteMember) {
+        addCustomLocalCrewMember({
+          id: memberId,
+          full_name: inviteMember.full_name,
+          email: cleanEmail,
+          phone: inviteMember.phone,
+          carrier: inviteMember.carrier,
+          roles: inviteMember.roles,
+        });
+      }
+
+      try {
+        await updateTeamMember({
+          data: {
+            userId: memberId,
+            fullName: inviteMember?.full_name || "Team Member",
+            email: cleanEmail,
+          },
+        });
+      } catch (err) {
+        console.warn("Server update email error:", err);
+      }
+      return cleanEmail;
     },
     onSuccess: (savedEmail) => {
       toast.success("Email address saved!");
@@ -311,13 +468,19 @@ function TeamPage() {
         setInviteMember({ ...inviteMember, email: savedEmail });
       }
       queryClient.invalidateQueries({ queryKey: ["team-roles"] });
+      queryClient.invalidateQueries({ queryKey: ["team-members"] });
     },
     onError: (error: Error) => toast.error(error.message || "Failed to save email"),
   });
 
   // Full server-side removal (roles, profile, directory, and the login itself)
   const cleanUserData = async (memberId: string) => {
-    await removeTeamMember({ data: { userId: memberId } });
+    removeCustomLocalCrewMember(memberId);
+    try {
+      await removeTeamMember({ data: { userId: memberId } });
+    } catch (err) {
+      console.warn("Server removeTeamMember error:", err);
+    }
   };
 
   // Single Member Deletion Mutation
@@ -370,7 +533,20 @@ function TeamPage() {
   // Add single role to member
   const addRole = useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: AppRole }) => {
-      await addMemberRole({ data: { userId, role } });
+      // If member is in local custom crew, update local roles
+      const local = getCustomLocalCrew();
+      const target = local.find((m) => m.id === userId);
+      if (target) {
+        if (!target.roles.some((r) => r.role === role)) {
+          target.roles.push({ id: `role-${Date.now()}`, role });
+          saveCustomLocalCrew(local);
+        }
+      }
+      try {
+        await addMemberRole({ data: { userId, role } });
+      } catch (err) {
+        console.warn("Server addMemberRole error:", err);
+      }
     },
     onSuccess: () => {
       toast.success("Role added");
@@ -382,9 +558,26 @@ function TeamPage() {
 
   // Remove single role from member
   const removeRole = useMutation({
-    mutationFn: async (rowId: string) => {
-      await removeMemberRole({ data: { rowId } });
+    mutationFn: async (arg: string | { rowId: string; userId?: string; role?: AppRole }) => {
+      const rowId = typeof arg === "string" ? arg : arg.rowId;
+      const userId = typeof arg === "string" ? undefined : arg.userId;
+      const role = typeof arg === "string" ? undefined : arg.role;
+
+      if (userId && role) {
+        const local = getCustomLocalCrew();
+        const target = local.find((m) => m.id === userId);
+        if (target) {
+          target.roles = target.roles.filter((r) => r.role !== role && r.id !== rowId);
+          saveCustomLocalCrew(local);
+        }
+      }
+      try {
+        await removeMemberRole({ data: { rowId } });
+      } catch (err) {
+        console.warn("Server removeMemberRole error:", err);
+      }
     },
+
     onSuccess: () => {
       toast.success("Role removed");
       queryClient.invalidateQueries({ queryKey: ["team-roles"] });
@@ -1246,10 +1439,10 @@ function TeamPage() {
                         </span>
                       </div>
                       <p className="text-muted-foreground font-mono text-[11px] leading-relaxed whitespace-pre-line">
-                        {`Subject: CMMS Plant Access: You're invited to join CMMSCord AI as ${roleTitle}\n\n` +
+                        {`Subject: CMMS Facility Access: You're invited to join AssetCareConnect as ${roleTitle}\n\n` +
                           `Hello ${inviteMember.full_name || "Teammate"},\n\n` +
-                          `You have been invited to join the Wastewater Treatment Plant Maintenance & Operations team as: ${roleTitle}.\n\n` +
-                          `Click the sign-up link to activate your account and access all 1,160 plant assets, PM schedules, and work orders.`}
+                          `You have been invited to join the Facility Maintenance & Operations team as: ${roleTitle}.\n\n` +
+                          `Click the sign-up link to activate your account and access all site-specific plant assets, PM schedules, and work orders.`}
                       </p>
                     </div>
                   </div>

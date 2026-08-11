@@ -14,13 +14,17 @@ import { Check, ShieldCheck, X } from "lucide-react";
 export const Route = createFileRoute("/_authenticated/approvals")({
   head: () => ({
     meta: [
-      { title: "Deletion Approvals | CMMSCord AI" },
+      { title: "Deletion Approvals | AssetCareConnect" },
       {
         name: "description",
-        content: "Review and approve requests to delete plant assets, PM schedules, and work orders.",
+        content:
+          "Review and approve requests to delete plant assets, PM schedules, and work orders.",
       },
       { property: "og:title", content: "Deletion Approvals" },
-      { property: "og:description", content: "Manager and supervisor sign-off on every asset, PM, and work order deletion." },
+      {
+        property: "og:description",
+        content: "Manager and supervisor sign-off on every asset, PM, and work order deletion.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -78,13 +82,15 @@ function ApprovalsPage() {
         <p className="label-caps">Change control</p>
         <h1 className="text-2xl font-bold">Deletion approvals</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Assets, PM schedules, and work orders can only be removed with manager or supervisor sign-off.
+          Assets, PM schedules, and work orders can only be removed with manager or supervisor
+          sign-off.
         </p>
       </div>
 
       {!isApprover && (
         <div className="panel flex items-center gap-2 p-3 text-sm text-muted-foreground">
-          <ShieldCheck className="size-4" /> You can track requests here; only managers and supervisors can decide them.
+          <ShieldCheck className="size-4" /> You can track requests here; only managers and
+          supervisors can decide them.
         </div>
       )}
 
@@ -97,7 +103,9 @@ function ApprovalsPage() {
           <div className="panel divide-y divide-border">
             {rows.map((req) => (
               <div key={req.id} className="flex flex-wrap items-center gap-3 p-3">
-                <Badge variant="outline">{ENTITY_LABELS[req.entity_type as DeletableEntity] ?? req.entity_type}</Badge>
+                <Badge variant="outline">
+                  {ENTITY_LABELS[req.entity_type as DeletableEntity] ?? req.entity_type}
+                </Badge>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium">{req.entity_label}</p>
                   <p className="text-xs text-muted-foreground">
@@ -108,7 +116,11 @@ function ApprovalsPage() {
                 </div>
                 <Badge
                   variant={
-                    req.status === "approved" ? "default" : req.status === "denied" ? "destructive" : "secondary"
+                    req.status === "approved"
+                      ? "default"
+                      : req.status === "denied"
+                        ? "destructive"
+                        : "secondary"
                   }
                 >
                   {req.status}
@@ -140,7 +152,9 @@ function ApprovalsPage() {
                 )}
               </div>
             ))}
-            {requests.isLoading && <p className="p-3 text-sm text-muted-foreground">Loading requests…</p>}
+            {requests.isLoading && (
+              <p className="p-3 text-sm text-muted-foreground">Loading requests…</p>
+            )}
             {!requests.isLoading && rows.length === 0 && (
               <p className="p-3 text-sm text-muted-foreground">No deletion requests here.</p>
             )}

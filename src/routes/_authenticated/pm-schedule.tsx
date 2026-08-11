@@ -15,12 +15,13 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WorkOrderDialog } from "@/components/work-order-dialog";
 import { DeleteRequestDialog } from "@/components/delete-request-dialog";
+import { RelabelAssetDialog } from "@/components/relabel-asset-dialog";
+import { EditPmScheduleDialog } from "@/components/edit-pm-schedule-dialog";
 import { buildingOf, clampToSeason, dueTone, prettyLabel, seasonLabel } from "@/lib/cmms";
 import { useTeamMembers } from "@/hooks/use-team-members";
 import { memberLabel, notifyUser } from "@/lib/notify";
 import { toast } from "sonner";
-import { CheckCircle2, Search } from "lucide-react";
-
+import { CheckCircle2, Pencil, Search, Tag } from "lucide-react";
 
 const PAGE_SIZE = 40;
 const today = () => new Date().toISOString().slice(0, 10);
@@ -29,10 +30,16 @@ const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().
 export const Route = createFileRoute("/_authenticated/pm-schedule")({
   head: () => ({
     meta: [
-      { title: "PM Schedule | CMMSCord AI" },
-      { name: "description", content: "Preventive maintenance schedule with overdue, due-soon, and upcoming tasks." },
+      { title: "PM Schedule | AssetCareConnect" },
+      {
+        name: "description",
+        content: "Preventive maintenance schedule with overdue, due-soon, and upcoming tasks.",
+      },
       { property: "og:title", content: "PM Schedule" },
-      { property: "og:description", content: "Track and complete preventive maintenance across the plant." },
+      {
+        property: "og:description",
+        content: "Track and complete preventive maintenance across the plant.",
+      },
     ],
   }),
   component: PmSchedulePage,
@@ -48,7 +55,12 @@ function PmSchedulePage() {
   const team = useTeamMembers();
 
   const assign = useMutation({
-    mutationFn: async (pm: { id: string; title: string; next_due: string; userId: string | null }) => {
+    mutationFn: async (pm: {
+      id: string;
+      title: string;
+      next_due: string;
+      userId: string | null;
+    }) => {
       const { error } = await supabase
         .from("pm_schedules")
         .update({ assigned_to: pm.userId })
@@ -71,7 +83,6 @@ function PmSchedulePage() {
     onError: (error: Error) => toast.error(error.message),
   });
 
-
   const pms = useQuery({
     queryKey: ["pms", search, window, page, grouped],
     placeholderData: keepPreviousData,
@@ -81,7 +92,10 @@ function PmSchedulePage() {
       const to = grouped ? 999 : page * PAGE_SIZE + PAGE_SIZE - 1;
       let query = supabase
         .from("pm_schedules")
-        .select("*, assets(id, name, location_name, building)", { count: "exact" })
+        .select(
+          "*, assets(id, name, location_name, building, tag_number, class, manufacturer, model)",
+          { count: "exact" },
+        )
         .eq("active", !history)
         .order("next_due", { ascending: !history })
         .range(from, to);
@@ -94,7 +108,6 @@ function PmSchedulePage() {
       return { rows: data, count: count ?? 0 };
     },
   });
-
 
   const complete = useMutation({
     mutationFn: async (pm: {
@@ -129,19 +142,45 @@ function PmSchedulePage() {
       <div key={pm.id} className="flex flex-wrap items-center gap-3 p-3">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">{pm.title}</p>
-          <p className="text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
             {pm.assets ? (
-              <Link to="/assets/$assetId" params={{ assetId: pm.assets.id }} className="hover:underline">
-                {pm.assets.name}
-              </Link>
+              <span className="inline-flex items-center gap-1">
+                <Link
+                  to="/assets/$assetId"
+                  params={{ assetId: pm.assets.id }}
+                  className="font-medium text-foreground hover:underline"
+                >
+                  {pm.assets.name}
+                </Link>
+                {pm.assets.tag_number && (
+                  <span className="font-mono text-[11px] text-primary">
+                    [{pm.assets.tag_number}]
+                  </span>
+                )}
+                <RelabelAssetDialog
+                  assetId={pm.assets.id}
+                  initialAsset={pm.assets}
+                  trigger={
+                    <button
+                      type="button"
+                      className="inline-flex items-center text-primary/80 hover:text-primary ml-0.5 p-0.5 rounded hover:bg-primary/10 transition-colors"
+                      title="Relabel asset and sync across all PMs and views"
+                    >
+                      <Pencil className="size-3" />
+                    </button>
+                  }
+                />
+              </span>
             ) : (
-              "Unassigned asset"
+              <span className="italic text-muted-foreground">Unassigned asset</span>
             )}
-            {" · every "}
-            {pm.interval_days} days · {prettyLabel(pm.priority)}
-            {pm.estimated_hours != null && ` · ${pm.estimated_hours} hrs`}
-            {pm.last_completed && ` · last done ${pm.last_completed}`}
-          </p>
+            <span>·</span>
+            <span>every {pm.interval_days} days</span>
+            <span>·</span>
+            <span>{prettyLabel(pm.priority)}</span>
+            {pm.estimated_hours != null && <span>· {pm.estimated_hours} hrs</span>}
+            {pm.last_completed && <span>· last done {pm.last_completed}</span>}
+          </div>
           {pm.tasks && <p className="mt-1 text-xs text-muted-foreground">{pm.tasks}</p>}
         </div>
         {seasonLabel(pm.season_start_md, pm.season_end_md) && (
@@ -179,6 +218,8 @@ function PmSchedulePage() {
           </SelectContent>
         </Select>
 
+        <EditPmScheduleDialog pm={pm} />
+
         <WorkOrderDialog
           assetId={pm.asset_id}
           pmScheduleId={pm.id}
@@ -213,18 +254,26 @@ function PmSchedulePage() {
   const groups = (() => {
     const map = new Map<string, Row[]>();
     for (const pm of pms.data?.rows ?? []) {
-      const key = buildingOf(pm.assets?.name, pm.title, pm.assets?.location_name, pm.assets?.building);
+      const key = buildingOf(
+        pm.assets?.name,
+        pm.title,
+        pm.assets?.location_name,
+        pm.assets?.building,
+      );
       const list = map.get(key);
       if (list) list.push(pm);
       else map.set(key, [pm]);
     }
     return [...map.entries()].sort((a, b) =>
-      a[0] === "Other / Unassigned" ? 1 : b[0] === "Other / Unassigned" ? -1 : a[0].localeCompare(b[0]),
+      a[0] === "Other / Unassigned"
+        ? 1
+        : b[0] === "Other / Unassigned"
+          ? -1
+          : a[0].localeCompare(b[0]),
     );
   })();
 
   const activeTab = tab === "all" || groups.some(([b]) => b === tab) ? tab : "all";
-
 
   return (
     <div className="space-y-5">
@@ -294,14 +343,20 @@ function PmSchedulePage() {
                 <div key={building} className="panel">
                   <div className="flex items-center justify-between border-b border-border px-3 py-2">
                     <h2 className="text-sm font-semibold">{building}</h2>
-                    <span className="font-mono text-xs text-muted-foreground">{rows.length} PMs</span>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {rows.length} PMs
+                    </span>
                   </div>
                   <div className="divide-y divide-border">{rows.map(renderRow)}</div>
                 </div>
               ))}
-              {pms.isLoading && <p className="panel p-3 text-sm text-muted-foreground">Loading PM schedule…</p>}
+              {pms.isLoading && (
+                <p className="panel p-3 text-sm text-muted-foreground">Loading PM schedule…</p>
+              )}
               {!pms.isLoading && groups.length === 0 && (
-                <p className="panel p-3 text-sm text-muted-foreground">No PM schedules match this filter.</p>
+                <p className="panel p-3 text-sm text-muted-foreground">
+                  No PM schedules match this filter.
+                </p>
               )}
             </div>
           </TabsContent>
@@ -313,13 +368,16 @@ function PmSchedulePage() {
           ))}
         </Tabs>
       ) : (
-
         <>
           <div className="panel divide-y divide-border">
             {(pms.data?.rows ?? []).map(renderRow)}
-            {pms.isLoading && <p className="p-3 text-sm text-muted-foreground">Loading PM schedule…</p>}
+            {pms.isLoading && (
+              <p className="p-3 text-sm text-muted-foreground">Loading PM schedule…</p>
+            )}
             {!pms.isLoading && (pms.data?.rows ?? []).length === 0 && (
-              <p className="p-3 text-sm text-muted-foreground">No PM schedules match this filter.</p>
+              <p className="p-3 text-sm text-muted-foreground">
+                No PM schedules match this filter.
+              </p>
             )}
           </div>
 
@@ -328,17 +386,26 @@ function PmSchedulePage() {
               Page {page + 1} of {maxPage + 1}
             </span>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page === 0}
+                onClick={() => setPage((p) => p - 1)}
+              >
                 Previous
               </Button>
-              <Button variant="outline" size="sm" disabled={page >= maxPage} onClick={() => setPage((p) => p + 1)}>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= maxPage}
+                onClick={() => setPage((p) => p + 1)}
+              >
                 Next
               </Button>
             </div>
           </div>
         </>
       )}
-
     </div>
   );
 }

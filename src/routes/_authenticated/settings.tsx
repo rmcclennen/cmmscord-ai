@@ -22,13 +22,17 @@ import { MailCheck, MessageSquare, Save } from "lucide-react";
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
     meta: [
-      { title: "Alert Settings | CMMSCord AI" },
+      { title: "Alert Settings | AssetCareConnect" },
       {
         name: "description",
-        content: "Choose how work order and PM assignments reach you — email inbox, text message, or both.",
+        content:
+          "Choose how work order and PM assignments reach you — email inbox, text message, or both.",
       },
       { property: "og:title", content: "Alert Settings" },
-      { property: "og:description", content: "Set your phone, carrier and alert channels for plant maintenance assignments." },
+      {
+        property: "og:description",
+        content: "Set your phone, carrier and alert channels for plant maintenance assignments.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -76,7 +80,8 @@ function SettingsPage() {
   const save = useMutation({
     mutationFn: async () => {
       if (phoneInvalid) throw new Error("Enter a 10-digit US mobile number.");
-      if (notifySms && !gateway) throw new Error("Text alerts need both a valid mobile number and a carrier.");
+      if (notifySms && !gateway)
+        throw new Error("Text alerts need both a valid mobile number and a carrier.");
       const { error } = await supabase
         .from("profiles")
         .update({
@@ -102,14 +107,20 @@ function SettingsPage() {
       <div>
         <h1 className="text-xl font-bold tracking-tight">Alert settings</h1>
         <p className="text-sm text-muted-foreground">
-          Pick how assignments reach you. In-app alerts always show in the bell; email and text are optional.
+          Pick how assignments reach you. In-app alerts always show in the bell; email and text are
+          optional.
         </p>
       </div>
 
       <div className="space-y-5 rounded-lg border border-border bg-card p-5">
         <div className="space-y-2">
           <Label htmlFor="full-name">Name</Label>
-          <Input id="full-name" value={fullName} onChange={(e) => setFullName(e.target.value)} maxLength={80} />
+          <Input
+            id="full-name"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            maxLength={80}
+          />
         </div>
 
         <div className="space-y-2">
@@ -123,9 +134,15 @@ function SettingsPage() {
               <MailCheck className="size-4 text-primary" />
               Email alerts
             </div>
-            <p className="text-xs text-muted-foreground">Full details in your inbox when a work order or PM is assigned to you.</p>
+            <p className="text-xs text-muted-foreground">
+              Full details in your inbox when a work order or PM is assigned to you.
+            </p>
           </div>
-          <Switch checked={notifyEmail} onCheckedChange={setNotifyEmail} aria-label="Email alerts" />
+          <Switch
+            checked={notifyEmail}
+            onCheckedChange={setNotifyEmail}
+            aria-label="Email alerts"
+          />
         </div>
 
         <div className="space-y-4 rounded-md border border-border p-4">
@@ -136,7 +153,8 @@ function SettingsPage() {
                 Text alerts (carrier gateway)
               </div>
               <p className="text-xs text-muted-foreground">
-                Free — the alert is emailed to your carrier's text gateway. Short message, best-effort delivery.
+                Free — the alert is emailed to your carrier's text gateway. Short message,
+                best-effort delivery.
               </p>
             </div>
             <Switch checked={notifySms} onCheckedChange={setNotifySms} aria-label="Text alerts" />
@@ -191,8 +209,9 @@ function SettingsPage() {
           Sending not live yet
         </Badge>
         <p>
-          Email and text alerts are wired up but stay queued until a sender domain is verified for the plant (a domain you
-          own, set up once). Until then every assignment still lands in the in-app bell.
+          Email and text alerts are wired up but stay queued until a sender domain is verified for
+          the plant (a domain you own, set up once). Until then every assignment still lands in the
+          in-app bell.
         </p>
       </div>
     </div>

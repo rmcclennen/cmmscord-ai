@@ -29,14 +29,19 @@ export async function dispatchMessage(input: {
   const domain = senderDomain();
   const apiKey = process.env["LOVABLE_API_KEY"];
   if (!domain || !apiKey) {
-    return { sent: false, channel: input.channel, to: input.to, reason: "email_domain_not_configured" };
+    return {
+      sent: false,
+      channel: input.channel,
+      to: input.to,
+      reason: "email_domain_not_configured",
+    };
   }
 
   try {
     await sendLovableEmail(
       {
         to: input.to,
-        from: `CMMSCord AI <alerts@${domain}>`,
+        from: `AssetCareConnect <alerts@${domain}>`,
         sender_domain: domain,
         subject: input.subject,
         text: input.text,

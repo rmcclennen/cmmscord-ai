@@ -19,13 +19,17 @@ import { ExternalLink, FileText, Plus, Search, Trash2 } from "lucide-react";
 export const Route = createFileRoute("/_authenticated/manuals")({
   head: () => ({
     meta: [
-      { title: "Manuals | CMMSCord AI" },
+      { title: "Manuals | AssetCareConnect" },
       {
         name: "description",
-        content: "Equipment O&M manual library for the wastewater plant, attached to the assets they cover.",
+        content:
+          "Equipment O&M manual library for the wastewater plant, attached to the assets they cover.",
       },
       { property: "og:title", content: "Equipment Manuals" },
-      { property: "og:description", content: "O&M manuals, cut sheets and drawings linked to plant assets." },
+      {
+        property: "og:description",
+        content: "O&M manuals, cut sheets and drawings linked to plant assets.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -42,10 +46,7 @@ function ManualsPage() {
     queryKey: ["manuals", search, scope],
     placeholderData: keepPreviousData,
     queryFn: async () => {
-      let query = supabase
-        .from("manuals")
-        .select("*, assets(id, name)")
-        .order("title");
+      let query = supabase.from("manuals").select("*, assets(id, name)").order("title");
       if (search.trim()) query = query.ilike("title", `%${search.trim()}%`);
       if (scope === "attached") query = query.not("asset_id", "is", null);
       if (scope === "unattached") query = query.is("asset_id", null);
@@ -69,7 +70,10 @@ function ManualsPage() {
 
   const attach = useMutation({
     mutationFn: async (v: { id: string; assetId: string | null }) => {
-      const { error } = await supabase.from("manuals").update({ asset_id: v.assetId }).eq("id", v.id);
+      const { error } = await supabase
+        .from("manuals")
+        .update({ asset_id: v.assetId })
+        .eq("id", v.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -149,7 +153,11 @@ function ManualsPage() {
               </a>
               <p className="text-xs text-muted-foreground">
                 {m.assets ? (
-                  <Link to="/assets/$assetId" params={{ assetId: m.assets.id }} className="hover:underline">
+                  <Link
+                    to="/assets/$assetId"
+                    params={{ assetId: m.assets.id }}
+                    className="hover:underline"
+                  >
                     {m.assets.name}
                   </Link>
                 ) : (
@@ -171,7 +179,9 @@ function ManualsPage() {
               />
               <Select
                 value={m.asset_id ?? "unattached"}
-                onValueChange={(v) => attach.mutate({ id: m.id, assetId: v === "unattached" ? null : v })}
+                onValueChange={(v) =>
+                  attach.mutate({ id: m.id, assetId: v === "unattached" ? null : v })
+                }
               >
                 <SelectTrigger className="h-8">
                   <SelectValue placeholder="Attach to asset…" />
@@ -189,7 +199,12 @@ function ManualsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <Button size="sm" variant="ghost" disabled={remove.isPending} onClick={() => remove.mutate(m.id)}>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={remove.isPending}
+              onClick={() => remove.mutate(m.id)}
+            >
               <Trash2 className="size-4" />
             </Button>
           </div>

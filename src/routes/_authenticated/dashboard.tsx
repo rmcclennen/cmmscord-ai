@@ -20,8 +20,11 @@ import {
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
-      { title: "Maintenance Calendar | CMMSCord AI" },
-      { name: "description", content: "Monthly calendar of preventive maintenance and work orders due dates." },
+      { title: "Maintenance Calendar | AssetCareConnect" },
+      {
+        name: "description",
+        content: "Monthly calendar of preventive maintenance and work orders due dates.",
+      },
       { property: "og:title", content: "Maintenance Calendar" },
       { property: "og:description", content: "Plant maintenance schedule at a glance." },
     ],
@@ -34,8 +37,18 @@ const iso = (d: Date) =>
 const today = () => iso(new Date());
 const inDays = (n: number) => iso(new Date(Date.now() + n * 86400000));
 const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -62,7 +75,10 @@ function Dashboard() {
     queryFn: async () => {
       const [assets, pms, overdue, openWo] = await Promise.all([
         supabase.from("assets").select("id", { count: "exact", head: true }),
-        supabase.from("pm_schedules").select("id", { count: "exact", head: true }).eq("active", true),
+        supabase
+          .from("pm_schedules")
+          .select("id", { count: "exact", head: true })
+          .eq("active", true),
         supabase
           .from("pm_schedules")
           .select("id", { count: "exact", head: true })
@@ -156,13 +172,29 @@ function Dashboard() {
   };
 
   const cards = [
-    { label: "Active PMs", value: stats.data?.pms, icon: CalendarClock, to: "/pm-schedule" as const },
-    { label: "Overdue PMs", value: stats.data?.overdue, icon: AlertTriangle, to: "/pm-schedule" as const, alert: true },
-    { label: "Open work orders", value: stats.data?.openWo, icon: ClipboardList, to: "/work-orders" as const },
+    {
+      label: "Active PMs",
+      value: stats.data?.pms,
+      icon: CalendarClock,
+      to: "/pm-schedule" as const,
+    },
+    {
+      label: "Overdue PMs",
+      value: stats.data?.overdue,
+      icon: AlertTriangle,
+      to: "/pm-schedule" as const,
+      alert: true,
+    },
+    {
+      label: "Open work orders",
+      value: stats.data?.openWo,
+      icon: ClipboardList,
+      to: "/work-orders" as const,
+    },
     { label: "Assets tracked", value: stats.data?.assets, icon: Boxes, to: "/assets" as const },
   ];
 
-  const selectedItems = selected ? byDate.get(selected) ?? [] : [];
+  const selectedItems = selected ? (byDate.get(selected) ?? []) : [];
 
   return (
     <div className="space-y-6">
@@ -182,7 +214,11 @@ function Dashboard() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map((c) => (
-          <Link key={c.label} to={c.to} className="panel p-4 transition-colors hover:border-primary/50">
+          <Link
+            key={c.label}
+            to={c.to}
+            className="panel p-4 transition-colors hover:border-primary/50"
+          >
             <div className="flex items-center justify-between">
               <span className="label-caps">{c.label}</span>
               <c.icon className={`size-4 ${c.alert ? "text-destructive" : "text-primary"}`} />
@@ -204,7 +240,12 @@ function Dashboard() {
             {MONTHS[month.m]} {month.y}
           </h2>
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={() => shift(-1)} aria-label="Previous month">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => shift(-1)}
+              aria-label="Previous month"
+            >
               <ChevronLeft className="size-4" />
             </Button>
             <Button
@@ -240,11 +281,15 @@ function Dashboard() {
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className={`font-mono text-xs ${isToday ? "text-primary" : "text-muted-foreground"}`}>
+                  <span
+                    className={`font-mono text-xs ${isToday ? "text-primary" : "text-muted-foreground"}`}
+                  >
                     {Number(date.slice(8))}
                   </span>
                   {items.length > 0 && (
-                    <span className="font-mono text-[10px] text-muted-foreground">{items.length}</span>
+                    <span className="font-mono text-[10px] text-muted-foreground">
+                      {items.length}
+                    </span>
                   )}
                 </div>
                 <div className="mt-1 space-y-1">
@@ -263,7 +308,9 @@ function Dashboard() {
                     </span>
                   ))}
                   {items.length > 3 && (
-                    <span className="block px-1 text-[10px] text-muted-foreground">+{items.length - 3} more</span>
+                    <span className="block px-1 text-[10px] text-muted-foreground">
+                      +{items.length - 3} more
+                    </span>
                   )}
                 </div>
               </button>

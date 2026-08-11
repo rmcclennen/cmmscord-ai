@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Bell } from "lucide-react";
 
-
 export function NotificationBell() {
   const { user } = useSessionUser();
   const queryClient = useQueryClient();
@@ -60,7 +59,12 @@ export function NotificationBell() {
         <div className="flex items-center justify-between border-b border-border px-3 py-2">
           <p className="label-caps">Notifications</p>
           {unread > 0 && (
-            <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => markRead.mutate()}>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 px-2 text-xs"
+              onClick={() => markRead.mutate()}
+            >
               Mark all read
             </Button>
           )}
@@ -77,11 +81,14 @@ export function NotificationBell() {
                     {new Date(n.created_at).toLocaleString()}
                   </span>
                   {link && (
-                    <a href={link} className="text-xs text-primary underline" rel="noopener noreferrer">
+                    <a
+                      href={link}
+                      className="text-xs text-primary underline"
+                      rel="noopener noreferrer"
+                    >
                       Open
                     </a>
                   )}
-
                 </div>
               </div>
             );

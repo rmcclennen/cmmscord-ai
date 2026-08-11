@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "@/components/ui/sonner";
+import { AccessibilityToolbar } from "@/components/accessibility-toolbar";
 
 function NotFoundComponent() {
   return (
@@ -79,10 +80,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "CMMSCord AI" },
-      { name: "description", content: "Wastewater plant asset, PM schedule, and work order management." },
-      { property: "og:title", content: "CMMSCord AI" },
-      { property: "og:description", content: "Wastewater plant asset, PM schedule, and work order management." },
+      { title: "AssetCareConnect" },
+      {
+        name: "description",
+        content:
+          "Enterprise maintenance management, bulk asset onboarding & connected facility operations.",
+      },
+      { property: "og:title", content: "AssetCareConnect" },
+      {
+        property: "og:description",
+        content:
+          "Enterprise maintenance management, bulk asset onboarding & connected facility operations.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -95,7 +104,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap",
       },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
@@ -113,6 +122,9 @@ function RootShell({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body>
+        <a href="#main-content" className="skip-to-content">
+          Skip to main content
+        </a>
         {children}
         <Scripts />
       </body>
@@ -138,6 +150,7 @@ function RootComponent() {
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
       <Toaster />
+      <AccessibilityToolbar />
     </QueryClientProvider>
   );
 }
