@@ -21,14 +21,16 @@ import { memberLabel, notifyUser } from "@/lib/notify";
 import { toast } from "sonner";
 import { Plus, Search } from "lucide-react";
 
-
 export const Route = createFileRoute("/_authenticated/work-orders")({
   head: () => ({
     meta: [
-      { title: "Work Orders | CMMSCord AI" },
+      { title: "Work Orders | AssetCareConnect" },
       { name: "description", content: "Write, assign, and close plant maintenance work orders." },
       { property: "og:title", content: "Work Orders" },
-      { property: "og:description", content: "Create and track corrective, preventive, and emergency work." },
+      {
+        property: "og:description",
+        content: "Create and track corrective, preventive, and emergency work.",
+      },
     ],
   }),
   component: WorkOrdersPage,
@@ -41,8 +43,16 @@ function WorkOrdersPage() {
   const team = useTeamMembers();
 
   const reassign = useMutation({
-    mutationFn: async (wo: { id: string; wo_number: number; title: string; userId: string | null }) => {
-      const { error } = await supabase.from("work_orders").update({ assigned_to: wo.userId }).eq("id", wo.id);
+    mutationFn: async (wo: {
+      id: string;
+      wo_number: number;
+      title: string;
+      userId: string | null;
+    }) => {
+      const { error } = await supabase
+        .from("work_orders")
+        .update({ assigned_to: wo.userId })
+        .eq("id", wo.id);
       if (error) throw error;
       if (wo.userId) {
         await notifyUser({
@@ -60,7 +70,6 @@ function WorkOrdersPage() {
     },
     onError: (error: Error) => toast.error(error.message),
   });
-
 
   const wos = useQuery({
     queryKey: ["work-orders", search, status],
@@ -149,7 +158,11 @@ function WorkOrdersPage() {
               <p className="text-sm font-medium">{wo.title}</p>
               <p className="text-xs text-muted-foreground">
                 {wo.assets ? (
-                  <Link to="/assets/$assetId" params={{ assetId: wo.assets.id }} className="hover:underline">
+                  <Link
+                    to="/assets/$assetId"
+                    params={{ assetId: wo.assets.id }}
+                    className="hover:underline"
+                  >
                     {wo.assets.name}
                   </Link>
                 ) : (
@@ -158,16 +171,24 @@ function WorkOrdersPage() {
                 {" · "}
                 {prettyLabel(wo.wo_type)} · {wo.due_date ? `due ${wo.due_date}` : "no due date"}
               </p>
-              {wo.description && <p className="mt-1 text-xs text-muted-foreground">{wo.description}</p>}
+              {wo.description && (
+                <p className="mt-1 text-xs text-muted-foreground">{wo.description}</p>
+              )}
               {wo.parts_used && (
                 <div className="mt-2 rounded-md border border-border bg-muted/40 p-2">
                   <p className="label-caps text-[10px]">Parts</p>
-                  <p className="whitespace-pre-line text-xs text-muted-foreground">{wo.parts_used}</p>
+                  <p className="whitespace-pre-line text-xs text-muted-foreground">
+                    {wo.parts_used}
+                  </p>
                 </div>
               )}
             </div>
 
-            <Badge variant={wo.priority === "critical" || wo.priority === "high" ? "destructive" : "outline"}>
+            <Badge
+              variant={
+                wo.priority === "critical" || wo.priority === "high" ? "destructive" : "outline"
+              }
+            >
               {prettyLabel(wo.priority)}
             </Badge>
             <Select value={wo.status} onValueChange={(next) => update.mutate({ id: wo.id, next })}>
@@ -220,7 +241,6 @@ function WorkOrdersPage() {
               entityId={wo.id}
               entityLabel={`WO-${wo.wo_number} ${wo.title}`}
             />
-
           </div>
         ))}
         {wos.isLoading && <p className="p-3 text-sm text-muted-foreground">Loading work orders…</p>}

@@ -10,7 +10,11 @@ export const PHOTO_KIND_LABEL: Record<PhotoKind, string> = {
 };
 
 /** Downscale + compress a captured photo into a JPEG data URL (browser only). */
-export async function fileToJpegDataUrl(file: File, maxDim = 1600, quality = 0.82): Promise<string> {
+export async function fileToJpegDataUrl(
+  file: File,
+  maxDim = 1600,
+  quality = 0.82,
+): Promise<string> {
   const bitmap = await createImageBitmap(file);
   const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
   const width = Math.round(bitmap.width * scale);

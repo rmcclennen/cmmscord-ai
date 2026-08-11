@@ -115,7 +115,8 @@ export function DeleteRequestDialog({
               rows={3}
             />
             <p className="flex items-center gap-2 text-xs text-muted-foreground">
-              <ShieldAlert className="size-3.5" /> Managers and supervisors are notified immediately.
+              <ShieldAlert className="size-3.5" /> Managers and supervisors are notified
+              immediately.
             </p>
           </div>
         )}

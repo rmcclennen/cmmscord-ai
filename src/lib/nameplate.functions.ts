@@ -34,10 +34,8 @@ export const readNameplate = createServerFn({ method: "POST" })
     const apiKey = process.env["LOVABLE_API_KEY"];
     if (!apiKey) throw new Error("AI is not configured for this project.");
 
-    const [{ generateText, Output, NoObjectGeneratedError }, { createOpenAICompatible }] = await Promise.all([
-      import("ai"),
-      import("@ai-sdk/openai-compatible"),
-    ]);
+    const [{ generateText, Output, NoObjectGeneratedError }, { createOpenAICompatible }] =
+      await Promise.all([import("ai"), import("@ai-sdk/openai-compatible")]);
 
     const gateway = createOpenAICompatible({
       name: "lovable-ai-gateway",
@@ -82,7 +80,8 @@ Rules:
         }
       }
       const message = err instanceof Error ? err.message : String(err);
-      if (message.includes("429")) throw new Error("AI rate limit reached — try again in a moment.");
+      if (message.includes("429"))
+        throw new Error("AI rate limit reached — try again in a moment.");
       if (message.includes("402")) throw new Error("AI credits exhausted for this workspace.");
       throw new Error(`Could not read the nameplate: ${message}`);
     }

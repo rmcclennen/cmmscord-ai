@@ -1,7 +1,13 @@
 import { supabase } from "@/integrations/supabase/client";
 import { PHOTO_BUCKET, fileToJpegDataUrl } from "@/lib/photos";
 
-export const REQUEST_STATUSES = ["requested", "bidding", "ordered", "received", "cancelled"] as const;
+export const REQUEST_STATUSES = [
+  "requested",
+  "bidding",
+  "ordered",
+  "received",
+  "cancelled",
+] as const;
 export type RequestStatus = (typeof REQUEST_STATUSES)[number];
 
 export const STATUS_LABEL: Record<RequestStatus, string> = {
@@ -12,9 +18,13 @@ export const STATUS_LABEL: Record<RequestStatus, string> = {
   cancelled: "Cancelled",
 };
 
-/** Where the request goes: the whole supervisor/manager group, or one person. */
+export type RouteOptionValue = "supervisors" | "coordinator" | "supervisor" | "person";
+
+/** Where the request goes: the whole supervisor/manager group, CMMS coordinator, shift supervisor, or one person. */
 export const ROUTE_OPTIONS = [
-  { value: "supervisors", label: "Supervisors & managers (CMMS buyers)" },
+  { value: "coordinator", label: "CMMS Coordinator / Procurement Lead" },
+  { value: "supervisor", label: "Maintenance / Shift Supervisor" },
+  { value: "supervisors", label: "All Supervisors & CMMS Buyers" },
   { value: "person", label: "A specific person" },
 ] as const;
 
@@ -57,7 +67,6 @@ export type PartRequestRow = {
   work_orders: { id: string; wo_number: number; title: string } | null;
   assets: { id: string; name: string } | null;
 };
-
 
 function dataUrlToBlob(dataUrl: string): Blob {
   const [meta, base64] = dataUrl.split(",");

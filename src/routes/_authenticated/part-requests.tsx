@@ -34,20 +34,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PartRequestBids } from "@/components/part-request-bids";
+import { SendPartsDialog } from "@/components/send-parts-dialog";
 import { toast } from "sonner";
-import { PackageSearch, ShoppingCart } from "lucide-react";
+import { PackagePlus, PackageSearch, Send, ShoppingCart } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/part-requests")({
   head: () => ({
     meta: [
-      { title: "Parts Requests | CMMSCord AI" },
+      { title: "Parts Requests | AssetCareConnect" },
       {
         name: "description",
         content:
           "Parts requests sent to supervisors and CMMS buyers, with photos, quotes, and ordering status.",
       },
       { property: "og:title", content: "Parts Requests" },
-      { property: "og:description", content: "Send needed parts to be ordered or bid out, with photos attached." },
+      {
+        property: "og:description",
+        content: "Send needed parts to be ordered or bid out, with photos attached.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -101,7 +105,9 @@ function HandleDialog({ request }: { request: PartRequestRow }) {
   const [awardedCost, setAwardedCost] = useState(
     request.awarded_cost != null ? String(request.awarded_cost) : "",
   );
-  const [lead, setLead] = useState(request.lead_time_days != null ? String(request.lead_time_days) : "");
+  const [lead, setLead] = useState(
+    request.lead_time_days != null ? String(request.lead_time_days) : "",
+  );
   const [po, setPo] = useState(request.po_number ?? "");
   const [expected, setExpected] = useState(request.expected_date ?? "");
   const queryClient = useQueryClient();
@@ -164,7 +170,12 @@ function HandleDialog({ request }: { request: PartRequestRow }) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="cost">Quoted cost</Label>
-              <Input id="cost" inputMode="decimal" value={cost} onChange={(e) => setCost(e.target.value)} />
+              <Input
+                id="cost"
+                inputMode="decimal"
+                value={cost}
+                onChange={(e) => setCost(e.target.value)}
+              />
             </div>
           </div>
           <div className="rounded-md border border-border p-3">
@@ -191,7 +202,12 @@ function HandleDialog({ request }: { request: PartRequestRow }) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="lead">Lead time (days)</Label>
-                <Input id="lead" inputMode="numeric" value={lead} onChange={(e) => setLead(e.target.value)} />
+                <Input
+                  id="lead"
+                  inputMode="numeric"
+                  value={lead}
+                  onChange={(e) => setLead(e.target.value)}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="po">PO number</Label>
@@ -242,7 +258,10 @@ function PartRequestsPage() {
   const rows = useMemo(() => {
     const all = data ?? [];
     if (tab === "all") return all;
-    if (tab === "open") return all.filter((r) => r.status === "requested" || r.status === "bidding" || r.status === "ordered");
+    if (tab === "open")
+      return all.filter(
+        (r) => r.status === "requested" || r.status === "bidding" || r.status === "ordered",
+      );
     return all.filter((r) => r.status === tab);
   }, [data, tab]);
 
@@ -252,14 +271,24 @@ function PartRequestsPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Parts Requests</h1>
           <p className="text-sm text-muted-foreground">
-            Parts sent to supervisors and CMMS buyers to be ordered or bid out — photos included.
+            Parts sent to supervisors and CMMS coordinators to be ordered or bid out — photos
+            included.
           </p>
         </div>
-        <Button variant="outline" asChild>
-          <Link to="/work-orders">
-            <PackageSearch className="size-4" /> Request from a work order
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <SendPartsDialog
+            trigger={
+              <Button className="gap-1.5 font-bold shadow-sm">
+                <PackagePlus className="size-4" /> Send parts to supervisor / coordinator
+              </Button>
+            }
+          />
+          <Button variant="outline" asChild>
+            <Link to="/work-orders">
+              <PackageSearch className="size-4" /> From work order
+            </Link>
+          </Button>
+        </div>
       </header>
 
       <Tabs value={tab} onValueChange={setTab}>
@@ -278,7 +307,8 @@ function PartRequestsPage() {
       {!isLoading && rows.length === 0 && (
         <div className="panel p-8 text-center text-sm text-muted-foreground">
           <ShoppingCart className="mx-auto mb-2 size-6" />
-          No parts requests here yet. Open a work order, run Parts lookup, then send the list to supervisors.
+          No parts requests here yet. Open a work order, run Parts lookup, then send the list to
+          supervisors.
         </div>
       )}
 
@@ -293,7 +323,13 @@ function PartRequestsPage() {
                     r.assets?.name,
                     r.work_orders ? `WO-${r.work_orders.wo_number}` : null,
                     r.needed_by ? `Needed by ${r.needed_by}` : null,
-                    r.route_to === "supervisors" ? "Sent to supervisors" : "Sent to a teammate",
+                    r.route_to === "coordinator"
+                      ? "Sent to CMMS coordinator"
+                      : r.route_to === "supervisor"
+                        ? "Sent to supervisor"
+                        : r.route_to === "supervisors"
+                          ? "Sent to all supervisors & coordinators"
+                          : "Sent to a teammate",
                     new Date(r.created_at).toLocaleDateString(),
                   ]
                     .filter(Boolean)
@@ -301,13 +337,19 @@ function PartRequestsPage() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant={(STATUS_TONE[r.status] ?? "outline") as "default" | "secondary" | "outline"}>
+                <Badge
+                  variant={
+                    (STATUS_TONE[r.status] ?? "outline") as "default" | "secondary" | "outline"
+                  }
+                >
                   {STATUS_LABEL[r.status as RequestStatus] ?? r.status}
                 </Badge>
                 {isApprover && <HandleDialog request={r} />}
               </div>
             </div>
-            <pre className="whitespace-pre-wrap font-sans text-sm text-foreground">{r.part_lines}</pre>
+            <pre className="whitespace-pre-wrap font-sans text-sm text-foreground">
+              {r.part_lines}
+            </pre>
             {r.note && <p className="text-xs text-muted-foreground">{r.note}</p>}
             {(r.vendor || r.quoted_cost != null || r.decision_note) && (
               <p className="text-xs text-muted-foreground">
@@ -317,9 +359,10 @@ function PartRequestsPage() {
               </p>
             )}
             <RequestPhotos paths={r.photo_paths ?? []} />
-            {(r.status === "bidding" || r.status === "ordered" || r.status === "received" || isApprover) && (
-              <PartRequestBids request={r} canManage={isApprover} />
-            )}
+            {(r.status === "bidding" ||
+              r.status === "ordered" ||
+              r.status === "received" ||
+              isApprover) && <PartRequestBids request={r} canManage={isApprover} />}
           </article>
         ))}
       </div>

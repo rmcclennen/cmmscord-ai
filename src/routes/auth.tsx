@@ -2,7 +2,9 @@ import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
+import { ensureUserSynced } from "@/lib/team-sync";
 import { Button } from "@/components/ui/button";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,12 +15,12 @@ export const Route = createFileRoute("/auth")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Sign in | CMMSCord AI" },
+      { title: "Sign in | AssetCareConnect" },
       {
         name: "description",
-        content: "Sign in to the wastewater plant asset, PM, and work order system.",
+        content: "Sign in to the enterprise asset, PM, and work order management system.",
       },
-      { property: "og:title", content: "Sign in | CMMSCord AI" },
+      { property: "og:title", content: "Sign in | AssetCareConnect" },
       {
         property: "og:description",
         content: "Team access to plant assets, PM schedules, and work orders.",
@@ -58,15 +60,21 @@ function AuthPage() {
   }, []);
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-      if (session) window.location.replace("/pm-schedule");
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_e, session) => {
+      if (session?.user) {
+        await ensureUserSynced(session.user, invitedRole).catch(() => {});
+        window.location.replace("/pm-schedule");
+      }
     });
     return () => sub.subscription.unsubscribe();
-  }, []);
+  }, [invitedRole]);
 
   async function signIn() {
     setBusy(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (data?.user) {
+      await ensureUserSynced(data.user, invitedRole).catch(() => {});
+    }
     setBusy(false);
     if (error) toast.error(error.message);
   }
@@ -78,6 +86,9 @@ function AuthPage() {
       password,
       options: { emailRedirectTo: window.location.origin, data: { full_name: fullName } },
     });
+    if (data?.user) {
+      await ensureUserSynced(data.user, invitedRole).catch(() => {});
+    }
     setBusy(false);
     if (error) {
       toast.error(error.message);
@@ -96,21 +107,24 @@ function AuthPage() {
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
       <div className="hidden flex-col justify-between bg-sidebar p-10 text-sidebar-foreground lg:flex">
-        <div className="flex items-center gap-2">
-          <Waves className="size-6 text-sidebar-primary" />
-          <span className="text-sm font-bold uppercase tracking-widest">CMMSCord AI</span>
+        <div className="flex items-center gap-2.5">
+          <div className="flex size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground font-black text-sm">
+            AC
+          </div>
+          <span className="text-sm font-extrabold uppercase tracking-wider">AssetCareConnect</span>
         </div>
         <div>
           <h1 className="text-4xl font-bold leading-tight">
             Every asset, every PM, every work order — one control room.
           </h1>
           <p className="mt-4 max-w-md text-sm text-sidebar-foreground/70">
-            1,160 plant assets with full nameplate data, seeded PM programs by equipment class,
-            AI-assisted manufacturer maintenance lookups, and work orders your crew can act on.
+            Site-specific equipment management, OEM manufacturer suggested lubrication &amp; belt
+            specs, automated PM schedules, and direct parts routing built by plant operators and
+            maintenance pros.
           </p>
         </div>
         <p className="font-mono text-xs text-sidebar-foreground/50">
-          WASTEWATER TREATMENT / MAINTENANCE OPS
+          ENTERPRISE MAINTENANCE OPERATIONS
         </p>
       </div>
 

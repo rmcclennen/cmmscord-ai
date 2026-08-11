@@ -43,7 +43,10 @@ export function formatPhone(raw: string | null | undefined) {
 }
 
 /** Builds the email-to-SMS gateway address for a phone + carrier, e.g. 5551234567@vtext.com. */
-export function smsGatewayAddress(phone: string | null | undefined, carrier: string | null | undefined) {
+export function smsGatewayAddress(
+  phone: string | null | undefined,
+  carrier: string | null | undefined,
+) {
   const digits = normalizePhone(phone);
   const entry = CARRIERS.find((c) => c.value === carrier);
   if (!digits || !entry) return null;

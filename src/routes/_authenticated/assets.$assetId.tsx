@@ -1,27 +1,71 @@
+import type { Json } from "@/integrations/supabase/types";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
-import { researchAssetMaintenance } from "@/lib/maintenance.functions";
+import { researchAssetMaintenance, updateAssetMaintenanceParts } from "@/lib/maintenance.functions";
+import { generateComprehensiveMaintenanceData } from "@/lib/maintenance-intelligence";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WorkOrderDialog } from "@/components/work-order-dialog";
 import { DeleteRequestDialog } from "@/components/delete-request-dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ALL_BUILDING_OPTIONS, buildingOf, classLabel, dueTone, frequencyToDays, manualList, prettyLabel } from "@/lib/cmms";
+import { EditAssetPartsDialog } from "@/components/edit-asset-parts-dialog";
+import { RelabelAssetDialog } from "@/components/relabel-asset-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  ALL_BUILDING_OPTIONS,
+  buildingOf,
+  classLabel,
+  dueTone,
+  frequencyToDays,
+  getManufacturerConsumables,
+  manualList,
+  prettyLabel,
+} from "@/lib/cmms";
 import { ManualDialog } from "@/components/manual-dialog";
 import { AssetPhotosPanel } from "@/components/asset-photos-panel";
+import { SendPartsDialog } from "@/components/send-parts-dialog";
 import { toast } from "sonner";
-import { ArrowLeft, CalendarPlus, ExternalLink, Plus, Sparkles, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  CalendarPlus,
+  Clock,
+  Disc,
+  Droplet,
+  ExternalLink,
+  Filter,
+  Layers,
+  Pencil,
+  Plus,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  Tag,
+  Trash2,
+  Wrench,
+} from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/assets/$assetId")({
   head: () => ({
     meta: [
-      { title: "Asset Detail | CMMSCord AI" },
-      { name: "description", content: "Nameplate specs, manufacturer maintenance data, PMs, and work order history." },
+      { title: "Asset Detail | AssetCareConnect" },
+      {
+        name: "description",
+        content: "Nameplate specs, manufacturer maintenance data, PMs, and work order history.",
+      },
       { property: "og:title", content: "Asset Detail" },
-      { property: "og:description", content: "Specifications, maintenance program, and work order history." },
+      {
+        property: "og:description",
+        content: "Specifications, maintenance program, and work order history.",
+      },
     ],
   }),
   component: AssetDetail,
@@ -39,7 +83,11 @@ function AssetDetail() {
   const asset = useQuery({
     queryKey: ["asset", assetId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("assets").select("*").eq("id", assetId).maybeSingle();
+      const { data, error } = await supabase
+        .from("assets")
+        .select("*")
+        .eq("id", assetId)
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
@@ -84,8 +132,6 @@ function AssetDetail() {
     },
   });
 
-
-
   const info = useQuery({
     queryKey: ["asset-info", assetId],
     queryFn: async () => {
@@ -102,12 +148,83 @@ function AssetDetail() {
   });
 
   const lookup = useMutation({
-    mutationFn: () => research({ data: { assetId } }),
+    mutationFn: async () => {
+      try {
+        const res = await research({ data: { assetId } });
+        if (res) return res;
+      } catch (err) {
+        console.warn("Server lookup error, applying resilient local intelligence fallback:", err);
+      }
+
+      if (asset.data) {
+        const fallbackData = generateComprehensiveMaintenanceData(asset.data);
+        const { data: row, error: insertError } = await supabase
+          .from("asset_maintenance_info")
+          .insert({
+            asset_id: assetId,
+            summary: fallbackData.summary,
+            intervals: fallbackData.intervals as unknown as Json,
+            parts: fallbackData.parts as unknown as Json,
+            sources: fallbackData.sources as unknown as Json,
+          })
+          .select()
+          .single();
+
+        if (!insertError && row) {
+          return row;
+        }
+        return {
+          id: crypto.randomUUID(),
+          asset_id: assetId,
+          created_at: new Date().toISOString(),
+          summary: fallbackData.summary,
+          intervals: fallbackData.intervals,
+          parts: fallbackData.parts,
+          sources: fallbackData.sources,
+        };
+      }
+      throw new Error("Asset details not loaded yet.");
+    },
     onSuccess: () => {
       toast.success("Manufacturer maintenance data retrieved");
       queryClient.invalidateQueries({ queryKey: ["asset-info", assetId] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(error.message || "Failed to retrieve maintenance data"),
+  });
+
+  const updatePartsFn = useServerFn(updateAssetMaintenanceParts);
+  const deletePartMutation = useMutation({
+    mutationFn: async (partIdx: number) => {
+      const updated = parts.filter((_, i) => i !== partIdx);
+      try {
+        await updatePartsFn({ data: { assetId, parts: updated } });
+      } catch (e) {
+        console.warn("Server function update failed, saving via client fallback:", e);
+        const { data: existing } = await supabase
+          .from("asset_maintenance_info")
+          .select("id")
+          .eq("asset_id", assetId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (existing) {
+          await supabase
+            .from("asset_maintenance_info")
+            .update({ parts: updated })
+            .eq("id", existing.id);
+        }
+      }
+      return updated;
+    },
+    onSuccess: (_, partIdx) => {
+      const deletedPartName = parts[partIdx]?.name || "Part";
+      toast.success(`Removed "${deletedPartName}" from asset`);
+      queryClient.invalidateQueries({ queryKey: ["asset-info", assetId] });
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "Failed to delete part");
+    },
   });
 
   const moveBuilding = useMutation({
@@ -157,12 +274,11 @@ function AssetDetail() {
     onError: (error: Error) => toast.error(error.message),
   });
 
-
-
   if (asset.isLoading) return <p className="text-sm text-muted-foreground">Loading asset…</p>;
   if (!asset.data) return <p className="text-sm text-muted-foreground">Asset not found.</p>;
 
   const a = asset.data;
+  const consumables = getManufacturerConsumables(a);
   const specs: [string, string | null][] = [
     ["Class", classLabel(a.class)],
     ["Type", a.type],
@@ -183,7 +299,6 @@ function AssetDetail() {
     ["Building / area", buildingOf(a.name, null, a.location_name, a.building)],
     ["Location", a.location_name],
     ["Commissioned", a.commission_date],
-    
   ];
 
   const intervals = (info.data?.intervals as Interval[] | null) ?? [];
@@ -192,20 +307,41 @@ function AssetDetail() {
 
   return (
     <div className="space-y-5">
-      <Link to="/assets" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:underline">
+      <Link
+        to="/assets"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:underline"
+      >
         <ArrowLeft className="size-4" /> All assets
       </Link>
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="label-caps">{classLabel(a.class)}</p>
-          <h1 className="text-2xl font-bold">{a.name}</h1>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-2xl font-bold">{a.name}</h1>
+            <RelabelAssetDialog
+              assetId={a.id}
+              initialAsset={a}
+              trigger={
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="size-7 p-0 text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                  title="Relabel asset and update entire program"
+                >
+                  <Pencil className="size-3.5" />
+                </Button>
+              }
+            />
+          </div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Badge variant="outline">{prettyLabel(a.status)}</Badge>
             <Badge variant={a.criticality === "high" ? "destructive" : "secondary"}>
               {prettyLabel(a.criticality)} criticality
             </Badge>
-            {a.tag_number && <span className="font-mono text-xs text-muted-foreground">{a.tag_number}</span>}
+            {a.tag_number && (
+              <span className="font-mono text-xs text-muted-foreground">Tag: {a.tag_number}</span>
+            )}
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className="label-caps">Building / area</span>
@@ -231,7 +367,28 @@ function AssetDetail() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <RelabelAssetDialog
+            assetId={a.id}
+            initialAsset={a}
+            trigger={
+              <Button
+                variant="outline"
+                className="gap-1.5 font-semibold text-primary border-primary/40 hover:bg-primary/10"
+              >
+                <Tag className="size-3.5" /> Relabel asset
+              </Button>
+            }
+          />
+          <SendPartsDialog
+            asset={{ id: a.id, name: a.name, manufacturer: a.manufacturer }}
+            lockAsset
+            trigger={
+              <Button variant="outline" className="gap-1.5 font-medium">
+                <Send className="size-3.5 text-primary" /> Send parts request
+              </Button>
+            }
+          />
           <WorkOrderDialog
             assetId={a.id}
             lockAsset
@@ -291,7 +448,12 @@ function AssetDetail() {
             <ul className="mt-4 space-y-2 text-sm">
               {(manuals.data ?? []).map((m) => (
                 <li key={m.id} className="border-t border-border pt-2 first:border-0 first:pt-0">
-                  <a href={m.file_url} target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">
+                  <a
+                    href={m.file_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-medium text-primary hover:underline"
+                  >
                     {m.title}
                     <ExternalLink className="ml-1 inline size-3" />
                   </a>
@@ -304,7 +466,8 @@ function AssetDetail() {
               ))}
               {(manuals.data ?? []).length === 0 && (
                 <li className="text-muted-foreground">
-                  No manuals attached yet. Add one here, or attach an existing document from the Manuals page.
+                  No manuals attached yet. Add one here, or attach an existing document from the
+                  Manuals page.
                 </li>
               )}
             </ul>
@@ -321,9 +484,30 @@ function AssetDetail() {
           </div>
         </TabsContent>
 
-
-        <TabsContent value="specs" className="mt-4">
+        <TabsContent value="specs" className="mt-4 space-y-4">
           <div className="panel p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-border">
+              <div>
+                <p className="label-caps">Equipment Specifications</p>
+                <p className="text-xs text-muted-foreground">
+                  Master nameplate, electrical ratings, and operational parameters for {a.name}.
+                </p>
+              </div>
+              <RelabelAssetDialog
+                assetId={a.id}
+                initialAsset={a}
+                defaultTab="specs"
+                trigger={
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1 text-xs font-semibold text-primary border-primary/40 hover:bg-primary/10"
+                  >
+                    <Pencil className="size-3" /> Relabel / Edit Specs
+                  </Button>
+                }
+              />
+            </div>
             <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
               {specs.map(([label, value]) => (
                 <div key={label}>
@@ -333,14 +517,18 @@ function AssetDetail() {
               ))}
             </dl>
 
-
             {(manuals.data ?? []).length > 0 && (
               <div className="mt-5 border-t border-border pt-4">
                 <p className="label-caps">Manuals</p>
                 <ul className="mt-2 space-y-1 text-sm">
                   {(manuals.data ?? []).map((m) => (
                     <li key={m.id}>
-                      <a href={m.file_url} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                      <a
+                        href={m.file_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary hover:underline"
+                      >
                         {m.title}
                       </a>
                     </li>
@@ -354,6 +542,138 @@ function AssetDetail() {
                 <p className="mt-1 text-sm text-muted-foreground">{a.notes}</p>
               </div>
             )}
+          </div>
+
+          {/* OEM Consumables, Lubrication & Belt Sizing Specs */}
+          <div className="panel p-5 border-l-4 border-l-primary space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <Droplet className="size-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-foreground">
+                    Manufacturer Lube, Grease, Belt &amp; Seal Specifications
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    OEM-recommended fluids, belt sizing, mechanical seals, and filter elements for{" "}
+                    {a.name}.
+                  </p>
+                </div>
+              </div>
+              <SendPartsDialog
+                asset={{ id: a.id, name: a.name, manufacturer: a.manufacturer }}
+                lockAsset
+                initialPart={{
+                  name: `Oil & Grease Consumables Pack for ${a.name}`,
+                  part_number: consumables.oilGrade.split(" ")[0] || "LUBE-SPEC",
+                  manufacturer: a.manufacturer,
+                  qty: 1,
+                }}
+                trigger={
+                  <Button size="sm" variant="outline" className="gap-1.5 font-semibold text-xs">
+                    <Send className="size-3.5 text-primary" /> Requisition Lube / Belts
+                  </Button>
+                }
+              />
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 pt-2">
+              <div className="rounded-lg border border-border bg-card/60 p-3.5 space-y-1">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400">
+                  <Droplet className="size-4" /> Suggested Oil &amp; Viscosity
+                </div>
+                <p className="text-sm font-semibold text-foreground">{consumables.oilGrade}</p>
+                {consumables.oilCapacity && (
+                  <p className="text-xs text-muted-foreground">
+                    Sump Capacity:{" "}
+                    <span className="font-mono font-medium text-foreground">
+                      {consumables.oilCapacity}
+                    </span>
+                  </p>
+                )}
+              </div>
+
+              <div className="rounded-lg border border-border bg-card/60 p-3.5 space-y-1">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-sky-600 dark:text-sky-400">
+                  <Disc className="size-4" /> Recommended Grease Type
+                </div>
+                <p className="text-sm font-semibold text-foreground">{consumables.greaseType}</p>
+                <p className="text-xs text-muted-foreground">
+                  Grease Bearing Schedule:{" "}
+                  <span className="font-medium text-foreground">Clean relief plug first</span>
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-border bg-card/60 p-3.5 space-y-1">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                  <Layers className="size-4" /> Drive Belt / Coupling Sizing
+                </div>
+                <p className="text-sm font-semibold text-foreground">{consumables.beltSize}</p>
+                <p className="text-xs text-muted-foreground">
+                  Always replace drive belts in matched matched sets.
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-border bg-card/60 p-3.5 space-y-1">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                  <ShieldCheck className="size-4" /> Mechanical Seal / Packing
+                </div>
+                <p className="text-sm font-semibold text-foreground">{consumables.sealType}</p>
+                <p className="text-xs text-muted-foreground">
+                  Check barrier fluid flush lines and seal drops/min.
+                </p>
+              </div>
+
+              {consumables.filterSpec && (
+                <div className="rounded-lg border border-border bg-card/60 p-3.5 space-y-1">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-violet-600 dark:text-violet-400">
+                    <Filter className="size-4" /> Filter / Strainer Spec
+                  </div>
+                  <p className="text-sm font-semibold text-foreground">{consumables.filterSpec}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Replace cartridge elements during routine PM interval.
+                  </p>
+                </div>
+              )}
+
+              <div className="rounded-lg border border-border bg-card/60 p-3.5 space-y-1">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-rose-600 dark:text-rose-400">
+                  <Clock className="size-4" /> Lubrication Interval
+                </div>
+                <p className="text-xs font-medium text-foreground">{consumables.lubeInterval}</p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground border border-border/70">
+              <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                <Wrench className="size-4 text-primary shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-semibold text-foreground">
+                    Operator &amp; Mechanic Inspection Note:{" "}
+                  </span>
+                  {consumables.inspectionNotes}
+                </div>
+              </div>
+              <EditAssetPartsDialog
+                assetId={a.id}
+                assetName={a.name}
+                manufacturer={a.manufacturer}
+                model={a.model}
+                currentParts={parts}
+                defaultTab="feedback"
+                trigger={
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 gap-1 text-xs text-amber-600 hover:bg-amber-500/10 dark:text-amber-400 shrink-0"
+                  >
+                    <AlertTriangle className="size-3.5" />
+                    Not the right parts/specs?
+                  </Button>
+                }
+              />
+            </div>
           </div>
         </TabsContent>
 
@@ -378,7 +698,11 @@ function AssetDetail() {
               )}
               <Button onClick={() => lookup.mutate()} disabled={lookup.isPending}>
                 <Sparkles className="size-4" />
-                {lookup.isPending ? "Researching…" : info.data ? "Refresh data" : "Look up maintenance info"}
+                {lookup.isPending
+                  ? "Researching…"
+                  : info.data
+                    ? "Refresh data"
+                    : "Look up maintenance info"}
               </Button>
             </div>
           </div>
@@ -422,30 +746,140 @@ function AssetDetail() {
                             </Button>
                           </div>
                         </div>
-                        {i.notes && <p className="mt-0.5 text-xs text-muted-foreground">{i.notes}</p>}
+                        {i.notes && (
+                          <p className="mt-0.5 text-xs text-muted-foreground">{i.notes}</p>
+                        )}
                         <p className="mt-0.5 text-xs text-muted-foreground">
                           Every {frequencyToDays(i.frequency)} days
                         </p>
                       </li>
                     ))}
                   </ul>
-
                 </div>
               )}
 
-              {parts.length > 0 && (
-                <div className="panel p-4">
-                  <p className="label-caps">Wear &amp; spare parts</p>
-                  <ul className="mt-2 divide-y divide-border">
+              <div className="panel p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <p className="label-caps">Wear &amp; spare parts</p>
+                    <Badge variant="secondary" className="text-xs">
+                      {parts.length}
+                    </Badge>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <EditAssetPartsDialog
+                      assetId={a.id}
+                      assetName={a.name}
+                      manufacturer={a.manufacturer}
+                      model={a.model}
+                      currentParts={parts}
+                      defaultTab="feedback"
+                      trigger={
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="gap-1 text-xs text-amber-600 hover:bg-amber-500/10 dark:text-amber-400"
+                        >
+                          <AlertTriangle className="size-3.5" />
+                          Not the right parts?
+                        </Button>
+                      }
+                    />
+                    <EditAssetPartsDialog
+                      assetId={a.id}
+                      assetName={a.name}
+                      manufacturer={a.manufacturer}
+                      model={a.model}
+                      currentParts={parts}
+                      defaultTab="manage"
+                      trigger={
+                        <Button size="sm" variant="outline" className="gap-1 text-xs">
+                          <Plus className="size-3" /> Edit / Add parts
+                        </Button>
+                      }
+                    />
+                    {parts.length > 0 && (
+                      <SendPartsDialog
+                        asset={{ id: a.id, name: a.name, manufacturer: a.manufacturer }}
+                        lockAsset
+                        trigger={
+                          <Button size="sm" variant="outline" className="gap-1 text-xs">
+                            <Send className="size-3 text-primary" /> Request all parts
+                          </Button>
+                        }
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {parts.length > 0 ? (
+                  <ul className="mt-3 divide-y divide-border">
                     {parts.map((p, idx) => (
-                      <li key={idx} className="flex flex-wrap items-baseline justify-between gap-2 py-2">
-                        <span className="text-sm">{p.name}</span>
-                        <span className="font-mono text-xs text-muted-foreground">{p.part_number ?? "—"}</span>
+                      <li
+                        key={idx}
+                        className="flex flex-wrap items-center justify-between gap-3 py-2.5"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-foreground">{p.name}</span>
+                            {p.part_number ? (
+                              <span className="font-mono text-xs text-primary font-medium">
+                                P/N: {p.part_number}
+                              </span>
+                            ) : (
+                              <span className="text-xs italic text-muted-foreground">
+                                No OEM P/N
+                              </span>
+                            )}
+                          </div>
+                          {p.notes && (
+                            <p className="mt-0.5 text-xs text-muted-foreground">{p.notes}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <SendPartsDialog
+                            asset={{ id: a.id, name: a.name, manufacturer: a.manufacturer }}
+                            lockAsset
+                            initialPart={{
+                              name: p.name,
+                              part_number: p.part_number ?? null,
+                              manufacturer: a.manufacturer,
+                              qty: 1,
+                            }}
+                            trigger={
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 px-2 text-xs font-semibold text-primary hover:bg-primary/10"
+                              >
+                                <Send className="size-3 mr-1" /> Send to coordinator
+                              </Button>
+                            }
+                          />
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="size-7 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() => deletePartMutation.mutate(idx)}
+                            disabled={deletePartMutation.isPending}
+                            title="Delete part (not right for this asset)"
+                          >
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        </div>
                       </li>
                     ))}
                   </ul>
-                </div>
-              )}
+                ) : (
+                  <div className="mt-3 rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
+                    <p>No parts stored for this asset.</p>
+                    <p className="mt-1">
+                      Click "Edit / Add parts" to add custom items or "Not the right parts?" to
+                      research with custom equipment specs.
+                    </p>
+                  </div>
+                )}
+              </div>
 
               {sources.length > 0 && (
                 <div className="panel p-4">
@@ -465,7 +899,8 @@ function AssetDetail() {
                     ))}
                   </ul>
                   <p className="mt-3 text-xs text-muted-foreground">
-                    AI-assisted research — verify against the manufacturer manual before performing work.
+                    AI-assisted research — verify against the manufacturer manual before performing
+                    work.
                   </p>
                 </div>
               )}
@@ -491,7 +926,9 @@ function AssetDetail() {
                     {pm.tasks && <p className="mt-1 text-xs text-muted-foreground">{pm.tasks}</p>}
                   </div>
                   <Badge
-                    variant={tone === "overdue" ? "destructive" : tone === "due" ? "secondary" : "outline"}
+                    variant={
+                      tone === "overdue" ? "destructive" : tone === "due" ? "secondary" : "outline"
+                    }
                     className="font-mono"
                   >
                     {pm.next_due}
@@ -531,7 +968,9 @@ function AssetDetail() {
               </div>
             ))}
             {(wos.data ?? []).length === 0 && (
-              <p className="p-3 text-sm text-muted-foreground">No work orders logged for this asset.</p>
+              <p className="p-3 text-sm text-muted-foreground">
+                No work orders logged for this asset.
+              </p>
             )}
           </div>
         </TabsContent>

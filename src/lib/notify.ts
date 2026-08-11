@@ -34,7 +34,6 @@ export async function notifyUser(input: {
   });
   if (error) throw error;
 
-
   // Outbound delivery is best-effort: never block the assignment on it.
   try {
     await sendAssignmentAlert({
@@ -43,7 +42,9 @@ export async function notifyUser(input: {
         title: input.title,
         body: input.body ?? "",
         link: link ?? undefined,
-        eventKey: input.eventKey ?? `${input.userId}-${input.title}-${new Date().toISOString().slice(0, 16)}`,
+        eventKey:
+          input.eventKey ??
+          `${input.userId}-${input.title}-${new Date().toISOString().slice(0, 16)}`,
       },
     });
   } catch (err) {
@@ -54,5 +55,7 @@ export async function notifyUser(input: {
 export type TeamMember = { id: string; email: string | null; full_name: string | null };
 
 export function memberLabel(m: TeamMember) {
-  return m.full_name && m.full_name !== m.email ? `${m.full_name} (${m.email ?? "no email"})` : (m.email ?? "Team member");
+  return m.full_name && m.full_name !== m.email
+    ? `${m.full_name} (${m.email ?? "no email"})`
+    : (m.email ?? "Team member");
 }

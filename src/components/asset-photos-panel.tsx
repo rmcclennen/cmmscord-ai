@@ -4,10 +4,22 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useSessionUser } from "@/hooks/use-session-user";
 import { readNameplate } from "@/lib/nameplate.functions";
-import { fileToJpegDataUrl, saveAssetPhoto, signedPhotoUrls, PHOTO_KIND_LABEL, type PhotoKind } from "@/lib/photos";
+import {
+  fileToJpegDataUrl,
+  saveAssetPhoto,
+  signedPhotoUrls,
+  PHOTO_KIND_LABEL,
+  type PhotoKind,
+} from "@/lib/photos";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { Camera, Loader2, Sparkles, Trash2 } from "lucide-react";
 
@@ -79,8 +91,11 @@ export function AssetPhotosPanel({ assetId }: { assetId: string }) {
 
   const fillFromLabel = useMutation({
     mutationFn: async () => {
-      const labelPhotos = (photos.data ?? []).filter((p) => p.kind === "nameplate" && p.url).slice(0, 2);
-      const pool = labelPhotos.length > 0 ? labelPhotos : (photos.data ?? []).filter((p) => p.url).slice(0, 2);
+      const labelPhotos = (photos.data ?? [])
+        .filter((p) => p.kind === "nameplate" && p.url)
+        .slice(0, 2);
+      const pool =
+        labelPhotos.length > 0 ? labelPhotos : (photos.data ?? []).filter((p) => p.url).slice(0, 2);
       if (pool.length === 0) throw new Error("Add a nameplate photo first.");
       const images = await Promise.all(
         pool.map(async (p) => {
@@ -153,14 +168,19 @@ export function AssetPhotosPanel({ assetId }: { assetId: string }) {
             onChange={(e) => onPick(e.target.files?.[0])}
           />
           <Button onClick={() => fileInput.current?.click()} disabled={busy || !user}>
-            {busy ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />} Take photo
+            {busy ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}{" "}
+            Take photo
           </Button>
           <Button
             variant="outline"
             onClick={() => fillFromLabel.mutate()}
             disabled={fillFromLabel.isPending || (photos.data ?? []).length === 0}
           >
-            {fillFromLabel.isPending ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+            {fillFromLabel.isPending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Sparkles className="size-4" />
+            )}
             Read nameplate
           </Button>
         </div>
@@ -175,9 +195,16 @@ export function AssetPhotosPanel({ assetId }: { assetId: string }) {
         {(photos.data ?? []).map((p) => (
           <div key={p.id} className="overflow-hidden rounded-md border border-border">
             {p.url ? (
-              <img src={p.url} alt={`${p.kind} photo of asset`} className="h-40 w-full object-cover" loading="lazy" />
+              <img
+                src={p.url}
+                alt={`${p.kind} photo of asset`}
+                className="h-40 w-full object-cover"
+                loading="lazy"
+              />
             ) : (
-              <div className="flex h-40 items-center justify-center text-xs text-muted-foreground">Unavailable</div>
+              <div className="flex h-40 items-center justify-center text-xs text-muted-foreground">
+                Unavailable
+              </div>
             )}
             <div className="flex items-center justify-between gap-2 px-2 py-1.5">
               <Badge variant="outline">{PHOTO_KIND_LABEL[p.kind as PhotoKind] ?? p.kind}</Badge>

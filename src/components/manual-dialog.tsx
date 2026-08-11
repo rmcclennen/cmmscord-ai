@@ -107,7 +107,8 @@ export function ManualDialog({ trigger, assetId, lockAsset }: Props) {
               placeholder="https://manufacturer.com/manual.pdf"
             />
             <p className="text-xs text-muted-foreground">
-              Paste a manufacturer PDF URL. To load a file from your computer, send it in chat and it will be hosted here.
+              Paste a manufacturer PDF URL. To load a file from your computer, send it in chat and
+              it will be hosted here.
             </p>
           </div>
           {!lockAsset && (
