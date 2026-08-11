@@ -231,7 +231,7 @@ export function EditPmScheduleDialog({
               {selectedAssetId && (
                 <RelabelAssetDialog
                   assetId={selectedAssetId}
-                  initialAsset={linkedAsset.data || pm.assets || undefined}
+                  initialAsset={linkedAsset.data || pm.assets || null}
                   trigger={
                     <Button
                       size="sm"

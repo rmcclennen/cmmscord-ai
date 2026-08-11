@@ -3,23 +3,23 @@ import { buildingOf } from "@/lib/cmms";
 
 export interface ParsedAssetRow {
   name: string;
-  tag_number?: string;
-  class?: string;
-  make?: string;
-  model?: string;
-  serial_number?: string;
-  location_name?: string;
-  building?: string;
-  manufacturer?: string;
-  supplier?: string;
-  hp?: string;
-  volts?: string;
-  rpm?: string;
-  frame?: string;
-  criticality?: "low" | "medium" | "high";
-  status?: string;
-  notes?: string;
-  category?: string;
+  tag_number?: string | undefined;
+  class?: string | undefined;
+  make?: string | undefined;
+  model?: string | undefined;
+  serial_number?: string | undefined;
+  location_name?: string | undefined;
+  building?: string | undefined;
+  manufacturer?: string | undefined;
+  supplier?: string | undefined;
+  hp?: string | undefined;
+  volts?: string | undefined;
+  rpm?: string | undefined;
+  frame?: string | undefined;
+  criticality?: "low" | "medium" | "high" | undefined;
+  status?: string | undefined;
+  notes?: string | undefined;
+  category?: string | undefined;
 }
 
 export interface ColumnMapping {
@@ -162,11 +162,11 @@ export function parseCsvText(text: string): { headers: string[]; rows: Record<st
     return result;
   };
 
-  const headers = parseLine(lines[0]);
+  const headers = parseLine(lines[0] ?? "");
   const rows: Record<string, string>[] = [];
 
   for (let i = 1; i < lines.length; i++) {
-    const values = parseLine(lines[i]);
+    const values = parseLine(lines[i] ?? "");
     if (values.every((v) => !v)) continue;
     const row: Record<string, string> = {};
     headers.forEach((h, idx) => {
@@ -355,8 +355,8 @@ export function downloadSampleAssetCsv() {
 export async function bulkInsertAssets(
   assets: ParsedAssetRow[],
   options: {
-    generatePmSchedules?: boolean;
-    onProgress?: (progress: number, total: number) => void;
+    generatePmSchedules?: boolean | undefined;
+    onProgress?: (progress: number, total: number) => void | undefined;
   } = {},
 ): Promise<{ inserted: number; pmsCreated: number }> {
   const BATCH_SIZE = 25;

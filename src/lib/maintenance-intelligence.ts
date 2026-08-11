@@ -1,13 +1,13 @@
 export interface MaintenanceInterval {
   task: string;
   frequency: string;
-  notes?: string;
+  notes?: string | undefined;
 }
 
 export interface MaintenancePart {
   name: string;
-  part_number?: string;
-  notes?: string;
+  part_number?: string | undefined;
+  notes?: string | undefined;
 }
 
 export interface MaintenanceSource {
@@ -23,19 +23,19 @@ export interface MaintenanceLookupData {
 }
 
 export interface AssetData {
-  id?: string;
+  id?: string | undefined;
   name: string;
-  manufacturer?: string | null;
-  make?: string | null;
-  model?: string | null;
-  serial_number?: string | null;
-  class?: string | null;
-  type?: string | null;
-  hp?: string | null;
-  volts?: string | null;
-  rpm?: string | null;
-  frame?: string | null;
-  manufacturer_url?: string | null;
+  manufacturer?: string | null | undefined;
+  make?: string | null | undefined;
+  model?: string | null | undefined;
+  serial_number?: string | null | undefined;
+  class?: string | null | undefined;
+  type?: string | null | undefined;
+  hp?: string | null | undefined;
+  volts?: string | null | undefined;
+  rpm?: string | null | undefined;
+  frame?: string | null | undefined;
+  manufacturer_url?: string | null | undefined;
 }
 
 export function generateComprehensiveMaintenanceData(asset: AssetData): MaintenanceLookupData {

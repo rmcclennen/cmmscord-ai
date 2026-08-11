@@ -41,13 +41,13 @@ import {
 } from "lucide-react";
 
 export interface RelabelAssetDialogProps {
-  assetId?: string | null;
-  initialAsset?: Partial<Asset> | null;
-  trigger?: React.ReactNode;
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
-  onSaved?: (asset: Asset) => void;
-  defaultTab?: "label" | "specs" | "sync";
+  assetId?: string | null | undefined;
+  initialAsset?: Partial<Asset> | null | undefined;
+  trigger?: React.ReactNode | undefined;
+  open?: boolean | undefined;
+  onOpenChange?: (open: boolean) => void | undefined;
+  onSaved?: (asset: Asset) => void | undefined;
+  defaultTab?: "label" | "specs" | "sync" | undefined;
 }
 
 export function RelabelAssetDialog({

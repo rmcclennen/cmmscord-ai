@@ -46,16 +46,16 @@ export interface SendPartsDialogProps {
   workOrder?: { id: string; wo_number: number; title: string } | null;
   initialPart?: {
     name: string;
-    part_number?: string | null;
-    manufacturer?: string | null;
-    qty?: string | number;
-    where_to_buy?: string | null;
-    unit_cost?: number | null;
+    part_number?: string | null | undefined;
+    manufacturer?: string | null | undefined;
+    qty?: string | number | undefined;
+    where_to_buy?: string | null | undefined;
+    unit_cost?: number | null | undefined;
   } | null;
-  trigger?: React.ReactNode;
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
-  lockAsset?: boolean;
+  trigger?: React.ReactNode | undefined;
+  open?: boolean | undefined;
+  onOpenChange?: (open: boolean) => void | undefined;
+  lockAsset?: boolean | undefined;
 }
 
 export function SendPartsDialog({
@@ -116,7 +116,7 @@ export function SendPartsDialog({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("assets")
-        .select("id, name, asset_number, location_name")
+        .select("id, name, tag_number, location_name")
         .order("name")
         .limit(300);
       if (error) throw error;
