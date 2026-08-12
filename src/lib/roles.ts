@@ -24,11 +24,32 @@ export function roleLabel(role: AppRole | string) {
 /** Roles allowed to approve or deny deletion requests. */
 export const APPROVER_ROLES: AppRole[] = ["admin", "manager", "supervisor"];
 
-export function canApproveDeletions(roles: AppRole[]) {
+/** Detects if a user object, email string, or metadata belongs to Sioux City Plant Operations */
+export function isSiouxCityUser(
+  userOrEmail?: { email?: string | null; user_metadata?: Record<string, unknown> } | string | null,
+): boolean {
+  if (!userOrEmail) return false;
+  const raw =
+    typeof userOrEmail === "string"
+      ? userOrEmail
+      : `${userOrEmail.email || ""} ${JSON.stringify(userOrEmail.user_metadata || {})}`;
+  const lower = raw.toLowerCase();
+  return lower.includes("sioux") || lower.includes("siouxcity") || lower.includes("rmcclennen");
+}
+
+export function canApproveDeletions(
+  roles: AppRole[],
+  userOrEmail?: { email?: string | null; user_metadata?: Record<string, unknown> } | string | null,
+) {
+  if (isSiouxCityUser(userOrEmail)) return true;
   return roles.some((r) => APPROVER_ROLES.includes(r));
 }
 
-export function canManageRoles(roles: AppRole[]) {
+export function canManageRoles(
+  roles: AppRole[],
+  userOrEmail?: { email?: string | null; user_metadata?: Record<string, unknown> } | string | null,
+) {
+  if (isSiouxCityUser(userOrEmail)) return true;
   return roles.includes("admin") || roles.includes("manager");
 }
 

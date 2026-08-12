@@ -1,7 +1,8 @@
 import type { Json } from "@/integrations/supabase/types";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { useState, useMemo, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { researchAssetMaintenance, updateAssetMaintenanceParts } from "@/lib/maintenance.functions";
 import { generateComprehensiveMaintenanceData } from "@/lib/maintenance-intelligence";
@@ -12,6 +13,11 @@ import { WorkOrderDialog } from "@/components/work-order-dialog";
 import { DeleteRequestDialog } from "@/components/delete-request-dialog";
 import { EditAssetPartsDialog } from "@/components/edit-asset-parts-dialog";
 import { RelabelAssetDialog } from "@/components/relabel-asset-dialog";
+import { CreatePmScheduleDialog } from "@/components/create-pm-schedule-dialog";
+import { EditPmScheduleDialog } from "@/components/edit-pm-schedule-dialog";
+import { MatchPmAssetDialog } from "@/components/match-pm-asset-dialog";
+import { useTeamMembers } from "@/hooks/use-team-members";
+import { memberLabel, notifyUser } from "@/lib/notify";
 import {
   Select,
   SelectContent,
@@ -22,12 +28,14 @@ import {
 import {
   ALL_BUILDING_OPTIONS,
   buildingOf,
+  clampToSeason,
   classLabel,
   dueTone,
   frequencyToDays,
   getManufacturerConsumables,
   manualList,
   prettyLabel,
+  seasonLabel,
 } from "@/lib/cmms";
 import { ManualDialog } from "@/components/manual-dialog";
 import { AssetPhotosPanel } from "@/components/asset-photos-panel";
@@ -36,20 +44,29 @@ import { toast } from "sonner";
 import {
   AlertTriangle,
   ArrowLeft,
+  BookOpen,
+  Calendar,
   CalendarPlus,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   Disc,
   Droplet,
   ExternalLink,
+  FileText,
   Filter,
   Layers,
   Pencil,
   Plus,
+  Search,
   Send,
   ShieldCheck,
   Sparkles,
   Tag,
   Trash2,
+  Upload,
+  User,
   Wrench,
 } from "lucide-react";
 
@@ -77,8 +94,11 @@ type Source = { title: string; url: string };
 
 function AssetDetail() {
   const { assetId } = Route.useParams();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const research = useServerFn(researchAssetMaintenance);
+  const team = useTeamMembers();
+  const [tab, setTab] = useState("specs");
 
   const asset = useQuery({
     queryKey: ["asset", assetId],
@@ -92,6 +112,62 @@ function AssetDetail() {
       return data;
     },
   });
+
+  // Query all assets to facilitate next/prev asset cycling and quick switching
+  const allAssetsQuery = useQuery({
+    queryKey: ["assets-all"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("assets")
+        .select("id, name, tag_number, class, building, location_name")
+        .order("name");
+      if (error) throw error;
+      return (data ?? []).map((item) => ({
+        ...item,
+        resolvedBuilding: buildingOf(item.name, null, item.location_name, item.building),
+      }));
+    },
+  });
+
+  const allAssets = useMemo(() => allAssetsQuery.data ?? [], [allAssetsQuery.data]);
+  const currentIndex = useMemo(
+    () => allAssets.findIndex((item) => item.id === assetId),
+    [allAssets, assetId],
+  );
+  const prevAsset = currentIndex > 0 ? allAssets[currentIndex - 1] : null;
+  const nextAsset =
+    currentIndex >= 0 && currentIndex < allAssets.length - 1 ? allAssets[currentIndex + 1] : null;
+
+  // Keyboard navigation shortcuts: Alt+Left / '[' for Prev, Alt+Right / ']' for Next
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      if ((e.altKey && e.key === "ArrowLeft") || e.key === "[") {
+        if (prevAsset) {
+          e.preventDefault();
+          navigate({ to: "/assets/$assetId", params: { assetId: prevAsset.id } });
+        }
+      } else if ((e.altKey && e.key === "ArrowRight") || e.key === "]") {
+        if (nextAsset) {
+          e.preventDefault();
+          navigate({ to: "/assets/$assetId", params: { assetId: nextAsset.id } });
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [prevAsset, nextAsset, navigate]);
 
   const pms = useQuery({
     queryKey: ["asset-pms", assetId],
@@ -132,6 +208,63 @@ function AssetDetail() {
     },
   });
 
+  const attachManualMutation = useMutation({
+    mutationFn: async ({
+      title,
+      url,
+      manufacturer,
+      notes,
+    }: {
+      title: string;
+      url: string;
+      manufacturer?: string;
+      notes?: string;
+    }) => {
+      const { data: userData } = await supabase.auth.getUser();
+      const { error } = await supabase.from("manuals").insert({
+        title: title.trim(),
+        file_url: url.trim(),
+        kind: "link",
+        asset_id: assetId,
+        manufacturer: (manufacturer || asset.data?.manufacturer || "").trim() || null,
+        notes: notes || `Attached from manufacturer research for ${asset.data?.name || "asset"}.`,
+        added_by: userData.user?.id ?? null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      toast.success(
+        `Attached "${variables.title}" to ${asset.data?.name || "asset"} under Manuals tab!`,
+      );
+      queryClient.invalidateQueries({ queryKey: ["asset-manuals", assetId] });
+      queryClient.invalidateQueries({ queryKey: ["manuals"] });
+      queryClient.invalidateQueries({ queryKey: ["manuals-all"] });
+    },
+    onError: (err: Error) => toast.error(`Failed to attach manual: ${err.message}`),
+  });
+
+  const deleteManualMutation = useMutation({
+    mutationFn: async (manualId: string) => {
+      const { error } = await supabase.from("manuals").delete().eq("id", manualId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Manual unlinked from asset");
+      queryClient.invalidateQueries({ queryKey: ["asset-manuals", assetId] });
+      queryClient.invalidateQueries({ queryKey: ["manuals"] });
+      queryClient.invalidateQueries({ queryKey: ["manuals-all"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const isManualAttached = (title: string, url: string) => {
+    return (manuals.data ?? []).some(
+      (m) =>
+        m.file_url?.toLowerCase().trim() === url.toLowerCase().trim() ||
+        m.title?.toLowerCase().trim() === title.toLowerCase().trim(),
+    );
+  };
+
   const info = useQuery({
     queryKey: ["asset-info", assetId],
     queryFn: async () => {
@@ -145,6 +278,61 @@ function AssetDetail() {
       if (error) throw error;
       return data;
     },
+  });
+
+  const completePm = useMutation({
+    mutationFn: async (pm: {
+      id: string;
+      interval_days: number;
+      season_start_md: string | null;
+      season_end_md: string | null;
+    }) => {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const raw = new Date(Date.now() + pm.interval_days * 86400000).toISOString().slice(0, 10);
+      const next = clampToSeason(raw, pm.season_start_md, pm.season_end_md);
+      const { error } = await supabase
+        .from("pm_schedules")
+        .update({ last_completed: todayStr, next_due: next })
+        .eq("id", pm.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("PM marked complete and scheduled for next interval");
+      queryClient.invalidateQueries({ queryKey: ["asset-pms", assetId] });
+      queryClient.invalidateQueries({ queryKey: ["pms"] });
+      queryClient.invalidateQueries({ queryKey: ["assets-pms-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const assignPm = useMutation({
+    mutationFn: async (pm: {
+      id: string;
+      title: string;
+      next_due: string;
+      userId: string | null;
+    }) => {
+      const { error } = await supabase
+        .from("pm_schedules")
+        .update({ assigned_to: pm.userId })
+        .eq("id", pm.id);
+      if (error) throw error;
+      if (pm.userId) {
+        notifyUser({
+          userId: pm.userId,
+          title: "PM task assigned to you",
+          body: `${pm.title} on ${asset.data?.name || "equipment"} · next due ${pm.next_due}`,
+          link: `/assets/${assetId}`,
+        }).catch(() => {});
+      }
+    },
+    onSuccess: () => {
+      toast.success("Technician assigned");
+      queryClient.invalidateQueries({ queryKey: ["asset-pms", assetId] });
+      queryClient.invalidateQueries({ queryKey: ["pms"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
   });
 
   const lookup = useMutation({
@@ -178,9 +366,9 @@ function AssetDetail() {
           asset_id: assetId,
           created_at: new Date().toISOString(),
           summary: fallbackData.summary,
-          intervals: fallbackData.intervals,
-          parts: fallbackData.parts,
-          sources: fallbackData.sources,
+          intervals: fallbackData.intervals as unknown as Json,
+          parts: fallbackData.parts as unknown as Json,
+          sources: fallbackData.sources as unknown as Json,
         };
       }
       throw new Error("Asset details not loaded yet.");
@@ -244,6 +432,7 @@ function AssetDetail() {
     },
     onError: (error: Error) => toast.error(error.message),
   });
+
   const addPms = useMutation({
     mutationFn: async (items: Interval[]) => {
       const today = new Date();
@@ -270,6 +459,8 @@ function AssetDetail() {
       toast.success(n === 1 ? "PM added to schedule" : `${n} PMs added to schedule`);
       queryClient.invalidateQueries({ queryKey: ["pms"] });
       queryClient.invalidateQueries({ queryKey: ["asset-pms", assetId] });
+      queryClient.invalidateQueries({ queryKey: ["assets-pms-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -305,14 +496,110 @@ function AssetDetail() {
   const parts = (info.data?.parts as Part[] | null) ?? [];
   const sources = (info.data?.sources as Source[] | null) ?? [];
 
+  const pmList = pms.data ?? [];
+  const overduePmsCount = pmList.filter((p) => dueTone(p.next_due) === "overdue").length;
+  const dueSoonPmsCount = pmList.filter((p) => dueTone(p.next_due) === "due").length;
+  const nextUpcomingPm = pmList[0];
+
   return (
     <div className="space-y-5">
-      <Link
-        to="/assets"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:underline"
-      >
-        <ArrowLeft className="size-4" /> All assets
-      </Link>
+      {/* Top Asset Navigation Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
+        <div className="flex items-center gap-2.5">
+          <Link
+            to="/assets"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors hover:underline"
+          >
+            <ArrowLeft className="size-4" /> All assets
+          </Link>
+          {allAssets.length > 0 && currentIndex >= 0 && (
+            <Badge
+              variant="outline"
+              className="text-xs font-mono font-normal text-muted-foreground bg-muted/40"
+            >
+              #{currentIndex + 1} of {allAssets.length}
+            </Badge>
+          )}
+        </div>
+
+        {/* Quick Asset Switcher & Prev / Next Controls */}
+        <div className="flex items-center gap-1.5">
+          {prevAsset ? (
+            <Link
+              to="/assets/$assetId"
+              params={{ assetId: prevAsset.id }}
+              className="inline-flex items-center gap-1 h-8 px-2.5 rounded-md border border-input bg-background hover:bg-muted text-xs font-medium text-foreground transition-colors shadow-xs"
+              title={`Previous: ${prevAsset.name} ${prevAsset.tag_number ? `[${prevAsset.tag_number}]` : ""} (Alt + ←)`}
+            >
+              <ChevronLeft className="size-3.5" />
+              <span className="hidden sm:inline">Prev</span>
+            </Link>
+          ) : (
+            <Button
+              disabled
+              variant="outline"
+              size="sm"
+              className="h-8 px-2.5 text-xs text-muted-foreground gap-1 opacity-40 cursor-not-allowed"
+            >
+              <ChevronLeft className="size-3.5" />
+              <span className="hidden sm:inline">Prev</span>
+            </Button>
+          )}
+
+          {allAssets.length > 0 && (
+            <Select
+              value={assetId}
+              onValueChange={(selectedId) => {
+                if (selectedId && selectedId !== assetId) {
+                  navigate({ to: "/assets/$assetId", params: { assetId: selectedId } });
+                }
+              }}
+            >
+              <SelectTrigger className="h-8 w-44 sm:w-60 text-xs bg-background font-medium">
+                <SelectValue placeholder={`Asset ${currentIndex + 1} of ${allAssets.length}`} />
+              </SelectTrigger>
+              <SelectContent className="max-h-72">
+                {allAssets.map((item, idx) => (
+                  <SelectItem key={item.id} value={item.id} className="text-xs">
+                    <span className="font-mono text-muted-foreground mr-1.5">{idx + 1}.</span>
+                    <span className="font-medium">{item.name}</span>{" "}
+                    {item.tag_number && (
+                      <span className="text-muted-foreground font-mono">[{item.tag_number}]</span>
+                    )}
+                    {item.resolvedBuilding && (
+                      <span className="text-[11px] text-muted-foreground ml-1">
+                        · {item.resolvedBuilding}
+                      </span>
+                    )}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          {nextAsset ? (
+            <Link
+              to="/assets/$assetId"
+              params={{ assetId: nextAsset.id }}
+              className="inline-flex items-center gap-1 h-8 px-2.5 rounded-md border border-primary/40 bg-primary/10 hover:bg-primary/20 text-xs font-semibold text-primary transition-colors shadow-xs"
+              title={`Next: ${nextAsset.name} ${nextAsset.tag_number ? `[${nextAsset.tag_number}]` : ""} (Alt + →)`}
+            >
+              <span className="hidden sm:inline">Next</span>
+              <ChevronRight className="size-3.5" />
+            </Link>
+          ) : (
+            <Button
+              disabled
+              variant="outline"
+              size="sm"
+              className="h-8 px-2.5 text-xs text-muted-foreground gap-1 opacity-40 cursor-not-allowed"
+            >
+              <span className="hidden sm:inline">Next</span>
+              <ChevronRight className="size-3.5" />
+            </Button>
+          )}
+        </div>
+      </div>
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -342,6 +629,20 @@ function AssetDetail() {
             {a.tag_number && (
               <span className="font-mono text-xs text-muted-foreground">Tag: {a.tag_number}</span>
             )}
+            {pmList.length > 0 && (
+              <Badge
+                variant={overduePmsCount > 0 ? "destructive" : "outline"}
+                className="font-mono text-xs cursor-pointer gap-1"
+                onClick={() => setTab("pms")}
+                title="View PM schedules for this asset"
+              >
+                <Clock className="size-3" />
+                {pmList.length} PM{pmList.length > 1 ? "s" : ""}
+                {overduePmsCount > 0
+                  ? ` · ${overduePmsCount} Overdue`
+                  : ` · Next ${nextUpcomingPm?.next_due}`}
+              </Badge>
+            )}
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className="label-caps">Building / area</span>
@@ -368,15 +669,28 @@ function AssetDetail() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <CreatePmScheduleDialog
+            assetId={a.id}
+            assetName={a.name}
+            lockAsset
+            trigger={
+              <Button
+                variant="outline"
+                className="gap-1.5 font-semibold text-primary border-primary/40 hover:bg-primary/10"
+              >
+                <CalendarPlus className="size-3.5" /> Schedule PM
+              </Button>
+            }
+          />
           <RelabelAssetDialog
             assetId={a.id}
             initialAsset={a}
             trigger={
               <Button
                 variant="outline"
-                className="gap-1.5 font-semibold text-primary border-primary/40 hover:bg-primary/10"
+                className="gap-1.5 font-semibold text-foreground border-border hover:bg-muted"
               >
-                <Tag className="size-3.5" /> Relabel asset
+                <Tag className="size-3.5 text-primary" /> Relabel asset
               </Button>
             }
           />
@@ -412,11 +726,14 @@ function AssetDetail() {
         </div>
       </div>
 
-      <Tabs defaultValue="specs">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="specs">Specifications</TabsTrigger>
+          <TabsTrigger value="pms">
+            PMs ({pmList.length})
+            {overduePmsCount > 0 && <span className="ml-1.5 size-2 rounded-full bg-destructive" />}
+          </TabsTrigger>
           <TabsTrigger value="maintenance">Manufacturer data</TabsTrigger>
-          <TabsTrigger value="pms">PMs ({pms.data?.length ?? 0})</TabsTrigger>
           <TabsTrigger value="photos">Photos</TabsTrigger>
           <TabsTrigger value="manuals">Manuals ({manuals.data?.length ?? 0})</TabsTrigger>
           <TabsTrigger value="history">Work orders ({wos.data?.length ?? 0})</TabsTrigger>
@@ -426,65 +743,258 @@ function AssetDetail() {
           <AssetPhotosPanel assetId={a.id} />
         </TabsContent>
 
-        <TabsContent value="manuals" className="mt-4">
+        <TabsContent value="manuals" className="mt-4 space-y-4">
           <div className="panel p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-3">
               <div>
-                <p className="label-caps">Manuals for this asset</p>
+                <p className="label-caps text-foreground flex items-center gap-1.5">
+                  <FileText className="size-4 text-primary" /> Attached O&amp;M Manuals (
+                  {manuals.data?.length ?? 0})
+                </p>
                 <p className="text-xs text-muted-foreground">
-                  O&amp;M manuals, cut sheets, and drawings attached to {a.name}.
+                  Official manufacturer O&amp;M manuals, cut sheets, and technical drawings attached
+                  to {a.name}.
                 </p>
               </div>
               <ManualDialog
                 assetId={a.id}
                 lockAsset
                 trigger={
-                  <Button variant="outline" size="sm">
-                    <Plus className="size-4" /> Add manual
+                  <Button variant="outline" size="sm" className="gap-1.5 font-medium">
+                    <Plus className="size-4 text-primary" /> Add manual or link
                   </Button>
                 }
               />
             </div>
-            <ul className="mt-4 space-y-2 text-sm">
+
+            <ul className="mt-3 divide-y divide-border/60 text-sm">
               {(manuals.data ?? []).map((m) => (
-                <li key={m.id} className="border-t border-border pt-2 first:border-0 first:pt-0">
-                  <a
-                    href={m.file_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-medium text-primary hover:underline"
-                  >
-                    {m.title}
-                    <ExternalLink className="ml-1 inline size-3" />
-                  </a>
-                  <p className="text-xs text-muted-foreground">
-                    {m.manufacturer && `${m.manufacturer}`}
-                    {m.manufacturer && m.notes && " · "}
-                    {m.notes}
-                  </p>
+                <li key={m.id} className="py-3 flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={m.file_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-semibold text-primary hover:underline inline-flex items-center gap-1.5 text-sm"
+                      >
+                        <FileText className="size-4 text-blue-500 shrink-0" />
+                        {m.title}
+                        <ExternalLink className="size-3 text-muted-foreground" />
+                      </a>
+                      {m.kind && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] uppercase font-mono px-1.5 py-0"
+                        >
+                          {m.kind}
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {m.manufacturer && (
+                        <span className="font-medium text-foreground">{m.manufacturer} · </span>
+                      )}
+                      {m.notes || "Attached document"}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button size="sm" variant="outline" className="h-8 gap-1 text-xs" asChild>
+                      <a href={m.file_url} target="_blank" rel="noreferrer">
+                        <ExternalLink className="size-3.5" /> View
+                      </a>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 p-2 text-destructive hover:bg-destructive/10"
+                      disabled={deleteManualMutation.isPending}
+                      onClick={() => {
+                        if (confirm(`Remove "${m.title}" from this asset?`)) {
+                          deleteManualMutation.mutate(m.id);
+                        }
+                      }}
+                      title="Remove manual from asset"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
                 </li>
               ))}
               {(manuals.data ?? []).length === 0 && (
-                <li className="text-muted-foreground">
-                  No manuals attached yet. Add one here, or attach an existing document from the
-                  Manuals page.
+                <li className="py-6 text-center text-xs text-muted-foreground">
+                  <FileText className="size-8 mx-auto text-muted-foreground/40 mb-2" />
+                  No manuals attached yet. You can upload a file, add a web link, or attach
+                  discovered manufacturer manuals below.
                 </li>
               )}
             </ul>
+
             {manualList(a.manuals).length > 0 && (
-              <div className="mt-5 border-t border-border pt-4">
-                <p className="label-caps">Referenced documents</p>
-                <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+              <div className="mt-4 border-t border-border pt-3">
+                <p className="label-caps">Nameplate Document References</p>
+                <ul className="mt-1 space-y-1 text-xs text-muted-foreground font-mono">
                   {manualList(a.manuals).map((m) => (
-                    <li key={m}>{m}</li>
+                    <li key={m} className="flex items-center gap-1.5">
+                      <span className="size-1.5 rounded-full bg-primary/60" /> {m}
+                    </li>
                   ))}
                 </ul>
+              </div>
+            )}
+          </div>
+
+          {/* AI Search & Research Manuals Section inside Manuals Tab */}
+          <div className="panel p-4 bg-muted/20 border-primary/30">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+              <div>
+                <p className="label-caps text-primary flex items-center gap-1.5">
+                  <Sparkles className="size-4" /> Discovered Manufacturer O&amp;M Manuals
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Look up official OEM manuals, parts breakdowns, and cut sheets for {a.name} (
+                  {a.manufacturer || "Manufacturer"} {a.model ? `Model ${a.model}` : ""}) and attach
+                  them with 1 click.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="gap-1.5 text-xs font-semibold"
+                disabled={lookup.isPending}
+                onClick={() => lookup.mutate()}
+              >
+                <Sparkles className="size-3.5 text-primary" />
+                {lookup.isPending ? "Searching OEM Data…" : "Research & Discover Manuals"}
+              </Button>
+            </div>
+
+            {sources.length > 0 ? (
+              <div className="space-y-2 mt-3">
+                {sources.map((s, idx) => {
+                  const attached = isManualAttached(s.title, s.url);
+                  return (
+                    <div
+                      key={idx}
+                      className="p-3 rounded-md bg-background border border-border/80 flex flex-wrap items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <a
+                          href={s.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="font-semibold text-primary hover:underline inline-flex items-center gap-1.5 text-sm"
+                        >
+                          <BookOpen className="size-4 text-blue-500 shrink-0" />
+                          {s.title}
+                          <ExternalLink className="size-3 text-muted-foreground" />
+                        </a>
+                        <p className="text-[11px] text-muted-foreground mt-0.5 truncate font-mono">
+                          {s.url}
+                        </p>
+                      </div>
+                      <div>
+                        {attached ? (
+                          <Badge
+                            variant="secondary"
+                            className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 font-semibold py-1 px-2.5"
+                          >
+                            <CheckCircle2 className="size-3.5 mr-1 text-emerald-600 dark:text-emerald-400" />
+                            Attached
+                          </Badge>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="default"
+                            className="h-8 gap-1.5 text-xs font-semibold"
+                            disabled={attachManualMutation.isPending}
+                            onClick={() =>
+                              attachManualMutation.mutate({
+                                title: s.title,
+                                url: s.url,
+                                manufacturer: a.manufacturer || "",
+                                notes: `Attached directly from manufacturer research for ${a.name}.`,
+                              })
+                            }
+                          >
+                            <Upload className="size-3.5" />
+                            Upload / Attach to Asset
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="p-4 rounded-md border border-dashed border-border text-center text-xs text-muted-foreground space-y-2">
+                <p>No manufacturer research entries cached yet for this asset.</p>
+                <p>
+                  Click{" "}
+                  <strong className="text-foreground">"Research &amp; Discover Manuals"</strong>{" "}
+                  above to find official O&amp;M manuals for {a.manufacturer || "this manufacturer"}
+                  .
+                </p>
               </div>
             )}
           </div>
         </TabsContent>
 
         <TabsContent value="specs" className="mt-4 space-y-4">
+          {/* Active PM Program Overview Banner */}
+          <div className="panel p-4 border-l-4 border-l-primary flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Calendar className="size-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-foreground">
+                  Preventive Maintenance (PM) Program
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  {pmList.length === 0 ? (
+                    "No routine PM schedules attached to this asset."
+                  ) : (
+                    <>
+                      <span className="font-semibold text-foreground">
+                        {pmList.length} PM Schedule{pmList.length > 1 ? "s" : ""}
+                      </span>
+                      {" · "}
+                      {overduePmsCount > 0 ? (
+                        <span className="text-destructive font-semibold">
+                          {overduePmsCount} Overdue
+                        </span>
+                      ) : (
+                        <span>
+                          Next due: {nextUpcomingPm?.next_due} ({nextUpcomingPm?.title})
+                        </span>
+                      )}
+                    </>
+                  )}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <CreatePmScheduleDialog
+                assetId={a.id}
+                assetName={a.name}
+                lockAsset
+                trigger={
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5 text-xs font-semibold text-primary border-primary/40"
+                  >
+                    <CalendarPlus className="size-3.5" /> Add PM
+                  </Button>
+                }
+              />
+              <Button size="sm" variant="ghost" className="text-xs" onClick={() => setTab("pms")}>
+                View all PMs ({pmList.length}) →
+              </Button>
+            </div>
+          </div>
+
           <div className="panel p-4">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-border">
               <div>
@@ -611,7 +1121,7 @@ function AssetDetail() {
                 </div>
                 <p className="text-sm font-semibold text-foreground">{consumables.beltSize}</p>
                 <p className="text-xs text-muted-foreground">
-                  Always replace drive belts in matched matched sets.
+                  Always replace drive belts in matched sets.
                 </p>
               </div>
 
@@ -675,6 +1185,334 @@ function AssetDetail() {
               />
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="pms" className="mt-4 space-y-5">
+          {/* PM Management Header & Metrics */}
+          <div className="panel p-4 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="label-caps">Preventive Maintenance Schedules</p>
+                <p className="text-xs text-muted-foreground">
+                  Recurring inspection, lubrication, and overhaul routines for {a.name}.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <MatchPmAssetDialog
+                  targetAsset={a}
+                  trigger={
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5 font-semibold text-xs border-primary/40 text-primary hover:bg-primary/10"
+                    >
+                      <Sparkles className="size-3.5" /> Match &amp; Link PM
+                    </Button>
+                  }
+                />
+                <CreatePmScheduleDialog
+                  assetId={a.id}
+                  assetName={a.name}
+                  lockAsset
+                  trigger={
+                    <Button size="sm" className="gap-1.5 font-semibold">
+                      <CalendarPlus className="size-4" /> Schedule New PM
+                    </Button>
+                  }
+                />
+              </div>
+            </div>
+
+            {/* Quick Metrics Bar */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-border">
+              <div className="rounded-lg bg-card border border-border p-3">
+                <p className="text-xs text-muted-foreground font-medium">Total PMs</p>
+                <p className="text-xl font-bold font-mono text-foreground mt-0.5">
+                  {pmList.length}
+                </p>
+              </div>
+              <div className="rounded-lg bg-card border border-border p-3">
+                <p className="text-xs text-muted-foreground font-medium">Overdue</p>
+                <p
+                  className={`text-xl font-bold font-mono mt-0.5 ${overduePmsCount > 0 ? "text-destructive" : "text-emerald-600 dark:text-emerald-400"}`}
+                >
+                  {overduePmsCount}
+                </p>
+              </div>
+              <div className="rounded-lg bg-card border border-border p-3">
+                <p className="text-xs text-muted-foreground font-medium">Due in ≤7 Days</p>
+                <p className="text-xl font-bold font-mono text-foreground mt-0.5">
+                  {dueSoonPmsCount}
+                </p>
+              </div>
+              <div className="rounded-lg bg-card border border-border p-3">
+                <p className="text-xs text-muted-foreground font-medium">Next Due Date</p>
+                <p className="text-sm font-semibold font-mono text-primary mt-1 truncate">
+                  {nextUpcomingPm?.next_due || "—"}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Active PM Schedules List */}
+          <div className="panel divide-y divide-border">
+            {pmList.map((pm) => {
+              const tone = dueTone(pm.next_due);
+              return (
+                <div key={pm.id} className="p-4 space-y-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="text-base font-bold text-foreground">{pm.title}</h4>
+                        <Badge
+                          variant={
+                            pm.priority === "critical" || pm.priority === "high"
+                              ? "destructive"
+                              : "secondary"
+                          }
+                        >
+                          {prettyLabel(pm.priority)} priority
+                        </Badge>
+                        {seasonLabel(pm.season_start_md, pm.season_end_md) && (
+                          <Badge
+                            variant="outline"
+                            className="border-primary/40 text-primary text-xs"
+                          >
+                            Seasonal · {seasonLabel(pm.season_start_md, pm.season_end_md)}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mt-1">
+                        <span className="font-medium text-foreground">
+                          Every {pm.interval_days} days
+                        </span>
+                        <span>·</span>
+                        <span>
+                          Next due:{" "}
+                          <strong className="font-mono text-foreground">{pm.next_due}</strong>
+                        </span>
+                        {pm.estimated_hours != null && (
+                          <>
+                            <span>·</span>
+                            <span>{pm.estimated_hours} hrs est.</span>
+                          </>
+                        )}
+                        {pm.last_completed && (
+                          <>
+                            <span>·</span>
+                            <span>Last completed on {pm.last_completed}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge
+                        variant={
+                          tone === "overdue"
+                            ? "destructive"
+                            : tone === "due"
+                              ? "secondary"
+                              : "outline"
+                        }
+                        className="font-mono text-xs px-2.5 py-1"
+                      >
+                        {tone === "overdue"
+                          ? "OVERDUE · "
+                          : tone === "due"
+                            ? "DUE SOON · "
+                            : "DUE · "}
+                        {pm.next_due}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {pm.tasks && (
+                    <div className="rounded-md bg-muted/40 border border-border/70 p-2.5 text-xs text-muted-foreground">
+                      <span className="font-semibold text-foreground block mb-0.5">
+                        Instructions &amp; Checklist:
+                      </span>
+                      <p className="whitespace-pre-wrap">{pm.tasks}</p>
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                        <User className="size-3.5" /> Assigned Tech:
+                      </span>
+                      <Select
+                        value={pm.assigned_to ?? "unassigned"}
+                        onValueChange={(v) =>
+                          assignPm.mutate({
+                            id: pm.id,
+                            title: pm.title,
+                            next_due: pm.next_due,
+                            userId: v === "unassigned" ? null : v,
+                          })
+                        }
+                        disabled={assignPm.isPending}
+                      >
+                        <SelectTrigger className="h-8 w-48 text-xs">
+                          <SelectValue placeholder="Assign technician…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="unassigned">Unassigned (Open Pool)</SelectItem>
+                          {(team.data ?? []).map((m) => (
+                            <SelectItem key={m.id} value={m.id}>
+                              {memberLabel(m)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <WorkOrderDialog
+                        assetId={a.id}
+                        pmScheduleId={pm.id}
+                        defaultTitle={pm.title}
+                        lockAsset
+                        trigger={
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 gap-1.5 text-xs font-semibold"
+                          >
+                            <Plus className="size-3.5 text-primary" /> Issue WO
+                          </Button>
+                        }
+                      />
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="h-8 gap-1.5 text-xs font-semibold"
+                        disabled={completePm.isPending}
+                        onClick={() =>
+                          completePm.mutate({
+                            id: pm.id,
+                            interval_days: pm.interval_days,
+                            season_start_md: pm.season_start_md,
+                            season_end_md: pm.season_end_md,
+                          })
+                        }
+                      >
+                        <CheckCircle2 className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                        Complete &amp; Advance
+                      </Button>
+                      <EditPmScheduleDialog
+                        pm={pm}
+                        trigger={
+                          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs">
+                            <Pencil className="size-3.5 mr-1" /> Edit
+                          </Button>
+                        }
+                      />
+                      <DeleteRequestDialog
+                        entityType="pm_schedule"
+                        entityId={pm.id}
+                        entityLabel={pm.title}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {pmList.length === 0 && (
+              <div className="p-8 text-center space-y-3">
+                <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <Calendar className="size-6" />
+                </div>
+                <div>
+                  <h4 className="text-base font-bold text-foreground">
+                    No PM schedules for this asset
+                  </h4>
+                  <p className="text-xs text-muted-foreground max-w-md mx-auto mt-1">
+                    Set up recurring preventive maintenance routines to prevent unexpected plant
+                    downtime and extend equipment life.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                  <MatchPmAssetDialog
+                    targetAsset={a}
+                    trigger={
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 font-semibold text-xs border-primary/40 text-primary hover:bg-primary/10"
+                      >
+                        <Sparkles className="size-3.5" /> Match Existing PM Routine
+                      </Button>
+                    }
+                  />
+                  <CreatePmScheduleDialog
+                    assetId={a.id}
+                    assetName={a.name}
+                    lockAsset
+                    trigger={
+                      <Button size="sm" className="gap-1.5 font-semibold">
+                        <CalendarPlus className="size-4" /> Schedule First PM
+                      </Button>
+                    }
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* OEM Recommended Intervals section on the PM tab */}
+          {intervals.length > 0 && (
+            <div className="panel p-4 space-y-3 border-l-4 border-l-primary/60">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="label-caps">Recommended Manufacturer Intervals</p>
+                  <p className="text-xs text-muted-foreground">
+                    O&amp;M manual suggestions ready to be imported directly into active PM
+                    schedules.
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={addPms.isPending}
+                  onClick={() => addPms.mutate(intervals)}
+                  className="gap-1.5 font-semibold text-primary border-primary/40 hover:bg-primary/10"
+                >
+                  <CalendarPlus className="size-4" />
+                  Add all to PM schedule
+                </Button>
+              </div>
+              <ul className="mt-2 divide-y divide-border">
+                {intervals.map((i, idx) => (
+                  <li
+                    key={idx}
+                    className="py-2.5 flex flex-wrap items-center justify-between gap-2"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold">{i.task}</span>
+                        <span className="font-mono text-xs text-primary bg-primary/10 px-2 py-0.5 rounded">
+                          {i.frequency} (Every {frequencyToDays(i.frequency)} days)
+                        </span>
+                      </div>
+                      {i.notes && <p className="mt-0.5 text-xs text-muted-foreground">{i.notes}</p>}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={addPms.isPending}
+                      onClick={() => addPms.mutate([i])}
+                      className="text-xs font-medium text-primary hover:bg-primary/10"
+                    >
+                      <CalendarPlus className="size-3.5 mr-1" />
+                      Add to schedule
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="maintenance" className="mt-4 space-y-4">
@@ -842,7 +1680,7 @@ function AssetDetail() {
                             lockAsset
                             initialPart={{
                               name: p.name,
-                              part_number: p.part_number ?? null,
+                              part_number: p.part_number,
                               manufacturer: a.manufacturer,
                               qty: 1,
                             }}
@@ -882,23 +1720,76 @@ function AssetDetail() {
               </div>
 
               {sources.length > 0 && (
-                <div className="panel p-4">
-                  <p className="label-caps">Sources</p>
-                  <ul className="mt-2 space-y-1">
-                    {sources.map((s, idx) => (
-                      <li key={idx}>
-                        <a
-                          href={s.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1.5 text-sm text-primary underline"
+                <div className="panel p-4 border-l-4 border-l-blue-500">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-2.5">
+                    <div>
+                      <p className="label-caps text-foreground flex items-center gap-1.5">
+                        <BookOpen className="size-4 text-blue-500" /> Discovered Manufacturer
+                        Sources &amp; Manuals
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Official manufacturer documentation and O&amp;M manuals found during
+                        research. Attach any document to this asset's Manuals tab with 1 click.
+                      </p>
+                    </div>
+                  </div>
+                  <ul className="mt-3 divide-y divide-border/60">
+                    {sources.map((s, idx) => {
+                      const attached = isManualAttached(s.title, s.url);
+                      return (
+                        <li
+                          key={idx}
+                          className="py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs"
                         >
-                          {s.title} <ExternalLink className="size-3.5" />
-                        </a>
-                      </li>
-                    ))}
+                          <div className="min-w-0 flex-1">
+                            <a
+                              href={s.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="font-semibold text-primary hover:underline inline-flex items-center gap-1.5 text-sm"
+                            >
+                              <FileText className="size-4 text-blue-500 shrink-0" />
+                              {s.title}
+                              <ExternalLink className="size-3 text-muted-foreground" />
+                            </a>
+                            <p className="text-[11px] text-muted-foreground mt-0.5 truncate font-mono">
+                              {s.url}
+                            </p>
+                          </div>
+                          <div className="shrink-0">
+                            {attached ? (
+                              <Badge
+                                variant="secondary"
+                                className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 font-semibold py-1 px-2.5"
+                              >
+                                <CheckCircle2 className="size-3.5 mr-1 text-emerald-600 dark:text-emerald-400" />
+                                Attached to Manuals
+                              </Badge>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 gap-1.5 text-xs font-semibold text-primary border-primary/40 hover:bg-primary/10"
+                                disabled={attachManualMutation.isPending}
+                                onClick={() =>
+                                  attachManualMutation.mutate({
+                                    title: s.title,
+                                    url: s.url,
+                                    manufacturer: a.manufacturer || "",
+                                    notes: `Attached directly from manufacturer research for ${a.name}.`,
+                                  })
+                                }
+                              >
+                                <Upload className="size-3.5" />
+                                Upload / Attach to Asset
+                              </Button>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    })}
                   </ul>
-                  <p className="mt-3 text-xs text-muted-foreground">
+                  <p className="mt-3 text-xs text-muted-foreground italic">
                     AI-assisted research — verify against the manufacturer manual before performing
                     work.
                   </p>
@@ -910,47 +1801,6 @@ function AssetDetail() {
               No manufacturer data stored yet for this asset. Run a lookup to pull it in.
             </p>
           )}
-        </TabsContent>
-
-        <TabsContent value="pms" className="mt-4">
-          <div className="panel divide-y divide-border">
-            {(pms.data ?? []).map((pm) => {
-              const tone = dueTone(pm.next_due);
-              return (
-                <div key={pm.id} className="flex flex-wrap items-center gap-3 p-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium">{pm.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Every {pm.interval_days} days · {prettyLabel(pm.priority)} priority
-                    </p>
-                    {pm.tasks && <p className="mt-1 text-xs text-muted-foreground">{pm.tasks}</p>}
-                  </div>
-                  <Badge
-                    variant={
-                      tone === "overdue" ? "destructive" : tone === "due" ? "secondary" : "outline"
-                    }
-                    className="font-mono"
-                  >
-                    {pm.next_due}
-                  </Badge>
-                  <WorkOrderDialog
-                    assetId={a.id}
-                    pmScheduleId={pm.id}
-                    defaultTitle={pm.title}
-                    lockAsset
-                    trigger={
-                      <Button size="sm" variant="outline">
-                        Issue WO
-                      </Button>
-                    }
-                  />
-                </div>
-              );
-            })}
-            {(pms.data ?? []).length === 0 && (
-              <p className="p-3 text-sm text-muted-foreground">No PM schedules for this asset.</p>
-            )}
-          </div>
         </TabsContent>
 
         <TabsContent value="history" className="mt-4">
@@ -975,6 +1825,83 @@ function AssetDetail() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Bottom Next / Previous Asset Navigation Footer */}
+      {allAssets.length > 1 && (
+        <div className="panel p-4 mt-6 border-border/80 bg-card/70 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
+          <div className="flex items-center gap-2 w-full sm:w-1/3 justify-start">
+            {prevAsset ? (
+              <Link
+                to="/assets/$assetId"
+                params={{ assetId: prevAsset.id }}
+                className="flex items-center gap-2.5 text-left group p-2.5 rounded-lg border border-border/70 hover:border-primary/40 hover:bg-muted/50 transition-all w-full max-w-sm"
+              >
+                <div className="size-8 rounded-md bg-muted flex items-center justify-center text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors shrink-0">
+                  <ChevronLeft className="size-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
+                    Previous Asset
+                  </p>
+                  <p className="text-xs font-medium text-foreground truncate group-hover:text-primary transition-colors">
+                    {prevAsset.name} {prevAsset.tag_number ? `[${prevAsset.tag_number}]` : ""}
+                  </p>
+                </div>
+              </Link>
+            ) : (
+              <div className="text-xs text-muted-foreground italic px-2 py-1">
+                Beginning of asset catalog
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col items-center text-center gap-0.5 text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground">
+              Asset {currentIndex >= 0 ? currentIndex + 1 : 1} of {allAssets.length}
+            </span>
+            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+              Shortcuts:{" "}
+              <kbd className="px-1 py-0.5 font-mono bg-muted rounded border text-[10px]">
+                Alt + ←
+              </kbd>{" "}
+              or{" "}
+              <kbd className="px-1 py-0.5 font-mono bg-muted rounded border text-[10px]">{"["}</kbd>{" "}
+              /{" "}
+              <kbd className="px-1 py-0.5 font-mono bg-muted rounded border text-[10px]">
+                Alt + →
+              </kbd>{" "}
+              or{" "}
+              <kbd className="px-1 py-0.5 font-mono bg-muted rounded border text-[10px]">{"]"}</kbd>
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 w-full sm:w-1/3 justify-end">
+            {nextAsset ? (
+              <Link
+                to="/assets/$assetId"
+                params={{ assetId: nextAsset.id }}
+                className="flex items-center gap-2.5 text-right group p-2.5 rounded-lg border border-primary/30 bg-primary/5 hover:border-primary hover:bg-primary/10 transition-all w-full max-w-sm ml-auto"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] uppercase tracking-wider font-semibold text-primary">
+                    Next Asset
+                  </p>
+                  <p className="text-xs font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                    {nextAsset.name} {nextAsset.tag_number ? `[${nextAsset.tag_number}]` : ""}
+                  </p>
+                </div>
+                <div className="size-8 rounded-md bg-primary/15 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors shrink-0">
+                  <ChevronRight className="size-4" />
+                </div>
+              </Link>
+            ) : (
+              <div className="text-xs text-muted-foreground italic px-2 py-1 text-right">
+                End of asset catalog
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -17,11 +17,13 @@ import { WorkOrderDialog } from "@/components/work-order-dialog";
 import { DeleteRequestDialog } from "@/components/delete-request-dialog";
 import { RelabelAssetDialog } from "@/components/relabel-asset-dialog";
 import { EditPmScheduleDialog } from "@/components/edit-pm-schedule-dialog";
+import { CreatePmScheduleDialog } from "@/components/create-pm-schedule-dialog";
+import { MatchPmAssetDialog } from "@/components/match-pm-asset-dialog";
 import { buildingOf, clampToSeason, dueTone, prettyLabel, seasonLabel } from "@/lib/cmms";
 import { useTeamMembers } from "@/hooks/use-team-members";
 import { memberLabel, notifyUser } from "@/lib/notify";
 import { toast } from "sonner";
-import { CheckCircle2, Pencil, Search, Tag } from "lucide-react";
+import { CalendarPlus, CheckCircle2, Layers, Pencil, Search, Sparkles, Tag } from "lucide-react";
 
 const PAGE_SIZE = 40;
 const today = () => new Date().toISOString().slice(0, 10);
@@ -136,6 +138,8 @@ function PmSchedulePage() {
   const maxPage = Math.max(0, Math.ceil(total / PAGE_SIZE) - 1);
   type Row = NonNullable<typeof pms.data>["rows"][number];
 
+  const unassignedCount = (pms.data?.rows ?? []).filter((p) => !p.asset_id).length;
+
   const renderRow = (pm: Row) => {
     const tone = dueTone(pm.next_due);
     return (
@@ -172,7 +176,21 @@ function PmSchedulePage() {
                 />
               </span>
             ) : (
-              <span className="italic text-muted-foreground">Unassigned asset</span>
+              <span className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-medium">
+                <span className="italic">Unassigned equipment asset</span>
+                <EditPmScheduleDialog
+                  pm={pm}
+                  trigger={
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-5 px-1.5 text-[10px] gap-1 border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
+                    >
+                      <Sparkles className="size-2.5" /> Match Asset
+                    </Button>
+                  }
+                />
+              </span>
             )}
             <span>·</span>
             <span>every {pm.interval_days} days</span>
@@ -277,10 +295,66 @@ function PmSchedulePage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <p className="label-caps">Preventive maintenance</p>
-        <h1 className="text-2xl font-bold">PM schedule</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="label-caps">Preventive maintenance</p>
+          <h1 className="text-2xl font-bold">PM schedule</h1>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link to="/assets">
+            <Button variant="outline" className="gap-1.5 text-xs font-semibold">
+              <Layers className="size-3.5" /> Plant Assets Register
+            </Button>
+          </Link>
+          <MatchPmAssetDialog
+            trigger={
+              <Button
+                variant="outline"
+                className="gap-1.5 font-semibold text-xs border-primary/40 text-primary hover:bg-primary/10"
+              >
+                <Sparkles className="size-3.5" /> Match PMs to Assets
+              </Button>
+            }
+          />
+          <CreatePmScheduleDialog
+            trigger={
+              <Button className="gap-1.5 font-semibold">
+                <CalendarPlus className="size-4" /> Schedule New PM
+              </Button>
+            }
+          />
+        </div>
       </div>
+
+      {unassignedCount > 0 && (
+        <div className="panel p-3.5 bg-amber-500/10 border-amber-500/30 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300">
+              <Sparkles className="size-4" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">
+                {unassignedCount} PM schedule{unassignedCount > 1 ? "s" : ""} need equipment
+                matching
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Link maintenance routines to registered plant assets to enable automated asset
+                tracking, history, and O&amp;M correlation.
+              </p>
+            </div>
+          </div>
+          <MatchPmAssetDialog
+            trigger={
+              <Button
+                size="sm"
+                className="gap-1.5 font-semibold text-xs bg-amber-600 hover:bg-amber-700 text-white"
+              >
+                <Sparkles className="size-3.5" /> Run Smart Asset Matcher
+              </Button>
+            }
+          />
+        </div>
+      )}
 
       <div className="panel flex flex-wrap items-center gap-3 p-3">
         <div className="relative min-w-56 flex-1">

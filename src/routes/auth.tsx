@@ -238,9 +238,13 @@ function AuthPage() {
             </TabsContent>
           </Tabs>
 
-          <p className="mt-5 text-center text-xs text-muted-foreground">
-            <Link to="/" className="underline">
-              Back to overview
+          <p className="mt-5 text-center text-xs text-muted-foreground flex items-center justify-center gap-3">
+            <Link to="/" className="underline hover:text-foreground font-semibold text-primary">
+              Member Portal
+            </Link>
+            <span>•</span>
+            <Link to="/overview" className="underline hover:text-foreground">
+              Public Overview &amp; Trial
             </Link>
           </p>
         </div>

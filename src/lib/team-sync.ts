@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
-import type { AppRole } from "./roles";
+import { isSiouxCityUser, type AppRole } from "./roles";
 import type { TeamMember } from "./notify";
 
 export type PlantMember = {
@@ -13,13 +13,18 @@ export type PlantMember = {
 };
 
 export function formatNameFromEmail(email?: string | null): string {
-  if (!email) return "Plant Operations Tech";
+  if (!email) return "Sioux City Plant Operations Tech";
   const userPart = email.split("@")[0] || "";
+  const lowerEmail = email.toLowerCase();
 
-  if (email.toLowerCase().includes("rmcclennen") || userPart.toLowerCase().includes("rmcclennen")) {
+  if (
+    lowerEmail.includes("sioux") ||
+    lowerEmail.includes("rmcclennen") ||
+    userPart.toLowerCase().includes("rmcclennen")
+  ) {
     return "R. McClennen (Sioux City Plant Operations)";
   }
-  if (email.toLowerCase().includes("demo")) {
+  if (lowerEmail.includes("demo")) {
     return "Plant Operations Lead (Demo)";
   }
 
@@ -186,13 +191,25 @@ export async function ensureUserSynced(
       });
     }
 
-    // 3. Check / insert default roles if none exist
+    // 3. Check / insert default roles if none exist, or ensure Sioux City has full roles
     const { data: existingRoles } = await supabase
       .from("user_roles")
       .select("id, role")
       .eq("user_id", user.id);
 
-    if (!existingRoles || existingRoles.length === 0) {
+    const isSiouxCity = isSiouxCityUser(user);
+
+    if (isSiouxCity) {
+      const requiredRoles: AppRole[] = ["admin", "manager", "supervisor"];
+      const existingSet = new Set((existingRoles ?? []).map((r) => r.role));
+      const missing = requiredRoles.filter((r) => !existingSet.has(r));
+      if (missing.length > 0) {
+        await supabase.from("user_roles").upsert(
+          missing.map((role) => ({ user_id: user.id, role })),
+          { onConflict: "user_id,role" },
+        );
+      }
+    } else if (!existingRoles || existingRoles.length === 0) {
       const assignedRole: AppRole = (roleHint as AppRole) || "admin";
       await supabase
         .from("user_roles")
