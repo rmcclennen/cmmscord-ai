@@ -162,11 +162,11 @@ export function parseCsvText(text: string): { headers: string[]; rows: Record<st
     return result;
   };
 
-  const headers = parseLine(lines[0]);
+  const headers = parseLine(lines[0] ?? "");
   const rows: Record<string, string>[] = [];
 
   for (let i = 1; i < lines.length; i++) {
-    const values = parseLine(lines[i]);
+    const values = parseLine(lines[i] ?? "");
     if (values.every((v) => !v)) continue;
     const row: Record<string, string> = {};
     headers.forEach((h, idx) => {

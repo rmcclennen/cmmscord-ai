@@ -189,7 +189,7 @@ export function MatchPmAssetDialog({
       const results = await Promise.all(promises);
       const errors = results.filter((r) => r.error);
       if (errors.length > 0) {
-        throw new Error(errors[0].error?.message || "Failed to link some PM schedules.");
+        throw new Error(errors[0]?.error?.message || "Failed to link some PM schedules.");
       }
     },
     onSuccess: (_, variables) => {

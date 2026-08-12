@@ -140,7 +140,7 @@ export function scorePmAgainstAsset(
     }
   }
 
-  if (matchedTokens.length === 1 && matchedTokens[0].length >= 4) {
+  if (matchedTokens.length === 1 && matchedTokens[0]!.length >= 4) {
     // Single distinctive token (e.g., "schwing", "trojan", "centrifuge", "clarifier", "digester", "aeration")
     const distinctiveWords = [
       "schwing",
@@ -158,11 +158,11 @@ export function scorePmAgainstAsset(
       "chlorine",
       "uv",
     ];
-    if (distinctiveWords.some((w) => matchedTokens[0].includes(w))) {
+    if (distinctiveWords.some((w) => matchedTokens[0]!.includes(w))) {
       return {
         score: 65,
         confidence: "medium",
-        reason: `Matched specific system keyword: "${matchedTokens[0]}"`,
+        reason: `Matched specific system keyword: "${matchedTokens[0]!}"`,
       };
     }
   }
