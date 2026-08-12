@@ -24,13 +24,13 @@ export interface MatchablePm {
 export interface PmAssetMatch {
   pmId: string;
   pmTitle: string;
-  pmTasks?: string | null;
-  currentAssetId?: string | null;
-  currentAssetName?: string | null;
+  pmTasks?: string | null | undefined;
+  currentAssetId?: string | null | undefined;
+  currentAssetName?: string | null | undefined;
   suggestedAssetId: string;
   suggestedAssetName: string;
-  suggestedAssetTag?: string | null;
-  suggestedAssetBuilding?: string | null;
+  suggestedAssetTag?: string | null | undefined;
+  suggestedAssetBuilding?: string | null | undefined;
   confidence: "high" | "medium" | "low";
   score: number;
   reason: string;
@@ -201,7 +201,6 @@ export function findBestAssetForPm(pm: MatchablePm, assets: MatchableAsset[]): P
     if (evaluation && evaluation.score > highestScore) {
       highestScore = evaluation.score;
       bestMatch = {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         pmId: pm.id,
         pmTitle: pm.title,
         pmTasks: pm.tasks,
