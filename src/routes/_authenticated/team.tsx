@@ -442,7 +442,7 @@ function TeamPage() {
       if (inviteMember) {
         addCustomLocalCrewMember({
           id: memberId,
-          full_name: inviteMember.full_name,
+          full_name: inviteMember.full_name ?? "",
           email: cleanEmail,
           phone: inviteMember.phone,
           carrier: inviteMember.carrier,
