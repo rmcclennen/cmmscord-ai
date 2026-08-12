@@ -103,6 +103,7 @@ const TARGET_SECTORS = [
 
 function OverviewPage() {
   const [showCompanyDialog, setShowCompanyDialog] = useState(false);
+const [showBulkUpload, setShowBulkUpload] = useState(false);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -377,7 +378,7 @@ function OverviewPage() {
 
             <div className="lg:col-span-7">
               <div className="panel p-6 border-2 border-primary/20 bg-card shadow-lg">
-                <BulkAssetUploader />
+                <BulkAssetUploader open={showBulkUpload} onOpenChange={setShowBulkUpload} />
               </div>
             </div>
           </div>

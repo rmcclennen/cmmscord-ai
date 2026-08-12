@@ -1,3 +1,4 @@
+import type { Json } from "@/integrations/supabase/types";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -350,9 +351,9 @@ function AssetDetail() {
           .insert({
             asset_id: assetId,
             summary: fallbackData.summary,
-            intervals: fallbackData.intervals,
-            parts: fallbackData.parts,
-            sources: fallbackData.sources,
+            intervals: fallbackData.intervals as unknown as Json,
+            parts: fallbackData.parts as unknown as Json,
+            sources: fallbackData.sources as unknown as Json,
           })
           .select()
           .single();
@@ -365,9 +366,9 @@ function AssetDetail() {
           asset_id: assetId,
           created_at: new Date().toISOString(),
           summary: fallbackData.summary,
-          intervals: fallbackData.intervals,
-          parts: fallbackData.parts,
-          sources: fallbackData.sources,
+          intervals: fallbackData.intervals as unknown as Json,
+          parts: fallbackData.parts as unknown as Json,
+          sources: fallbackData.sources as unknown as Json,
         };
       }
       throw new Error("Asset details not loaded yet.");
@@ -911,7 +912,7 @@ function AssetDetail() {
                               attachManualMutation.mutate({
                                 title: s.title,
                                 url: s.url,
-                                manufacturer: a.manufacturer || undefined,
+                                manufacturer: a.manufacturer || "",
                                 notes: `Attached directly from manufacturer research for ${a.name}.`,
                               })
                             }
@@ -1774,7 +1775,7 @@ function AssetDetail() {
                                   attachManualMutation.mutate({
                                     title: s.title,
                                     url: s.url,
-                                    manufacturer: a.manufacturer || undefined,
+                                    manufacturer: a.manufacturer || "",
                                     notes: `Attached directly from manufacturer research for ${a.name}.`,
                                   })
                                 }
