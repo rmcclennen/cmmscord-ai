@@ -201,6 +201,7 @@ export function findBestAssetForPm(pm: MatchablePm, assets: MatchableAsset[]): P
     if (evaluation && evaluation.score > highestScore) {
       highestScore = evaluation.score;
       bestMatch = {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         pmId: pm.id,
         pmTitle: pm.title,
         pmTasks: pm.tasks,
