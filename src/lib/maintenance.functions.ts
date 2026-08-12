@@ -1,10 +1,22 @@
-import type { Json } from "@/integrations/supabase/types";
 import { createServerFn } from "@tanstack/react-start";
+import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import type { Database } from "@/integrations/supabase/types";
 import {
   generateComprehensiveMaintenanceData,
   type MaintenanceLookupData,
 } from "./maintenance-intelligence";
+
+const DEFAULT_SUPABASE_URL = "https://wylqoosdanaltciwrwht.supabase.co";
+const DEFAULT_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_hOeYd2G3LdsYfOyy4ajovA_vYM4o6mz";
+
+function getSupabaseClient() {
+  const envUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const envKey = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  const url = envUrl && envUrl.startsWith("http") ? envUrl : DEFAULT_SUPABASE_URL;
+  const key = envKey && envKey.length > 20 ? envKey : DEFAULT_SUPABASE_PUBLISHABLE_KEY;
+  return createClient<Database>(url, key);
+}
 
 const ResearchSchema = z.object({
   summary: z.string(),
@@ -35,7 +47,7 @@ export const researchAssetMaintenance = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    const { supabaseAdmin: supabase } = await import("@/integrations/supabase/client.server");
+    const supabase = getSupabaseClient();
 
     const { data: asset, error } = await supabase
       .from("assets")
@@ -82,9 +94,11 @@ Respond strictly with valid JSON matching this schema:
     { "name": "Part name (seal, bearing, belt, filter)", "part_number": "Manufacturer part number or OEM spec", "notes": "Specs" }
   ],
   "sources": [
-    { "title": "Manual or source title", "url": "https://..." }
+    { "title": "Official OEM O&M Operation & Maintenance Manual (PDF / Portal)", "url": "https://..." },
+    { "title": "Parts Breakdown & Technical Cut Sheet", "url": "https://..." }
   ]
-}`;
+}
+Always include specific manufacturer O&M manuals or technical documentation entries in sources so operators can attach them to the asset's Manuals tab.`;
 
         const response = await ai.models.generateContent({
           model: "gemini-3.6-flash",
@@ -144,9 +158,9 @@ Respond strictly with valid JSON matching this schema:
       .insert({
         asset_id: data.assetId,
         summary: result.summary,
-        intervals: result.intervals as unknown as Json,
-        parts: result.parts as unknown as Json,
-        sources: result.sources as unknown as Json,
+        intervals: result.intervals,
+        parts: result.parts,
+        sources: result.sources,
       })
       .select()
       .single();
@@ -158,9 +172,9 @@ Respond strictly with valid JSON matching this schema:
         asset_id: data.assetId,
         created_at: new Date().toISOString(),
         summary: result.summary,
-        intervals: result.intervals as unknown as Json,
-        parts: result.parts as unknown as Json,
-        sources: result.sources as unknown as Json,
+        intervals: result.intervals,
+        parts: result.parts,
+        sources: result.sources,
       };
     }
 
@@ -186,7 +200,7 @@ export const updateAssetMaintenanceParts = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    const { supabaseAdmin: supabase } = await import("@/integrations/supabase/client.server");
+    const supabase = getSupabaseClient();
 
     const { data: existing } = await supabase
       .from("asset_maintenance_info")

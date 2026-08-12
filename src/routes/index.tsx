@@ -1,772 +1,756 @@
-import { useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import type { User } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable/index";
+import { ensureUserSynced } from "@/lib/team-sync";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { CompanyOnboardingDialog } from "@/components/company-onboarding-dialog";
-import { BulkAssetUploader } from "@/components/bulk-asset-uploader";
-import { downloadSampleAssetCsv } from "@/lib/asset-import";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
 import {
-  Boxes,
-  CalendarClock,
-  ClipboardList,
-  Sparkles,
   ShieldCheck,
-  UploadCloud,
-  Download,
-  Building2,
-  CheckCircle2,
-  Zap,
-  Eye,
+  Sparkles,
+  Wrench,
+  CalendarClock,
+  Boxes,
+  FileText,
   Users,
-  Clock,
+  CheckCircle2,
   ArrowRight,
+  Lock,
+  Building2,
+  Key,
+  Zap,
+  Activity,
+  QrCode,
   HelpCircle,
-  FileSpreadsheet,
-  Droplet,
+  LogOut,
+  PackageCheck,
+  ClipboardList,
+  Flame,
+  ArrowUpRight,
+  Bot,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "AssetCareConnect | Connected Maintenance Management & Asset Operations" },
+      { title: "Operator & Member Portal | AssetCareConnect" },
       {
         name: "description",
         content:
-          "Enterprise asset management, bulk fleet onboarding, automated PM schedules, MRO inventory, and ADA-compliant maintenance dispatch for utilities and industrial plants.",
+          "Dedicated access portal for existing users, plant technicians, supervisors, and plant operations staff.",
       },
-      { property: "og:title", content: "AssetCareConnect | Maintenance & Asset Operations" },
+      { property: "og:title", content: "Member Portal | AssetCareConnect" },
       {
         property: "og:description",
-        content:
-          "Enterprise asset care, fleet import tools, PM automation, and work orders for treatment plants and industrial facilities.",
+        content: "Direct access portal for authorized plant operators and maintenance staff.",
       },
     ],
   }),
-  component: Landing,
+  component: ExistingUsersPortalMain,
 });
 
-const FEATURES = [
-  {
-    icon: Boxes,
-    title: "Complete Site-Specific Asset Register",
-    body: "Every pump, motor, blower, clarifier, and panel with make, model, serial, HP, volts, RPM, frame, and physical building locations.",
-  },
-  {
-    icon: CalendarClock,
-    title: "Automated PM Scheduling",
-    body: "Preventive programs seeded by equipment class with intervals, next-due tracking, seasonal windows, and one-click completion rescheduling.",
-  },
-  {
-    icon: UploadCloud,
-    title: "Instant Bulk Asset Ingestion",
-    body: "Upload your facility's existing spreadsheets or CSV exports in seconds with automatic column mapping, validation, and PM generation.",
-  },
-  {
-    icon: ClipboardList,
-    title: "Work Order Management",
-    body: "Write corrective, preventive, or emergency work orders against any asset with priority tiers, due date tracking, and automated technician dispatch.",
-  },
-  {
-    icon: Droplet,
-    title: "Manufacturer Lube & Belt Specs",
-    body: "Automatic OEM oil grades, grease types, belt sizing, mechanical seal specs, and lubrication run intervals right on each asset record.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "ADA & Section 508 Compliant",
-    body: "Engineered with WCAG 2.1 AAA high-contrast modes, text scaling up to 150%, screen reader live regions, dyslexia typography, and keyboard navigation.",
-  },
-];
+function ExistingUsersPortalMain() {
+  const navigate = useNavigate();
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [loadingUser, setLoadingUser] = useState(true);
 
-const TARGET_SECTORS = [
-  {
-    icon: "🏭",
-    title: "Wastewater Treatment (WWTP)",
-    desc: "Aeration blowers, clarifiers, influent/effluent pumps, digester mixers, bar screens, and dewatering presses.",
-  },
-  {
-    icon: "💧",
-    title: "Drinking Water & Utilities",
-    desc: "Well pumps, chemical dosing, booster stations, water towers, filter beds, and distribution valving.",
-  },
-  {
-    icon: "🏗️",
-    title: "Public Works, Streets & Fleet",
-    desc: "Municipal garages, stormwater lift stations, emergency generators, street equipment, and facility HVAC.",
-  },
-  {
-    icon: "⚡",
-    title: "Power, Energy & Utilities",
-    desc: "Substations, switchgear, backup turbine generators, cooling towers, and electrical distribution panels.",
-  },
-  {
-    icon: "⚙️",
-    title: "Industrial & Manufacturing",
-    desc: "Conveyors, packaging lines, hydraulic presses, industrial air compressors, and robotic cells.",
-  },
-  {
-    icon: "🥩",
-    title: "Food & Beverage Processing",
-    desc: "Sanitary pumps, pasteurizers, industrial refrigeration skids, homogenizers, and clean-in-place (CIP) loops.",
-  },
-];
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [resetEmail, setResetEmail] = useState("");
+  const [tab, setTab] = useState("signin");
+  const [busy, setBusy] = useState(false);
 
-const TIERS = [
-  {
-    id: "unlimited" as const,
-    name: "Unlimited Plant License",
-    priceMonthly: 375,
-    priceAnnual: 333,
-    annualTotal: 4000,
-    trial: "6 Months Free Trial",
-    popular: true,
-    badge: "Disruptive Flat Rate",
-    assets: "Unlimited Site-Specific Assets",
-    seats: "Unlimited Users & Technicians",
-    description:
-      "Full plant operations with unlimited technician, supervisor, and coordinator seats. 6 months free, then only $4,000/yr flat — zero per-seat fees.",
-    bullets: [
-      "6-Month Full-Access Free Trial ($0 today)",
-      "Unlimited equipment assets for your facility",
-      "Unlimited technician & supervisor seats",
-      "Send parts to supervisors & CMMS coordinators",
-      "OEM suggested oil, grease, belts & seal specs",
-      "Supplier parts RFQ & auto-bidding engine",
-      "PM schedule generator & recurring calendar",
-      "Instant Bulk Fleet Ingestion wizard",
-      "O&M manual lookup & search engine",
-      "Priority 24/7 technical support",
-    ],
-  },
-  {
-    id: "starter" as const,
-    name: "Single Facility / Station",
-    priceMonthly: 149,
-    priceAnnual: 124,
-    annualTotal: 1490,
-    trial: "6 Months Free Trial",
-    badge: "Small Districts & Stations",
-    assets: "Up to 350 Assets",
-    seats: "Unlimited Users",
-    description:
-      "Ideal for smaller water districts, lift stations, and localized municipal maintenance crews.",
-    bullets: [
-      "6-Month Full-Access Free Trial ($0 today)",
-      "Up to 350 equipment asset records",
-      "Unlimited user seats & technician logins",
-      "PM calendar & recurrence engine",
-      "Mobile nameplate photo capture",
-      "Parts requisition and inventory tracking",
-      "CSV asset import & export",
-    ],
-  },
-  {
-    id: "enterprise" as const,
-    name: "Municipal Authority / Multi-Site",
-    priceMonthly: 790,
-    priceAnnual: 708,
-    annualTotal: 8500,
-    trial: "6 Months Free Trial",
-    badge: "Regional & Multi-Dept",
-    assets: "Unlimited Assets (All Plants)",
-    seats: "Unlimited Users (All Departments)",
-    description:
-      "For municipal utility authorities, public works directorates, and regional multi-plant operations.",
-    bullets: [
-      "6-Month Authority-Wide Free Trial",
-      "Unlimited assets across all municipal departments",
-      "Multi-department access (Water, WWTP, Streets, Power, Fleet)",
-      "Custom ERP & SCADA telemetry integration",
-      "White-glove spreadsheet migration service",
-      "Dedicated account engineer & 99.9% SLA",
-      "Custom audit & compliance export tools",
-    ],
-  },
-];
+  useEffect(() => {
+    async function checkSession() {
+      const { data } = await supabase.auth.getUser();
+      setCurrentUser(data.user || null);
+      setLoadingUser(false);
+    }
+    checkSession();
 
-function Landing() {
-  const [onboardingOpen, setOnboardingOpen] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<"unlimited" | "starter" | "enterprise">(
-    "unlimited",
-  );
-  const [uploaderOpen, setUploaderOpen] = useState(false);
-  const [billingAnnual, setBillingAnnual] = useState(true);
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_e, session) => {
+      setCurrentUser(session?.user || null);
+      if (session?.user) {
+        await ensureUserSynced(session.user).catch(() => {});
+      }
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
 
-  const openPlanCheckout = (planId: "unlimited" | "starter" | "enterprise") => {
-    setSelectedPlan(planId);
-    setOnboardingOpen(true);
-  };
+  async function handleSignIn(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    if (!email || !password) {
+      toast.error("Please enter both email and password.");
+      return;
+    }
+    setBusy(true);
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (data?.user) {
+      await ensureUserSynced(data.user).catch(() => {});
+      toast.success("Welcome back! Redirecting to plant control room...");
+      window.location.replace("/pm-schedule");
+    }
+    setBusy(false);
+    if (error) toast.error(error.message);
+  }
+
+  async function handleGoogleSignIn() {
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin,
+    });
+    if (result.error) toast.error("Google sign-in failed. Please try again.");
+  }
+
+  async function handleQuickDemoAccess(demoEmail: string, roleHint = "admin") {
+    setBusy(true);
+    setEmail(demoEmail);
+    setPassword("DemoPassword123!");
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: demoEmail,
+      password: "DemoPassword123!",
+    });
+
+    if (error) {
+      // Try signing up if demo account doesn't exist yet
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: demoEmail,
+        password: "DemoPassword123!",
+        options: {
+          data: {
+            full_name:
+              demoEmail.includes("sioux") || demoEmail.includes("rmcclennen")
+                ? "R. McClennen (Sioux City Plant Operations)"
+                : "Plant Maintenance Supervisor",
+          },
+        },
+      });
+
+      if (signUpError) {
+        toast.error(`Quick access error: ${signUpError.message}`);
+        setBusy(false);
+        return;
+      }
+      if (signUpData.user) {
+        await ensureUserSynced(signUpData.user, roleHint).catch(() => {});
+        toast.success("Demo access activated! Redirecting...");
+        window.location.replace("/pm-schedule");
+      }
+    } else if (data.user) {
+      await ensureUserSynced(data.user, roleHint).catch(() => {});
+      toast.success("Signed in successfully! Redirecting...");
+      window.location.replace("/pm-schedule");
+    }
+    setBusy(false);
+  }
+
+  async function handlePasswordReset(e: React.FormEvent) {
+    e.preventDefault();
+    if (!resetEmail) {
+      toast.error("Please enter your registered email address.");
+      return;
+    }
+    setBusy(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+      redirectTo: `${window.location.origin}/auth`,
+    });
+    setBusy(false);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Password reset link sent! Check your inbox.");
+      setResetEmail("");
+    }
+  }
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    setCurrentUser(null);
+    toast.success("Signed out successfully.");
+  }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* Header */}
-      <header className="sticky top-0 z-30 border-b border-sidebar-border bg-sidebar text-sidebar-foreground">
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
+      {/* Top Banner Notice - Points to Overview for new/unauthorized users */}
+      <div className="bg-primary/10 border-b border-primary/20 px-4 py-2 text-center text-xs font-semibold text-primary flex items-center justify-center gap-2">
+        <ShieldCheck className="size-4 shrink-0 text-primary" />
+        <span>Authorized Plant Personnel &amp; Existing Subscriber Portal</span>
+        <span className="hidden sm:inline text-muted-foreground">•</span>
+        <Link to="/overview" className="underline hover:text-primary/80 font-bold hidden sm:inline">
+          Don't have plant access yet? View public features &amp; 6-month free trial →
+        </Link>
+      </div>
+
+      {/* Navigation Bar */}
+      <header className="sticky top-0 z-30 border-b border-border bg-sidebar text-sidebar-foreground">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
-          <div className="flex items-center gap-3">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground font-black text-base">
+          <Link to="/" className="flex items-center gap-3">
+            <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground font-black text-lg shadow-sm">
               AC
             </div>
-            <span className="text-base font-extrabold uppercase tracking-wider">
-              AssetCareConnect
-            </span>
-          </div>
-
-          <nav className="hidden md:flex items-center gap-6 text-sm font-semibold">
-            <a
-              href="#industries"
-              className="text-sidebar-foreground/80 hover:text-sidebar-foreground"
-            >
-              Industries &amp; Municipalities
-            </a>
-            <a
-              href="#features"
-              className="text-sidebar-foreground/80 hover:text-sidebar-foreground"
-            >
-              Features
-            </a>
-            <a href="#import" className="text-sidebar-foreground/80 hover:text-sidebar-foreground">
-              Bulk Asset Upload
-            </a>
-            <a href="#pricing" className="text-sidebar-foreground/80 hover:text-sidebar-foreground">
-              6-Month Free Trial
-            </a>
-            <a
-              href="#accessibility"
-              className="text-sidebar-foreground/80 hover:text-sidebar-foreground"
-            >
-              ADA Compliance
-            </a>
-          </nav>
+            <div>
+              <span className="text-base font-extrabold uppercase tracking-wider block leading-tight">
+                AssetCareConnect
+              </span>
+              <span className="text-[10px] text-sidebar-foreground/60 uppercase tracking-widest font-mono block">
+                Member &amp; Operator Portal
+              </span>
+            </div>
+          </Link>
 
           <div className="flex items-center gap-3">
-            <Link to="/auth">
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-sidebar-foreground/90 hover:bg-sidebar-accent"
-              >
-                Sign in
-              </Button>
-            </Link>
-            <Button
-              size="sm"
-              onClick={() => openPlanCheckout("unlimited")}
-              className="bg-sidebar-primary text-sidebar-primary-foreground font-bold hover:bg-sidebar-primary/90"
-            >
-              Start 6-Month Free Trial
-            </Button>
+            {currentUser ? (
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => navigate({ to: "/pm-schedule" })}
+                  className="gap-1.5 font-bold"
+                >
+                  <Activity className="size-4" /> Go to Control Room
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleSignOut}
+                  className="text-xs text-muted-foreground hover:text-destructive"
+                >
+                  <LogOut className="size-3.5 mr-1" /> Sign out
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Link to="/overview">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs border-primary/40 font-semibold"
+                  >
+                    Public Overview &amp; Trial
+                  </Button>
+                </Link>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    const el = document.getElementById("portal-login-card");
+                    if (el) el.scrollIntoView({ behavior: "smooth" });
+                  }}
+                  className="font-bold gap-1.5"
+                >
+                  <Lock className="size-3.5" /> Direct Sign In
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="border-b border-border bg-sidebar text-sidebar-foreground">
-        <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-24">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge
-              variant="outline"
-              className="border-sidebar-primary/50 bg-sidebar-accent text-sidebar-primary font-mono text-xs uppercase tracking-widest px-2.5 py-0.5"
-            >
-              Built by Operators &amp; Maintenance Professionals
-            </Badge>
-            <Badge
-              variant="outline"
-              className="border-success/50 bg-success/10 text-success text-xs font-semibold px-2.5 py-0.5"
-            >
-              <CheckCircle2 className="mr-1 size-3" /> 6 Months 100% Free Trial
-            </Badge>
-            <Badge
-              variant="outline"
-              className="border-sidebar-border bg-sidebar-accent/60 text-sidebar-foreground text-xs font-semibold px-2.5 py-0.5"
-            >
-              <CheckCircle2 className="mr-1 size-3 text-sidebar-primary" /> ADA &amp; WCAG AAA
-              Compliant
-            </Badge>
-          </div>
-
-          <h1 className="mt-5 max-w-4xl text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
-            The maintenance platform your operators and technicians will actually use.
-          </h1>
-
-          <p className="mt-6 max-w-3xl text-base text-sidebar-foreground/85 sm:text-lg lg:text-xl leading-relaxed">
-            Most CMMS software fails because it is too bloated for operators and too expensive for
-            municipal budgets. AssetCareConnect was engineered from the plant floor up by veteran
-            operators and maintenance pros to deliver high daily field adoption. From instant OEM
-            lubrication and belt specifications to automated PM schedules and one-click parts
-            routing, get everything your crew needs with a transparent flat rate and zero per-seat
-            licensing penalties.
-          </p>
-
-          <div className="mt-8 flex flex-wrap items-center gap-4">
-            <Button
-              size="lg"
-              onClick={() => openPlanCheckout("unlimited")}
-              className="bg-sidebar-primary text-sidebar-primary-foreground font-extrabold text-base px-6 hover:bg-sidebar-primary/90 shadow-md"
-            >
-              <Building2 className="mr-2 size-5" /> Start 6-Month Free Trial
-            </Button>
-
-            <Button
-              size="lg"
-              variant="outline"
-              onClick={() => setUploaderOpen(true)}
-              className="border-sidebar-border bg-sidebar-accent/50 text-sidebar-foreground font-bold hover:bg-sidebar-accent"
-            >
-              <UploadCloud className="mr-2 size-5 text-sidebar-primary" /> Import Site Equipment CSV
-            </Button>
-
-            <Link to="/auth">
+      {/* Main Content Area */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-8 sm:px-6 space-y-8">
+        {/* Active Session Card if User is Already Logged In */}
+        {currentUser && (
+          <div className="p-6 rounded-xl bg-emerald-500/10 border-2 border-emerald-500/30 text-card-foreground shadow-sm flex flex-wrap items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Badge className="bg-emerald-600 text-white font-bold text-xs uppercase px-2 py-0.5">
+                  Active Session
+                </Badge>
+                <span className="text-xs font-mono text-emerald-700 dark:text-emerald-300 font-semibold">
+                  Signed in as: {currentUser.email}
+                </span>
+              </div>
+              <h2 className="text-xl font-bold">
+                You are already signed in to your plant account!
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                You have active access to PM schedules, work orders, asset registers, and inventory.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 size="lg"
-                variant="ghost"
-                className="text-sidebar-foreground/80 hover:bg-sidebar-accent text-sm font-semibold"
+                onClick={() => navigate({ to: "/pm-schedule" })}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-2 shadow-md"
               >
-                Open Plant Control Room <ArrowRight className="ml-1.5 size-4" />
+                <Activity className="size-5" /> Open Plant Control Room{" "}
+                <ArrowRight className="size-4" />
               </Button>
-            </Link>
-          </div>
-
-          {/* Quick Metrics Bar */}
-          <div className="mt-14 grid grid-cols-2 gap-4 border-t border-sidebar-border/60 pt-8 sm:grid-cols-4">
-            <div>
-              <p className="text-2xl font-black text-sidebar-primary">6 Months</p>
-              <p className="text-xs text-sidebar-foreground/70">100% Free Full Enterprise Trial</p>
-            </div>
-            <div>
-              <p className="text-2xl font-black text-sidebar-primary">$4,000/yr</p>
-              <p className="text-xs text-sidebar-foreground/70">Flat Rate — Zero Per-Seat Fees</p>
-            </div>
-            <div>
-              <p className="text-2xl font-black text-sidebar-primary">Site-Specific</p>
-              <p className="text-xs text-sidebar-foreground/70">Instant Custom Fleet Ingestion</p>
-            </div>
-            <div>
-              <p className="text-2xl font-black text-sidebar-primary">Built by Pros</p>
-              <p className="text-xs text-sidebar-foreground/70">Operator &amp; Mechanic Designed</p>
             </div>
           </div>
-        </div>
-      </section>
+        )}
 
-      {/* Target Industries & Municipal Departments Section */}
-      <section id="industries" className="border-b border-border bg-muted/40 py-16 sm:py-20">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="max-w-3xl">
-            <p className="label-caps text-primary">Cross-Sector Plant Operations</p>
-            <h2 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl text-foreground">
-              Engineered for all industries &amp; municipal departments.
-            </h2>
-            <p className="mt-3 text-base text-muted-foreground">
-              Whether you run a municipal water treatment plant, a public works fleet garage, an
-              electric substation, or an industrial packaging plant, AssetCareConnect organizes your
-              exact equipment fleet with zero complexity.
-            </p>
-          </div>
-
-          <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {TARGET_SECTORS.map((sector) => (
-              <div
-                key={sector.title}
-                className="rounded-xl border border-border bg-card p-6 shadow-sm transition-all hover:border-primary/50 hover:shadow-md"
+        {/* Hero Banner for Existing Users */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-sidebar via-sidebar/95 to-slate-900 text-sidebar-foreground p-8 sm:p-12 border border-sidebar-border shadow-xl">
+          <div className="relative z-10 max-w-3xl space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge
+                variant="outline"
+                className="border-primary/50 bg-primary/10 text-primary font-mono text-xs uppercase tracking-widest"
               >
-                <span className="text-3xl" role="img" aria-label={sector.title}>
-                  {sector.icon}
-                </span>
-                <h3 className="mt-4 text-base font-bold text-foreground">{sector.title}</h3>
-                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{sector.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Bulk Asset Ingestion Showcase Section */}
-      <section id="import" className="border-b border-border bg-card py-16 sm:py-20">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:items-center">
-            <div>
-              <p className="label-caps text-primary">Fleet Migration Engine</p>
-              <h2 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">
-                Upload your entire equipment fleet in one simple step.
-              </h2>
-              <p className="mt-4 text-base text-muted-foreground">
-                Don't spend weeks manually retyping pump and motor tags. AssetCareConnect includes
-                an intelligent bulk ingestion engine that parses your CSV, Excel, or CMMS exports,
-                automatically detects columns, assigns facility buildings, and seeds preventive
-                maintenance schedules.
-              </p>
-
-              <div className="mt-6 space-y-3 text-sm">
-                <div className="flex items-start gap-3">
-                  <CheckCircle2 className="mt-0.5 size-5 text-success shrink-0" />
-                  <span>
-                    <strong>Smart Column Auto-Detection:</strong> Matches tags, serial numbers,
-                    motor HP, voltage, and criticality automatically.
-                  </span>
-                </div>
-                <div className="flex items-start gap-3">
-                  <CheckCircle2 className="mt-0.5 size-5 text-success shrink-0" />
-                  <span>
-                    <strong>Automated PM Generation:</strong> Generates manufacturer-grade
-                    lubrication, vibration, and safety checks based on equipment class.
-                  </span>
-                </div>
-                <div className="flex items-start gap-3">
-                  <CheckCircle2 className="mt-0.5 size-5 text-success shrink-0" />
-                  <span>
-                    <strong>Zero Data Lock-in:</strong> Export full asset registers and compliance
-                    records anytime in standard formats.
-                  </span>
-                </div>
-              </div>
-
-              <div className="mt-8 flex flex-wrap items-center gap-3">
-                <Button
-                  onClick={() => setUploaderOpen(true)}
-                  className="font-bold flex items-center gap-2"
-                >
-                  <UploadCloud className="size-4" /> Launch Bulk Asset Importer
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={downloadSampleAssetCsv}
-                  className="font-semibold text-xs flex items-center gap-2"
-                >
-                  <Download className="size-4 text-primary" /> Download Sample CSV Template
-                </Button>
-              </div>
+                <Building2 className="mr-1 size-3" /> Facility Member Access
+              </Badge>
+              <Badge
+                variant="outline"
+                className="border-emerald-500/50 bg-emerald-500/10 text-emerald-400 text-xs font-semibold"
+              >
+                <Activity className="mr-1 size-3" /> Systems Operational
+              </Badge>
+              <Badge
+                variant="outline"
+                className="border-blue-500/50 bg-blue-500/10 text-blue-300 text-xs font-semibold"
+              >
+                <ShieldCheck className="mr-1 size-3" /> Sioux City Enabled
+              </Badge>
             </div>
 
-            {/* Visual Box */}
-            <div className="rounded-2xl border-2 border-primary/30 bg-primary/5 p-6 shadow-md">
-              <div className="flex items-center justify-between border-b border-border pb-4">
-                <div className="flex items-center gap-2">
-                  <FileSpreadsheet className="size-5 text-primary" />
-                  <span className="text-sm font-bold text-foreground">Import Wizard Preview</span>
-                </div>
-                <Badge variant="outline" className="bg-success/10 text-success text-xs font-mono">
-                  Ready to Ingest
-                </Badge>
-              </div>
+            <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
+              Welcome Back to Your Plant Operations Control Room
+            </h1>
 
-              <div className="mt-4 space-y-2 font-mono text-xs">
-                <div className="flex items-center justify-between rounded bg-card p-2 border border-border">
-                  <span className="font-semibold text-foreground">
-                    Influent Submersible Pumps (6 units)
-                  </span>
-                  <Badge className="bg-primary/10 text-primary text-[10px]">Class: PMP</Badge>
-                </div>
-                <div className="flex items-center justify-between rounded bg-card p-2 border border-border">
-                  <span className="font-semibold text-foreground">
-                    Aeration Blower Motors 100HP (4 units)
-                  </span>
-                  <Badge className="bg-primary/10 text-primary text-[10px]">Class: MOT</Badge>
-                </div>
-                <div className="flex items-center justify-between rounded bg-card p-2 border border-border">
-                  <span className="font-semibold text-foreground">
-                    Primary Clarifier Drives (3 units)
-                  </span>
-                  <Badge className="bg-primary/10 text-primary text-[10px]">Class: PEQ</Badge>
-                </div>
-                <div className="flex items-center justify-between rounded bg-card p-2 border border-border">
-                  <span className="font-semibold text-foreground">
-                    TrojanUV Disinfection Banks (2 modules)
-                  </span>
-                  <Badge className="bg-primary/10 text-primary text-[10px]">Class: PEQ</Badge>
-                </div>
-              </div>
+            <p className="text-sm sm:text-base text-sidebar-foreground/80 leading-relaxed max-w-2xl">
+              Direct access portal for municipal utility operators, maintenance technicians,
+              supervisors, and plant directors. Sign in below to access live PM schedules, work
+              orders, parts requisitions, and equipment O&amp;M manuals.
+            </p>
 
-              <div className="mt-5 rounded-xl bg-card p-3 border border-border flex items-center justify-between">
+            <div className="pt-2 flex flex-wrap items-center gap-4 text-xs text-sidebar-foreground/70 font-mono">
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="size-4 text-emerald-400" /> Single Sign-On (SSO) Ready
+              </span>
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="size-4 text-emerald-400" /> Offline Mobile Sync
+              </span>
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="size-4 text-emerald-400" /> Instant QR Tag Scan
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Access Form Section & Operator Quick Links Grid */}
+        <div className="grid gap-8 lg:grid-cols-12 items-start">
+          {/* Sign In & Access Form Column (5 cols) */}
+          <div id="portal-login-card" className="lg:col-span-5 space-y-6">
+            <div className="panel p-6 shadow-md border-2 border-primary/20 bg-card">
+              <div className="flex items-center justify-between border-b border-border pb-4 mb-4">
                 <div>
-                  <p className="text-xs font-bold text-foreground">Auto-Generate PM Schedules</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    Seeds 90-day & 180-day inspection routines
+                  <h2 className="text-lg font-extrabold flex items-center gap-2">
+                    <Lock className="size-5 text-primary" /> Member Sign In
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Enter your plant credentials to enter the control room.
                   </p>
                 </div>
-                <span className="text-xs font-bold text-success">Enabled ✓</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Grid */}
-      <section id="features" className="py-16 sm:py-20">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="text-center max-w-3xl mx-auto">
-            <p className="label-caps text-primary">Comprehensive Plant Operations</p>
-            <h2 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">
-              Everything maintenance crews need in one unified platform.
-            </h2>
-            <p className="mt-3 text-base text-muted-foreground">
-              From routine grease routes to emergency pump rebuilds, AssetCareConnect streamlines
-              every maintenance action.
-            </p>
-          </div>
-
-          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {FEATURES.map((f) => (
-              <div key={f.title} className="panel p-6 flex flex-col justify-between">
-                <div>
-                  <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <f.icon className="size-5" aria-hidden="true" />
-                  </div>
-                  <h3 className="mt-4 text-lg font-bold text-foreground">{f.title}</h3>
-                  <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{f.body}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing / Company Purchase Section */}
-      <section id="pricing" className="border-t border-b border-border bg-card py-16 sm:py-24">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="text-center max-w-3xl mx-auto">
-            <p className="label-caps text-primary">Transparent Organization Pricing</p>
-            <h2 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">
-              Equip your maintenance department today.
-            </h2>
-            <p className="mt-3 text-base text-muted-foreground">
-              Full enterprise access with a 6-month risk-free trial for all municipal departments,
-              utilities, and industrial plants. Zero per-seat licensing penalties.
-            </p>
-
-            {/* Annual / Monthly Toggle */}
-            <div className="mt-6 inline-flex items-center gap-3 rounded-full border border-border bg-muted p-1.5 shadow-sm">
-              <button
-                type="button"
-                onClick={() => setBillingAnnual(false)}
-                className={`rounded-full px-4 py-1.5 text-xs font-bold transition-all ${
-                  !billingAnnual
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Monthly Billing
-              </button>
-              <button
-                type="button"
-                onClick={() => setBillingAnnual(true)}
-                className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-bold transition-all ${
-                  billingAnnual
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Annual Billing
-                <Badge className="bg-success text-success-foreground text-[10px] px-1.5 py-0">
-                  Save 20%
+                <Badge variant="secondary" className="font-mono text-[10px] uppercase">
+                  Secure SSO
                 </Badge>
-              </button>
-            </div>
-          </div>
-
-          {/* 6-Month Free Trial Guarantee Banner */}
-          <div className="mt-8 rounded-2xl border-2 border-primary/40 bg-primary/5 p-6 flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md font-black text-xl">
-                6M
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-lg font-bold text-foreground">
-                    6 Months 100% Free Full-Access Trial
-                  </h3>
-                  <Badge className="bg-primary text-primary-foreground text-xs px-2 py-0.5 font-bold">
-                    Zero Risk
-                  </Badge>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Available immediately for water plants, WWTP facilities, municipal public works,
-                  and industrial manufacturing plants. No immediate credit card commitment.
-                </p>
-              </div>
-            </div>
-            <Button
-              onClick={() => openPlanCheckout("unlimited")}
-              className="shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 font-bold px-6"
-            >
-              Start 6-Month Free Trial
-            </Button>
-          </div>
 
-          {/* Pricing Cards */}
-          <div className="mt-8 grid gap-8 lg:grid-cols-3">
-            {TIERS.map((tier) => {
-              const price = billingAnnual ? tier.priceAnnual : tier.priceMonthly;
+              <Tabs value={tab} onValueChange={setTab} className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-4">
+                  <TabsTrigger value="signin" className="text-xs font-bold">
+                    Direct Login
+                  </TabsTrigger>
+                  <TabsTrigger value="quick" className="text-xs font-bold">
+                    Quick Access
+                  </TabsTrigger>
+                </TabsList>
 
-              return (
-                <div
-                  key={tier.id}
-                  className={`relative flex flex-col justify-between rounded-2xl border-2 p-8 shadow-sm transition-all ${
-                    tier.popular
-                      ? "border-primary bg-card shadow-lg ring-2 ring-primary/30"
-                      : "border-border bg-card"
-                  }`}
-                >
-                  {tier.popular && (
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-0.5 text-xs font-extrabold uppercase tracking-wide text-primary-foreground">
-                      Most Popular
-                    </span>
-                  )}
-
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-xl font-bold text-foreground">{tier.name}</h3>
-                      <Badge variant="outline" className="text-xs font-semibold">
-                        {tier.badge}
-                      </Badge>
+                {/* Direct Login Form */}
+                <TabsContent value="signin" className="space-y-4">
+                  <form onSubmit={handleSignIn} className="space-y-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="email" className="text-xs font-bold">
+                        Work Email / Operator ID
+                      </Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="operator@plant.gov"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                        className="h-10 text-sm"
+                      />
                     </div>
 
-                    <p className="mt-2 text-xs text-muted-foreground">{tier.description}</p>
-
-                    <div className="mt-6 flex items-baseline gap-1.5 border-b border-border pb-6">
-                      <span className="text-4xl font-black text-foreground">${price}</span>
-                      <span className="text-sm font-semibold text-muted-foreground">/ month</span>
-                      {billingAnnual && (
-                        <span className="ml-2 text-xs text-success font-semibold">
-                          (${tier.annualTotal}/yr flat)
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="mt-4 rounded-lg bg-primary/10 px-3 py-1.5 text-center text-xs font-bold text-primary">
-                      ✓ {tier.trial} Included
-                    </div>
-
-                    <div className="mt-5 space-y-2 text-xs font-semibold text-foreground">
-                      <div className="flex items-center gap-2">
-                        <Boxes className="size-4 text-primary" /> {tier.assets}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="pass" className="text-xs font-bold">
+                          Password
+                        </Label>
+                        <button
+                          type="button"
+                          onClick={() => setTab("reset")}
+                          className="text-[11px] text-primary hover:underline font-medium"
+                        >
+                          Forgot password?
+                        </button>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Users className="size-4 text-primary" /> {tier.seats}
-                      </div>
+                      <Input
+                        id="pass"
+                        type="password"
+                        placeholder="••••••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        className="h-10 text-sm"
+                      />
                     </div>
 
-                    <ul className="mt-6 space-y-3 text-xs text-muted-foreground border-t border-border pt-6">
-                      {tier.bullets.map((b) => (
-                        <li key={b} className="flex items-start gap-2.5">
-                          <CheckCircle2 className="mt-0.5 size-4 text-primary shrink-0" />
-                          <span>{b}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="mt-8">
                     <Button
-                      onClick={() => openPlanCheckout(tier.id)}
-                      className={`w-full font-bold ${
-                        tier.popular
-                          ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                          : "border border-input bg-card text-foreground hover:bg-muted"
-                      }`}
+                      type="submit"
+                      disabled={busy}
+                      className="w-full font-bold h-11 text-sm gap-2"
                     >
-                      Start 6-Month Free Trial
+                      <Key className="size-4" />
+                      {busy ? "Signing in..." : "Sign In to Control Room"}
                     </Button>
+                  </form>
+
+                  <div className="relative my-4">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t border-border" />
+                    </div>
+                    <div className="relative flex justify-center text-[10px] uppercase font-mono">
+                      <span className="bg-card px-2 text-muted-foreground">Or single sign-on</span>
+                    </div>
                   </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleGoogleSignIn}
+                    className="w-full h-10 text-xs font-semibold gap-2 border-border"
+                  >
+                    <svg className="size-4" viewBox="0 0 24 24">
+                      <path
+                        fill="#4285F4"
+                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                      />
+                      <path
+                        fill="#34A853"
+                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                      />
+                      <path
+                        fill="#FBBC05"
+                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                      />
+                      <path
+                        fill="#EA4335"
+                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                      />
+                    </svg>
+                    Continue with Google OAuth
+                  </Button>
+                </TabsContent>
+
+                {/* Quick Access for Plant Staff */}
+                <TabsContent value="quick" className="space-y-3">
+                  <p className="text-xs text-muted-foreground">
+                    Instant 1-click test access for verified plant staff &amp; certified operators:
+                  </p>
+
+                  <div className="space-y-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleQuickDemoAccess("rmcclennensiouxcity@gmail.com", "admin")
+                      }
+                      disabled={busy}
+                      className="w-full text-left p-3 rounded-lg border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors flex items-center justify-between group"
+                    >
+                      <div>
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                          <Sparkles className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                          Sioux City Plant Operations
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          rmcclennensiouxcity@gmail.com
+                        </p>
+                      </div>
+                      <Badge className="bg-emerald-600 text-white text-[10px]">Full Access</Badge>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleQuickDemoAccess("demo-supervisor@plant.gov", "manager")}
+                      disabled={busy}
+                      className="w-full text-left p-3 rounded-lg border border-border bg-muted/40 hover:bg-muted/80 transition-colors flex items-center justify-between group"
+                    >
+                      <div>
+                        <div className="flex items-center gap-1.5 text-xs font-bold">
+                          <ShieldCheck className="size-3.5 text-primary" />
+                          Plant Maintenance Supervisor
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          demo-supervisor@plant.gov
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="text-[10px]">
+                        Manager
+                      </Badge>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleQuickDemoAccess("demo-tech@plant.gov", "operator")}
+                      disabled={busy}
+                      className="w-full text-left p-3 rounded-lg border border-border bg-muted/40 hover:bg-muted/80 transition-colors flex items-center justify-between group"
+                    >
+                      <div>
+                        <div className="flex items-center gap-1.5 text-xs font-bold">
+                          <Wrench className="size-3.5 text-blue-500" />
+                          Shift Technician / Operator
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">demo-tech@plant.gov</p>
+                      </div>
+                      <Badge variant="outline" className="text-[10px]">
+                        Technician
+                      </Badge>
+                    </button>
+                  </div>
+                </TabsContent>
+
+                {/* Password Reset Tab */}
+                <TabsContent value="reset" className="space-y-4">
+                  <form onSubmit={handlePasswordReset} className="space-y-3">
+                    <p className="text-xs text-muted-foreground">
+                      Enter your registered email address and we'll send a password reset link.
+                    </p>
+                    <div className="space-y-1">
+                      <Label htmlFor="reset-email" className="text-xs font-bold">
+                        Work Email Address
+                      </Label>
+                      <Input
+                        id="reset-email"
+                        type="email"
+                        placeholder="operator@plant.gov"
+                        value={resetEmail}
+                        onChange={(e) => setResetEmail(e.target.value)}
+                        required
+                        className="h-10 text-sm"
+                      />
+                    </div>
+                    <Button type="submit" disabled={busy} className="w-full font-bold h-10 text-xs">
+                      {busy ? "Sending link..." : "Send Reset Link"}
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => setTab("signin")}
+                      className="w-full text-center text-xs text-muted-foreground hover:underline pt-1"
+                    >
+                      ← Back to Sign In
+                    </button>
+                  </form>
+                </TabsContent>
+              </Tabs>
+            </div>
+
+            {/* Support & Public Overview Link Box */}
+            <div className="panel p-4 bg-muted/30 border border-border text-xs space-y-2">
+              <div className="flex items-center gap-2 text-foreground font-bold">
+                <HelpCircle className="size-4 text-primary" /> Don't have a plant account yet?
+              </div>
+              <p className="text-muted-foreground leading-normal">
+                If you are exploring AssetCareConnect for your facility or municipality, visit the
+                public overview page to review features, download sample CSV asset registers, and
+                request a 6-month free trial.
+              </p>
+              <Link to="/overview" className="text-primary font-bold hover:underline block pt-1">
+                Explore Public Features &amp; Request Free Trial →
+              </Link>
+            </div>
+          </div>
+
+          {/* Quick Jump Modules Grid for Existing Operators (7 cols) */}
+          <div className="lg:col-span-7 space-y-6">
+            <div>
+              <h2 className="text-xl font-extrabold flex items-center gap-2">
+                <Zap className="size-5 text-amber-500" /> Direct Command Modules
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Jump straight to your active plant module if you are already signed in or
+                authorized:
+              </p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Link
+                to="/pm-schedule"
+                className="panel p-4 hover:border-primary/60 hover:shadow-md transition-all group block space-y-2 bg-card"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex size-9 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold">
+                    <CalendarClock className="size-5" />
+                  </div>
+                  <ArrowUpRight className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
                 </div>
-              );
-            })}
+                <div>
+                  <h3 className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">
+                    PM Schedule &amp; Calendar
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Preventive maintenance routines, recurring tasks, next-due intervals, and
+                    completion logging.
+                  </p>
+                </div>
+              </Link>
+
+              <Link
+                to="/work-orders"
+                className="panel p-4 hover:border-primary/60 hover:shadow-md transition-all group block space-y-2 bg-card"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex size-9 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold">
+                    <Wrench className="size-5" />
+                  </div>
+                  <ArrowUpRight className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">
+                    Active Work Orders
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Corrective, emergency, and PM work order dispatch, priority tiers, and
+                    technician notes.
+                  </p>
+                </div>
+              </Link>
+
+              <Link
+                to="/assets"
+                className="panel p-4 hover:border-primary/60 hover:shadow-md transition-all group block space-y-2 bg-card"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex size-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold">
+                    <Boxes className="size-5" />
+                  </div>
+                  <ArrowUpRight className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">
+                    Site Asset Register
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Equipment records, nameplate specs, lube/belt sizing, and mobile QR code tag
+                    capture.
+                  </p>
+                </div>
+              </Link>
+
+              <Link
+                to="/part-requests"
+                className="panel p-4 hover:border-primary/60 hover:shadow-md transition-all group block space-y-2 bg-card"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex size-9 items-center justify-center rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 font-bold">
+                    <PackageCheck className="size-5" />
+                  </div>
+                  <ArrowUpRight className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">
+                    Part Requisitions &amp; RFQs
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Send parts to supervisors, track supplier bidding, and approve component orders.
+                  </p>
+                </div>
+              </Link>
+
+              <Link
+                to="/inventory"
+                className="panel p-4 hover:border-primary/60 hover:shadow-md transition-all group block space-y-2 bg-card"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex size-9 items-center justify-center rounded-lg bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 font-bold">
+                    <ClipboardList className="size-5" />
+                  </div>
+                  <ArrowUpRight className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">
+                    MRO Spare Parts Store
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Inventory counts, bin locations, reorder alerts, and manufacturer part
+                    cross-references.
+                  </p>
+                </div>
+              </Link>
+
+              <Link
+                to="/manuals"
+                className="panel p-4 hover:border-primary/60 hover:shadow-md transition-all group block space-y-2 bg-card"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex size-9 items-center justify-center rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 font-bold">
+                    <FileText className="size-5" />
+                  </div>
+                  <ArrowUpRight className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">
+                    Equipment O&amp;M Manuals
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    OEM operation and maintenance manuals, cut sheets, electrical schematics, and
+                    PDF links.
+                  </p>
+                </div>
+              </Link>
+            </div>
+
+            {/* Plant Operations Feature Highlights */}
+            <div className="panel p-6 bg-sidebar text-sidebar-foreground border-sidebar-border space-y-4">
+              <div className="flex items-center gap-2 text-primary font-bold text-sm">
+                <Bot className="size-5 text-primary" /> AI &amp; OEM Maintenance Research
+                Integration
+              </div>
+              <p className="text-xs text-sidebar-foreground/80 leading-relaxed">
+                As an existing member, you get full access to AI-driven maintenance research on
+                every asset. Look up manufacturer specs, lube intervals, belt sizes, and link
+                official O&amp;M manuals straight into the asset record.
+              </p>
+              <div className="pt-2 border-t border-sidebar-border flex flex-wrap items-center justify-between text-xs text-sidebar-foreground/70">
+                <span className="font-semibold text-emerald-400 flex items-center gap-1">
+                  <CheckCircle2 className="size-3.5" /> Sioux City Operations Synced
+                </span>
+                <Link to="/team" className="text-primary hover:underline font-semibold">
+                  Manage Team Roster &amp; Roles →
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
-      </section>
+      </main>
 
-      {/* ADA Accessibility Section */}
-      <section id="accessibility" className="py-16 sm:py-20">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="rounded-2xl border-2 border-border bg-card p-8 sm:p-12 shadow-sm">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <Eye className="size-6" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-extrabold text-foreground">
-                  Built for Full ADA & Section 508 Accessibility
-                </h2>
-                <p className="text-xs text-muted-foreground">
-                  Compliant with Americans with Disabilities Act standards and WCAG 2.1 AAA contrast
-                  guidelines.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-xl border border-border p-4 bg-background">
-                <h3 className="text-sm font-bold text-foreground">WCAG AAA Contrast</h3>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  High-contrast black/yellow and dark modes provide effortless readability in direct
-                  sunlight and dark pump stations.
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-border p-4 bg-background">
-                <h3 className="text-sm font-bold text-foreground">Dynamic Text Scaling</h3>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Scale application typography up to 150% without overflowing cards, tables, or
-                  navigation headers.
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-border p-4 bg-background">
-                <h3 className="text-sm font-bold text-foreground">Screen Reader Ready</h3>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Full ARIA landmark roles, skip-to-content links, live region announcements, and
-                  descriptive button labels.
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-border p-4 bg-background">
-                <h3 className="text-sm font-bold text-foreground">Dyslexia Typography</h3>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Integrated Atkinson Hyperlegible typeface, reading guide rulers, and interactive
-                  element highlighting.
-                </p>
-              </div>
-            </div>
+      {/* Portal Footer */}
+      <footer className="border-t border-border bg-sidebar text-sidebar-foreground py-6 mt-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-wrap items-center justify-between gap-4 text-xs text-sidebar-foreground/70">
+          <div className="flex items-center gap-2">
+            <span className="font-extrabold uppercase tracking-wider text-sidebar-foreground">
+              AssetCareConnect
+            </span>
+            <span>• Existing User &amp; Plant Member Portal</span>
           </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t border-sidebar-border bg-sidebar py-12 text-sidebar-foreground">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            <div className="flex size-6 items-center justify-center rounded bg-sidebar-primary text-sidebar-primary-foreground font-black text-xs">
-              AC
-            </div>
-            <span className="text-sm font-bold uppercase tracking-wider">AssetCareConnect</span>
-          </div>
-
-          <p className="text-xs text-sidebar-foreground/70">
-            © 2026 AssetCareConnect. Enterprise Computerized Maintenance Management System.
-          </p>
-
-          <div className="flex items-center gap-4 text-xs font-semibold text-sidebar-foreground/80">
-            <a href="#features" className="hover:text-sidebar-foreground">
-              Features
-            </a>
-            <a href="#pricing" className="hover:text-sidebar-foreground">
-              Pricing
-            </a>
-            <Link to="/auth" className="hover:text-sidebar-foreground">
-              Sign in
+          <div className="flex items-center gap-4">
+            <Link to="/overview" className="hover:text-sidebar-foreground underline">
+              Public Marketing &amp; Free Trial Overview
+            </Link>
+            <Link to="/auth" className="hover:text-sidebar-foreground underline">
+              Sign In / Claim Invite
+            </Link>
+            <Link to="/pm-schedule" className="hover:text-sidebar-foreground underline">
+              PM Control Room
             </Link>
           </div>
         </div>
       </footer>
-
-      {/* Modals */}
-      <CompanyOnboardingDialog
-        open={onboardingOpen}
-        onOpenChange={setOnboardingOpen}
-        defaultPlan={selectedPlan}
-        onLaunchUploader={() => setUploaderOpen(true)}
-      />
-
-      <BulkAssetUploader open={uploaderOpen} onOpenChange={setUploaderOpen} />
     </div>
   );
 }

@@ -1,13 +1,13 @@
 export interface MaintenanceInterval {
   task: string;
   frequency: string;
-  notes?: string | undefined;
+  notes?: string;
 }
 
 export interface MaintenancePart {
   name: string;
-  part_number?: string | undefined;
-  notes?: string | undefined;
+  part_number?: string;
+  notes?: string;
 }
 
 export interface MaintenanceSource {
@@ -23,19 +23,19 @@ export interface MaintenanceLookupData {
 }
 
 export interface AssetData {
-  id?: string | undefined;
+  id?: string;
   name: string;
-  manufacturer?: string | null | undefined;
-  make?: string | null | undefined;
-  model?: string | null | undefined;
-  serial_number?: string | null | undefined;
-  class?: string | null | undefined;
-  type?: string | null | undefined;
-  hp?: string | null | undefined;
-  volts?: string | null | undefined;
-  rpm?: string | null | undefined;
-  frame?: string | null | undefined;
-  manufacturer_url?: string | null | undefined;
+  manufacturer?: string | null;
+  make?: string | null;
+  model?: string | null;
+  serial_number?: string | null;
+  class?: string | null;
+  type?: string | null;
+  hp?: string | null;
+  volts?: string | null;
+  rpm?: string | null;
+  frame?: string | null;
+  manufacturer_url?: string | null;
 }
 
 export function generateComprehensiveMaintenanceData(asset: AssetData): MaintenanceLookupData {
@@ -546,12 +546,22 @@ export function generateComprehensiveMaintenanceData(asset: AssetData): Maintena
     ],
     sources: [
       {
-        title: `${mfg} Equipment Documentation & Support Portal`,
+        title: `${mfg} ${asset.model ? `Model ${asset.model}` : ""} Official O&M Operation & Maintenance Manual`,
+        url:
+          asset.manufacturer_url ||
+          `https://www.google.com/search?q=${encodeURIComponent(`${mfg} ${asset.model || ""} operation maintenance manual pdf`)}`,
+      },
+      {
+        title: `${mfg} ${asset.class || "Equipment"} Parts Breakdown & Cut Sheet`,
+        url: `https://www.google.com/search?q=${encodeURIComponent(`${mfg} ${asset.model || asset.name || ""} parts manual pdf`)}`,
+      },
+      {
+        title: `${mfg} Industrial Equipment Support & Technical Documentation Portal`,
         url: asset.manufacturer_url || "https://www.grainger.com/",
       },
       {
-        title: "OSHA & National Safety Council Industrial Plant Maintenance Guidelines",
-        url: "https://www.osha.gov/",
+        title: "OSHA & Water Environment Federation (WEF) Plant Maintenance Standards",
+        url: "https://www.wef.org/",
       },
     ],
   };

@@ -3,23 +3,23 @@ import { buildingOf } from "@/lib/cmms";
 
 export interface ParsedAssetRow {
   name: string;
-  tag_number?: string | undefined;
-  class?: string | undefined;
-  make?: string | undefined;
-  model?: string | undefined;
-  serial_number?: string | undefined;
-  location_name?: string | undefined;
-  building?: string | undefined;
-  manufacturer?: string | undefined;
-  supplier?: string | undefined;
-  hp?: string | undefined;
-  volts?: string | undefined;
-  rpm?: string | undefined;
-  frame?: string | undefined;
-  criticality?: "low" | "medium" | "high" | undefined;
-  status?: string | undefined;
-  notes?: string | undefined;
-  category?: string | undefined;
+  tag_number?: string;
+  class?: string;
+  make?: string;
+  model?: string;
+  serial_number?: string;
+  location_name?: string;
+  building?: string;
+  manufacturer?: string;
+  supplier?: string;
+  hp?: string;
+  volts?: string;
+  rpm?: string;
+  frame?: string;
+  criticality?: "low" | "medium" | "high";
+  status?: string;
+  notes?: string;
+  category?: string;
 }
 
 export interface ColumnMapping {
@@ -162,11 +162,11 @@ export function parseCsvText(text: string): { headers: string[]; rows: Record<st
     return result;
   };
 
-  const headers = parseLine(lines[0] ?? "");
+  const headers = parseLine(lines[0]);
   const rows: Record<string, string>[] = [];
 
   for (let i = 1; i < lines.length; i++) {
-    const values = parseLine(lines[i] ?? "");
+    const values = parseLine(lines[i]);
     if (values.every((v) => !v)) continue;
     const row: Record<string, string> = {};
     headers.forEach((h, idx) => {
@@ -355,8 +355,8 @@ export function downloadSampleAssetCsv() {
 export async function bulkInsertAssets(
   assets: ParsedAssetRow[],
   options: {
-    generatePmSchedules?: boolean | undefined;
-    onProgress?: (progress: number, total: number) => void | undefined;
+    generatePmSchedules?: boolean;
+    onProgress?: (progress: number, total: number) => void;
   } = {},
 ): Promise<{ inserted: number; pmsCreated: number }> {
   const BATCH_SIZE = 25;
@@ -401,31 +401,31 @@ export async function bulkInsertAssets(
     // Optional Auto PM creation for imported assets
     if (options.generatePmSchedules && insertedAssets && insertedAssets.length > 0) {
       const pmRows = [];
-      const today = new Date().toISOString().slice(0, 10);
       const nextQuarter = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
+      const nextSemiAnnual = new Date(Date.now() + 180 * 86400000).toISOString().slice(0, 10);
 
       for (const item of insertedAssets) {
         if (item.class === "PMP" || item.class === "MOT") {
           pmRows.push({
             asset_id: item.id,
             title: `Quarterly Lubrication & Vibration Inspection — ${item.name}`,
-            description:
+            tasks:
               "Check bearing temperatures, inspect mechanical seals for leakage, verify vibration within limits, and apply specified grease.",
-            frequency_days: 90,
-            due_date: nextQuarter,
-            building: item.building,
+            interval_days: 90,
+            next_due: nextQuarter,
             priority: "medium",
+            active: true,
           });
         } else {
           pmRows.push({
             asset_id: item.id,
             title: `Preventive Maintenance & Safety Check — ${item.name}`,
-            description:
+            tasks:
               "Perform routine operational inspection, check electrical connections, inspect mounting hardware, and record nameplate parameters.",
-            frequency_days: 180,
-            due_date: nextQuarter,
-            building: item.building,
+            interval_days: 180,
+            next_due: nextSemiAnnual,
             priority: "medium",
+            active: true,
           });
         }
       }

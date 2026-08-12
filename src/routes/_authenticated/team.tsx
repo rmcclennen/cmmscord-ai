@@ -15,14 +15,13 @@ import {
   addCustomLocalCrewMember,
   removeCustomLocalCrewMember,
   getCustomLocalCrew,
-  saveCustomLocalCrew,
   ensureUserSynced,
   formatNameFromEmail,
 } from "@/lib/team-sync";
 
 import { useMyRoles } from "@/hooks/use-my-roles";
 import { useSessionUser } from "@/hooks/use-session-user";
-import { ROLE_OPTIONS, roleLabel, type AppRole } from "@/lib/roles";
+import { ROLE_OPTIONS, roleLabel, isSiouxCityUser, type AppRole } from "@/lib/roles";
 import { CARRIERS, carrierLabel, formatPhone } from "@/lib/carriers";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -241,8 +240,8 @@ function TeamPage() {
       // 1. Add current authenticated user
       if (currentUser) {
         const currentName =
-          (currentUser.user_metadata?.["full_name"] as string) ||
-          (currentUser.user_metadata?.["name"] as string) ||
+          (currentUser.user_metadata?.full_name as string) ||
+          (currentUser.user_metadata?.name as string) ||
           formatNameFromEmail(currentUser.email);
 
         const existingDbUser = dbRoster.find((m) => m.id === currentUser.id);
@@ -442,7 +441,7 @@ function TeamPage() {
       if (inviteMember) {
         addCustomLocalCrewMember({
           id: memberId,
-          full_name: inviteMember.full_name ?? "",
+          full_name: inviteMember.full_name,
           email: cleanEmail,
           phone: inviteMember.phone,
           carrier: inviteMember.carrier,
@@ -985,14 +984,24 @@ function TeamPage() {
                       </Badge>
                     )}
 
-                    {hasApproverAuthority && (
+                    {(isSiouxCityUser(person) || isSiouxCityUser(person.email)) && (
                       <Badge
                         variant="secondary"
-                        className="bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30 text-[10px] uppercase font-bold"
+                        className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] uppercase font-bold"
                       >
-                        <ShieldCheck className="mr-1 size-3" /> Approver Sign-Off
+                        <Sparkles className="mr-1 size-3" /> Sioux City Full Access
                       </Badge>
                     )}
+
+                    {hasApproverAuthority &&
+                      !(isSiouxCityUser(person) || isSiouxCityUser(person.email)) && (
+                        <Badge
+                          variant="secondary"
+                          className="bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30 text-[10px] uppercase font-bold"
+                        >
+                          <ShieldCheck className="mr-1 size-3" /> Approver Sign-Off
+                        </Badge>
+                      )}
                   </div>
 
                   <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
