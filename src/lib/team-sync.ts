@@ -155,8 +155,8 @@ export async function ensureUserSynced(
 
   try {
     const rawFullName =
-      (user.user_metadata?.full_name as string) ||
-      (user.user_metadata?.name as string) ||
+      (user.user_metadata?.["full_name"] as string) ||
+      (user.user_metadata?.["name"] as string) ||
       formatNameFromEmail(user.email);
 
     // 1. Check / upsert profile
@@ -238,8 +238,8 @@ export function buildCombinedTeamMembers(
   // 1. Add current user if authenticated
   if (currentUser) {
     const currentName =
-      (currentUser.user_metadata?.full_name as string) ||
-      (currentUser.user_metadata?.name as string) ||
+      (currentUser.user_metadata?.["full_name"] as string) ||
+      (currentUser.user_metadata?.["name"] as string) ||
       formatNameFromEmail(currentUser.email);
     map.set(currentUser.id, {
       id: currentUser.id,
