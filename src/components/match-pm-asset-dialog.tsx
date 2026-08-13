@@ -129,10 +129,41 @@ export function MatchPmAssetDialog({
     return map;
   }, [assets]);
 
-  // Compute Smart Batch Matches for all PMs
-  const allSmartMatches = useMemo(() => {
-    if (!isOpen || pms.length === 0 || assets.length === 0) return [];
-    return batchMatchPmsToAssets(pms, assets, { unlinkedOnly: false, minConfidence: "low" });
+  // Compute Smart Batch Matches for all PMs — chunked/async so the dialog never freezes
+  const [allSmartMatches, setAllSmartMatches] = useState<PmAssetMatch[]>([]);
+  const [matchProgress, setMatchProgress] = useState<{ done: number; total: number } | null>(null);
+
+  useEffect(() => {
+    if (!isOpen || pms.length === 0 || assets.length === 0) {
+      setAllSmartMatches([]);
+      setMatchProgress(null);
+      return;
+    }
+
+    let cancelled = false;
+    setMatchProgress({ done: 0, total: pms.length });
+
+    batchMatchPmsToAssetsAsync(pms, assets, {
+      unlinkedOnly: false,
+      minConfidence: "low",
+      chunkSize: 20,
+      shouldCancel: () => cancelled,
+      onProgress: (done, total) => {
+        if (!cancelled) setMatchProgress({ done, total });
+      },
+    })
+      .then((matches) => {
+        if (cancelled) return;
+        setAllSmartMatches(matches);
+        setMatchProgress(null);
+      })
+      .catch(() => {
+        if (!cancelled) setMatchProgress(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen, pms, assets]);
 
   // Filter smart matches
