@@ -302,6 +302,55 @@ export function batchMatchPmsToAssets(
 }
 
 /**
+ * Same as batchMatchPmsToAssets, but processes PMs in small chunks and yields to
+ * the browser between chunks so the UI stays responsive on large data sets.
+ */
+export async function batchMatchPmsToAssetsAsync(
+  pms: MatchablePm[],
+  assets: MatchableAsset[],
+  options: {
+    unlinkedOnly?: boolean;
+    minConfidence?: "high" | "medium" | "low";
+    chunkSize?: number;
+    onProgress?: (done: number, total: number) => void;
+    shouldCancel?: () => boolean;
+  } = {},
+): Promise<PmAssetMatch[]> {
+  const {
+    unlinkedOnly = true,
+    minConfidence = "medium",
+    chunkSize = 25,
+    onProgress,
+    shouldCancel,
+  } = options;
+
+  const candidates = unlinkedOnly ? pms.filter((p) => !p.asset_id) : pms;
+  const results: PmAssetMatch[] = [];
+
+  for (let i = 0; i < candidates.length; i += chunkSize) {
+    if (shouldCancel?.()) return [];
+
+    for (const pm of candidates.slice(i, i + chunkSize)) {
+      const match = findBestAssetForPm(pm, assets);
+      if (!match) continue;
+      if (minConfidence === "high" && match.confidence !== "high") continue;
+      if (
+        minConfidence === "medium" &&
+        match.confidence !== "high" &&
+        match.confidence !== "medium"
+      )
+        continue;
+      results.push(match);
+    }
+
+    onProgress?.(Math.min(i + chunkSize, candidates.length), candidates.length);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+
+  return results.sort((a, b) => b.score - a.score);
+}
+
+/**
  * Finds all candidate PM schedules for a specific Asset.
  */
 export function findMatchingPmsForAsset(
