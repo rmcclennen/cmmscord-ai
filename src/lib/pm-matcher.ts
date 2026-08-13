@@ -173,7 +173,7 @@ export function scorePmAgainstAsset(
   }
 
   // 4. Token Overlap between Asset Name and PM Title
-  const assetTokens = extractTokens(asset.name);
+  const assetTokens = preparedTokens;
   const matchedTokens: string[] = [];
   for (const token of assetTokens) {
     // Ignore overly generic terms
