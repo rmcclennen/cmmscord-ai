@@ -126,11 +126,7 @@ export function scorePmAgainstAsset(
 
 
   // 1. Exact Tag Match (Highest confidence)
-  if (assetTag && assetTag.length >= 2) {
-    const tagRegex = new RegExp(
-      `(^|[^a-z0-9])${assetTag.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}([^a-z0-9]|$)`,
-      "i",
-    );
+  if (tagRegex) {
     if (tagRegex.test(pmTitle)) {
       return {
         score: 100,
