@@ -49,6 +49,62 @@ function extractTokens(s?: string | null): string[] {
     .filter((t) => t.length > 2);
 }
 
+// ---- Precomputation caches -------------------------------------------------
+// Matching is O(pms x assets). Without caching, every pair re-lowercases every
+// field and recompiles a tag regex, which locks the main thread on large plants.
+
+interface PreparedAsset {
+  name: string;
+  tag: string;
+  model: string;
+  make: string;
+  bldg: string;
+  tagRegex: RegExp | null;
+  tokens: string[];
+}
+
+interface PreparedPm {
+  title: string;
+  tasks: string;
+  combined: string;
+}
+
+const assetCache = new WeakMap<MatchableAsset, PreparedAsset>();
+const pmCache = new WeakMap<MatchablePm, PreparedPm>();
+
+function prepareAsset(asset: MatchableAsset): PreparedAsset {
+  const cached = assetCache.get(asset);
+  if (cached) return cached;
+  const tag = cleanStr(asset.tag_number);
+  const prepared: PreparedAsset = {
+    name: cleanStr(asset.name),
+    tag,
+    model: cleanStr(asset.model),
+    make: cleanStr(asset.manufacturer),
+    bldg: cleanStr(asset.building),
+    tagRegex:
+      tag && tag.length >= 2
+        ? new RegExp(
+            `(^|[^a-z0-9])${tag.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}([^a-z0-9]|$)`,
+            "i",
+          )
+        : null,
+    tokens: extractTokens(asset.name),
+  };
+  assetCache.set(asset, prepared);
+  return prepared;
+}
+
+function preparePm(pm: MatchablePm): PreparedPm {
+  const cached = pmCache.get(pm);
+  if (cached) return cached;
+  const title = cleanStr(pm.title);
+  const tasks = cleanStr(pm.tasks);
+  const prepared: PreparedPm = { title, tasks, combined: `${title} ${tasks}` };
+  pmCache.set(pm, prepared);
+  return prepared;
+}
+
 /**
  * Evaluates how well a PM schedule matches a specific Asset.
  * Returns null if no relevant match is found.
@@ -57,15 +113,17 @@ export function scorePmAgainstAsset(
   pm: MatchablePm,
   asset: MatchableAsset,
 ): { score: number; confidence: "high" | "medium" | "low"; reason: string } | null {
-  const pmTitle = cleanStr(pm.title);
-  const pmTasks = cleanStr(pm.tasks);
-  const pmCombined = `${pmTitle} ${pmTasks}`;
+  const { title: pmTitle, tasks: pmTasks, combined: pmCombined } = preparePm(pm);
+  const {
+    name: assetName,
+    tag: assetTag,
+    model: assetModel,
+    make: assetMake,
+    bldg: assetBldg,
+    tagRegex,
+    tokens: preparedTokens,
+  } = prepareAsset(asset);
 
-  const assetName = cleanStr(asset.name);
-  const assetTag = cleanStr(asset.tag_number);
-  const assetModel = cleanStr(asset.model);
-  const assetMake = cleanStr(asset.manufacturer);
-  const assetBldg = cleanStr(asset.building);
 
   // 1. Exact Tag Match (Highest confidence)
   if (assetTag && assetTag.length >= 2) {
