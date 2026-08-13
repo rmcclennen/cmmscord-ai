@@ -112,8 +112,17 @@ function candidateAssetsForPm(pm: MatchablePm, index: AssetMatchIndex): Matchabl
     prepared.combined.split(/[^a-z0-9-]+/).filter((token) => token.length >= 2),
   );
   const candidates = new Map<string, MatchableAsset>();
-  for (const token of pmTokens) {
-    for (const asset of index.byToken.get(token) ?? []) candidates.set(asset.id, asset);
+  const buckets = [...pmTokens]
+    .map((token) => index.byToken.get(token))
+    .filter((bucket): bucket is MatchableAsset[] => Boolean(bucket?.length))
+    .sort((a, b) => a.length - b.length);
+
+  // Common words such as "pump" or a manufacturer shared by hundreds of
+  // assets are not useful candidates and recreate the all-to-all scan.
+  for (const bucket of buckets) {
+    if (bucket.length > 250) continue;
+    for (const asset of bucket) candidates.set(asset.id, asset);
+    if (candidates.size >= 250) break;
   }
   return [...candidates.values()];
 }
