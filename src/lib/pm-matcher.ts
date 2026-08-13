@@ -69,8 +69,54 @@ interface PreparedPm {
   combined: string;
 }
 
+interface AssetMatchIndex {
+  assets: MatchableAsset[];
+  byToken: Map<string, MatchableAsset[]>;
+}
+
 const assetCache = new WeakMap<MatchableAsset, PreparedAsset>();
 const pmCache = new WeakMap<MatchablePm, PreparedPm>();
+
+function addIndexToken(
+  index: Map<string, MatchableAsset[]>,
+  token: string,
+  asset: MatchableAsset,
+) {
+  if (token.length < 2) return;
+  const existing = index.get(token);
+  if (existing) existing.push(asset);
+  else index.set(token, [asset]);
+}
+
+function buildAssetMatchIndex(assets: MatchableAsset[]): AssetMatchIndex {
+  const byToken = new Map<string, MatchableAsset[]>();
+  for (const asset of assets) {
+    const values = [asset.name, asset.tag_number, asset.model, asset.manufacturer, asset.building];
+    const tokens = new Set<string>();
+    for (const value of values) {
+      const cleaned = cleanStr(value);
+      if (!cleaned) continue;
+      tokens.add(cleaned);
+      for (const token of cleaned.split(/[^a-z0-9-]+/)) {
+        if (token.length >= 2) tokens.add(token);
+      }
+    }
+    for (const token of tokens) addIndexToken(byToken, token, asset);
+  }
+  return { assets, byToken };
+}
+
+function candidateAssetsForPm(pm: MatchablePm, index: AssetMatchIndex): MatchableAsset[] {
+  const prepared = preparePm(pm);
+  const pmTokens = new Set(
+    prepared.combined.split(/[^a-z0-9-]+/).filter((token) => token.length >= 2),
+  );
+  const candidates = new Map<string, MatchableAsset>();
+  for (const token of pmTokens) {
+    for (const asset of index.byToken.get(token) ?? []) candidates.set(asset.id, asset);
+  }
+  return [...candidates.values()];
+}
 
 function prepareAsset(asset: MatchableAsset): PreparedAsset {
   const cached = assetCache.get(asset);
@@ -326,27 +372,33 @@ export async function batchMatchPmsToAssetsAsync(
 
   const candidates = unlinkedOnly ? pms.filter((p) => !p.asset_id) : pms;
   const results: PmAssetMatch[] = [];
+  const assetIndex = buildAssetMatchIndex(assets);
+  let lastYield = performance.now();
 
-  for (let i = 0; i < candidates.length; i += chunkSize) {
+  for (let i = 0; i < candidates.length; i += 1) {
     if (shouldCancel?.()) return [];
 
-    for (const pm of candidates.slice(i, i + chunkSize)) {
-      const match = findBestAssetForPm(pm, assets);
-      if (!match) continue;
-      if (minConfidence === "high" && match.confidence !== "high") continue;
-      if (
-        minConfidence === "medium" &&
-        match.confidence !== "high" &&
-        match.confidence !== "medium"
-      )
-        continue;
-      results.push(match);
+    const pm = candidates[i];
+    if (!pm) continue;
+    const indexedCandidates = candidateAssetsForPm(pm, assetIndex);
+    const match = findBestAssetForPm(pm, indexedCandidates);
+    if (match) {
+      const passesConfidence =
+        minConfidence === "low" ||
+        match.confidence === "high" ||
+        (minConfidence === "medium" && match.confidence === "medium");
+      if (passesConfidence) results.push(match);
     }
 
-    onProgress?.(Math.min(i + chunkSize, candidates.length), candidates.length);
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    const shouldYield = i % chunkSize === chunkSize - 1 || performance.now() - lastYield >= 8;
+    if (shouldYield) {
+      onProgress?.(i + 1, candidates.length);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      lastYield = performance.now();
+    }
   }
 
+  onProgress?.(candidates.length, candidates.length);
   return results.sort((a, b) => b.score - a.score);
 }
 
