@@ -84,6 +84,8 @@ export function MatchPmAssetDialog({
   const [confidenceFilter, setConfidenceFilter] = useState<string>("all");
   const [selectedMatchIds, setSelectedMatchIds] = useState<Set<string>>(new Set());
   const [assetOverrides, setAssetOverrides] = useState<Record<string, string>>({});
+  const [visibleSmartCount, setVisibleSmartCount] = useState(50);
+  const [visibleUnlinkedCount, setVisibleUnlinkedCount] = useState(50);
 
   // Fetch all active PM schedules
   const pmsQuery = useQuery({
@@ -182,6 +184,11 @@ export function MatchPmAssetDialog({
     });
   }, [allSmartMatches, confidenceFilter, searchFilter]);
 
+  const visibleSmartMatches = useMemo(
+    () => filteredSmartMatches.slice(0, visibleSmartCount),
+    [filteredSmartMatches, visibleSmartCount],
+  );
+
   // Unlinked PMs
   const unlinkedPms = useMemo(() => {
     return pms.filter((p) => !p.asset_id);
@@ -195,6 +202,16 @@ export function MatchPmAssetDialog({
       (p) => p.title.toLowerCase().includes(q) || (p.tasks && p.tasks.toLowerCase().includes(q)),
     );
   }, [unlinkedPms, searchFilter]);
+
+  const visibleUnlinkedPms = useMemo(
+    () => filteredUnlinkedPms.slice(0, visibleUnlinkedCount),
+    [filteredUnlinkedPms, visibleUnlinkedCount],
+  );
+
+  useEffect(() => {
+    setVisibleSmartCount(50);
+    setVisibleUnlinkedCount(50);
+  }, [searchFilter, confidenceFilter, activeTab]);
 
   // Matches for specific target asset (if in targetAsset mode)
   const targetAssetMatches = useMemo(() => {
@@ -530,7 +547,7 @@ export function MatchPmAssetDialog({
                     <span>Showing {filteredSmartMatches.length} match suggestions</span>
                   </div>
 
-                  {filteredSmartMatches.map((m) => {
+                  {visibleSmartMatches.map((m) => {
                     const isSelected = selectedMatchIds.has(m.pmId);
                     const chosenAssetId = assetOverrides[m.pmId] || m.suggestedAssetId;
                     const chosenAsset = assetMap.get(chosenAssetId);
@@ -631,6 +648,18 @@ export function MatchPmAssetDialog({
                       </div>
                     );
                   })}
+                  {visibleSmartCount < filteredSmartMatches.length && (
+                    <div className="flex justify-center pt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setVisibleSmartCount((count) => count + 50)}
+                      >
+                        Show 50 more
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="rounded-lg border border-dashed p-8 text-center space-y-2">
@@ -658,7 +687,7 @@ export function MatchPmAssetDialog({
 
               {filteredUnlinkedPms.length > 0 ? (
                 <div className="space-y-2.5">
-                  {filteredUnlinkedPms.map((pm) => (
+                  {visibleUnlinkedPms.map((pm) => (
                     <div
                       key={pm.id}
                       className="rounded-lg border bg-card p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
@@ -699,6 +728,18 @@ export function MatchPmAssetDialog({
                       </div>
                     </div>
                   ))}
+                  {visibleUnlinkedCount < filteredUnlinkedPms.length && (
+                    <div className="flex justify-center pt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setVisibleUnlinkedCount((count) => count + 50)}
+                      >
+                        Show 50 more
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="rounded-lg border border-dashed p-8 text-center space-y-2">
