@@ -339,10 +339,18 @@ export function MatchPmAssetDialog({
             </div>
             <div className="rounded-md border bg-background/80 p-2">
               <span className="text-muted-foreground">Smart Matches:</span>
-              <span className="ml-1.5 font-mono font-bold text-primary">
-                {allSmartMatches.length}
-              </span>
+              {matchProgress ? (
+                <span className="ml-1.5 inline-flex items-center gap-1 font-mono font-bold text-primary">
+                  <RefreshCw className="size-3 animate-spin" />
+                  {Math.round((matchProgress.done / Math.max(matchProgress.total, 1)) * 100)}%
+                </span>
+              ) : (
+                <span className="ml-1.5 font-mono font-bold text-primary">
+                  {allSmartMatches.length}
+                </span>
+              )}
             </div>
+
             <div className="rounded-md border bg-background/80 p-2">
               <span className="text-muted-foreground">High Confidence:</span>
               <span className="ml-1.5 font-mono font-bold text-emerald-600 dark:text-emerald-400">
