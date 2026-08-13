@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  batchMatchPmsToAssets,
+  batchMatchPmsToAssetsAsync,
   findMatchingPmsForAsset,
   MatchableAsset,
   MatchablePm,
@@ -129,10 +129,41 @@ export function MatchPmAssetDialog({
     return map;
   }, [assets]);
 
-  // Compute Smart Batch Matches for all PMs
-  const allSmartMatches = useMemo(() => {
-    if (!isOpen || pms.length === 0 || assets.length === 0) return [];
-    return batchMatchPmsToAssets(pms, assets, { unlinkedOnly: false, minConfidence: "low" });
+  // Compute Smart Batch Matches for all PMs — chunked/async so the dialog never freezes
+  const [allSmartMatches, setAllSmartMatches] = useState<PmAssetMatch[]>([]);
+  const [matchProgress, setMatchProgress] = useState<{ done: number; total: number } | null>(null);
+
+  useEffect(() => {
+    if (!isOpen || pms.length === 0 || assets.length === 0) {
+      setAllSmartMatches([]);
+      setMatchProgress(null);
+      return;
+    }
+
+    let cancelled = false;
+    setMatchProgress({ done: 0, total: pms.length });
+
+    batchMatchPmsToAssetsAsync(pms, assets, {
+      unlinkedOnly: false,
+      minConfidence: "low",
+      chunkSize: 20,
+      shouldCancel: () => cancelled,
+      onProgress: (done, total) => {
+        if (!cancelled) setMatchProgress({ done, total });
+      },
+    })
+      .then((matches) => {
+        if (cancelled) return;
+        setAllSmartMatches(matches);
+        setMatchProgress(null);
+      })
+      .catch(() => {
+        if (!cancelled) setMatchProgress(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen, pms, assets]);
 
   // Filter smart matches
@@ -308,10 +339,18 @@ export function MatchPmAssetDialog({
             </div>
             <div className="rounded-md border bg-background/80 p-2">
               <span className="text-muted-foreground">Smart Matches:</span>
-              <span className="ml-1.5 font-mono font-bold text-primary">
-                {allSmartMatches.length}
-              </span>
+              {matchProgress ? (
+                <span className="ml-1.5 inline-flex items-center gap-1 font-mono font-bold text-primary">
+                  <RefreshCw className="size-3 animate-spin" />
+                  {Math.round((matchProgress.done / Math.max(matchProgress.total, 1)) * 100)}%
+                </span>
+              ) : (
+                <span className="ml-1.5 font-mono font-bold text-primary">
+                  {allSmartMatches.length}
+                </span>
+              )}
             </div>
+
             <div className="rounded-md border bg-background/80 p-2">
               <span className="text-muted-foreground">High Confidence:</span>
               <span className="ml-1.5 font-mono font-bold text-emerald-600 dark:text-emerald-400">
