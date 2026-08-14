@@ -19,6 +19,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedInventoryRouteImport } from './routes/_authenticated/inventory'
 import { Route as AuthenticatedManualsRouteImport } from './routes/_authenticated/manuals'
 import { Route as AuthenticatedPartRequestsRouteImport } from './routes/_authenticated/part-requests'
+import { Route as AuthenticatedPmDueRouteImport } from './routes/_authenticated/pm-due'
 import { Route as AuthenticatedPmScheduleRouteImport } from './routes/_authenticated/pm-schedule'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedTeamRouteImport } from './routes/_authenticated/team'
@@ -77,6 +78,11 @@ const AuthenticatedPartRequestsRoute =
     path: '/part-requests',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedPmDueRoute = AuthenticatedPmDueRouteImport.update({
+  id: '/pm-due',
+  path: '/pm-due',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedPmScheduleRoute = AuthenticatedPmScheduleRouteImport.update({
   id: '/pm-schedule',
   path: '/pm-schedule',
@@ -126,6 +132,7 @@ export interface FileRoutesByFullPath {
   '/inventory': typeof AuthenticatedInventoryRoute
   '/manuals': typeof AuthenticatedManualsRoute
   '/part-requests': typeof AuthenticatedPartRequestsRoute
+  '/pm-due': typeof AuthenticatedPmDueRoute
   '/pm-schedule': typeof AuthenticatedPmScheduleRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/team': typeof AuthenticatedTeamRoute
@@ -144,6 +151,7 @@ export interface FileRoutesByTo {
   '/inventory': typeof AuthenticatedInventoryRoute
   '/manuals': typeof AuthenticatedManualsRoute
   '/part-requests': typeof AuthenticatedPartRequestsRoute
+  '/pm-due': typeof AuthenticatedPmDueRoute
   '/pm-schedule': typeof AuthenticatedPmScheduleRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/team': typeof AuthenticatedTeamRoute
@@ -164,6 +172,7 @@ export interface FileRoutesById {
   '/_authenticated/inventory': typeof AuthenticatedInventoryRoute
   '/_authenticated/manuals': typeof AuthenticatedManualsRoute
   '/_authenticated/part-requests': typeof AuthenticatedPartRequestsRoute
+  '/_authenticated/pm-due': typeof AuthenticatedPmDueRoute
   '/_authenticated/pm-schedule': typeof AuthenticatedPmScheduleRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/team': typeof AuthenticatedTeamRoute
@@ -184,6 +193,7 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/manuals'
     | '/part-requests'
+    | '/pm-due'
     | '/pm-schedule'
     | '/settings'
     | '/team'
@@ -202,6 +212,7 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/manuals'
     | '/part-requests'
+    | '/pm-due'
     | '/pm-schedule'
     | '/settings'
     | '/team'
@@ -221,6 +232,7 @@ export interface FileRouteTypes {
     | '/_authenticated/inventory'
     | '/_authenticated/manuals'
     | '/_authenticated/part-requests'
+    | '/_authenticated/pm-due'
     | '/_authenticated/pm-schedule'
     | '/_authenticated/settings'
     | '/_authenticated/team'
@@ -310,6 +322,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPartRequestsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/pm-due': {
+      id: '/_authenticated/pm-due'
+      path: '/pm-due'
+      fullPath: '/pm-due'
+      preLoaderRoute: typeof AuthenticatedPmDueRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/pm-schedule': {
       id: '/_authenticated/pm-schedule'
       path: '/pm-schedule'
@@ -368,6 +387,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedInventoryRoute: typeof AuthenticatedInventoryRoute
   AuthenticatedManualsRoute: typeof AuthenticatedManualsRoute
   AuthenticatedPartRequestsRoute: typeof AuthenticatedPartRequestsRoute
+  AuthenticatedPmDueRoute: typeof AuthenticatedPmDueRoute
   AuthenticatedPmScheduleRoute: typeof AuthenticatedPmScheduleRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedTeamRoute: typeof AuthenticatedTeamRoute
@@ -383,6 +403,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedInventoryRoute: AuthenticatedInventoryRoute,
   AuthenticatedManualsRoute: AuthenticatedManualsRoute,
   AuthenticatedPartRequestsRoute: AuthenticatedPartRequestsRoute,
+  AuthenticatedPmDueRoute: AuthenticatedPmDueRoute,
   AuthenticatedPmScheduleRoute: AuthenticatedPmScheduleRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedTeamRoute: AuthenticatedTeamRoute,
