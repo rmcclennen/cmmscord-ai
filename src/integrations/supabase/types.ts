@@ -854,6 +854,7 @@ export type Database = {
     }
     Functions: {
       can_approve_deletions: { Args: { _user_id: string }; Returns: boolean }
+      can_write_operational: { Args: { _user_id: string }; Returns: boolean }
       decide_deletion_request: {
         Args: { _approve: boolean; _note?: string; _request_id: string }
         Returns: {
