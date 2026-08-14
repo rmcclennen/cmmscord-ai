@@ -8,6 +8,7 @@ import { NotificationBell } from "@/components/notification-bell";
 import { BulkAssetUploader } from "@/components/bulk-asset-uploader";
 import { CompanyOnboardingDialog } from "@/components/company-onboarding-dialog";
 import {
+  AlertTriangle,
   Boxes,
   CalendarClock,
   ClipboardList,
@@ -25,6 +26,7 @@ import type { ReactNode } from "react";
 
 const NAV = [
   { to: "/pm-schedule", label: "PM Schedule", icon: CalendarClock },
+  { to: "/pm-due", label: "Due & Overdue", icon: AlertTriangle },
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/assets", label: "Assets", icon: Boxes },
   { to: "/work-orders", label: "Work Orders", icon: ClipboardList },
