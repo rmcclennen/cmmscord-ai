@@ -8,6 +8,7 @@ import { NotificationBell } from "@/components/notification-bell";
 import { BulkAssetUploader } from "@/components/bulk-asset-uploader";
 import { CompanyOnboardingDialog } from "@/components/company-onboarding-dialog";
 import {
+  AlertTriangle,
   Boxes,
   CalendarClock,
   ClipboardList,
