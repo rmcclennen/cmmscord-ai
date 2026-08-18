@@ -14,6 +14,8 @@ import {
   DEFAULT_PLANT_CREW,
   addCustomLocalCrewMember,
   removeCustomLocalCrewMember,
+  getRemovedCrewIds,
+  markCrewIdRemoved,
   getCustomLocalCrew,
   saveCustomLocalCrew,
   ensureUserSynced,
@@ -179,10 +181,11 @@ function TeamPage() {
   // Fetch Directory, User Roles, and Profiles
   const teamQuery = useQuery({
     queryKey: ["team-roles", currentUser?.id],
+    staleTime: 60_000,
     queryFn: async (): Promise<MemberData[]> => {
-      // 1. Ensure current user profile is synced to database
+      // Sync the current user's profile in the background so the roster renders immediately
       if (currentUser) {
-        await ensureUserSynced(currentUser).catch(() => {});
+        void ensureUserSynced(currentUser).catch(() => {});
       }
 
       let dbRoster: MemberData[] = [];
@@ -296,6 +299,11 @@ function TeamPage() {
             roles: crew.roles,
           });
         }
+      }
+
+      // Drop anyone the user deleted (built-in crew rows have no DB record to remove)
+      for (const removedId of getRemovedCrewIds()) {
+        if (removedId !== currentUser?.id) map.delete(removedId);
       }
 
       return Array.from(map.values());
@@ -477,11 +485,14 @@ function TeamPage() {
   // Full server-side removal (roles, profile, directory, and the login itself)
   const cleanUserData = async (memberId: string) => {
     removeCustomLocalCrewMember(memberId);
-    try {
+    const isLocalOnly = !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      memberId,
+    );
+    if (!isLocalOnly) {
+      // Surface real failures instead of silently reporting success
       await removeTeamMember({ data: { userId: memberId } });
-    } catch (err) {
-      console.warn("Server removeTeamMember error:", err);
     }
+    markCrewIdRemoved(memberId);
   };
 
   // Single Member Deletion Mutation
