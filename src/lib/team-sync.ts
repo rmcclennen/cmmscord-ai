@@ -144,6 +144,30 @@ export function removeCustomLocalCrewMember(memberId: string) {
   saveCustomLocalCrew(filtered);
 }
 
+const LOCAL_STORAGE_REMOVED_KEY = "cmms_plant_removed_crew_ids";
+
+/** IDs the user has deleted. Needed because the built-in demo crew has no DB rows. */
+export function getRemovedCrewIds(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_REMOVED_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function markCrewIdRemoved(memberId: string) {
+  if (typeof window === "undefined") return;
+  try {
+    const next = Array.from(new Set([...getRemovedCrewIds(), memberId]));
+    localStorage.setItem(LOCAL_STORAGE_REMOVED_KEY, JSON.stringify(next));
+  } catch (e) {
+    console.warn("Could not persist removed crew id:", e);
+  }
+}
+
 /**
  * Ensures the signed-in user's profile and roles exist in the database and local session.
  */
