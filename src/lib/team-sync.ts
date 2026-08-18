@@ -258,6 +258,7 @@ export function buildCombinedTeamMembers(
   currentUser: User | null,
 ): TeamMember[] {
   const map = new Map<string, TeamMember>();
+  const removed = new Set(getRemovedCrewIds());
 
   // 1. Add current user if authenticated
   if (currentUser) {
@@ -304,6 +305,10 @@ export function buildCombinedTeamMembers(
         email: crew.email,
       });
     }
+  }
+
+  for (const id of removed) {
+    if (currentUser?.id !== id) map.delete(id);
   }
 
   return Array.from(map.values()).sort((a, b) =>
