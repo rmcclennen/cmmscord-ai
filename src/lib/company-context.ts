@@ -41,9 +41,9 @@ export function getActiveCompany(user?: User | null): CompanyInfo {
   // 2. Check user metadata if logged in
   if (user) {
     const metaCompany =
-      (user.user_metadata?.company as string) ||
-      (user.user_metadata?.company_name as string) ||
-      (user.user_metadata?.facility as string);
+      (user.user_metadata?.["company"] as string) ||
+      (user.user_metadata?.["company_name"] as string) ||
+      (user.user_metadata?.["facility"] as string);
 
     if (metaCompany) {
       const slug = metaCompany.toLowerCase().replace(/[^a-z0-9]+/g, "_");
@@ -77,7 +77,7 @@ export function setActiveCompany(company: CompanyInfo): void {
 export function extractCompanyFromNotes(notes?: string | null): string | null {
   if (!notes) return null;
   const match = notes.match(/\[Company:\s*([^\]]+)\]/i);
-  return match ? match[1].trim() : null;
+  return match?.[1] ? match[1].trim() : null;
 }
 
 /**

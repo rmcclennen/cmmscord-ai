@@ -159,7 +159,7 @@ export function SystemBadge({
 }: SystemBadgeProps) {
   const meta = systemMeta(system);
   const IconComponent = (meta.icon && ICON_MAP[meta.icon]) || Cpu;
-  const color = COLOR_CLASSES[meta.color] ?? COLOR_CLASSES.slate;
+  const color = COLOR_CLASSES[meta.color] ?? COLOR_CLASSES["slate"]!;
 
   const sizeClasses = {
     sm: "text-[11px] px-1.5 py-0.5 gap-1",
@@ -193,5 +193,5 @@ export function getSystemIcon(iconName?: string) {
 }
 
 export function getSystemColor(colorName?: string) {
-  return COLOR_CLASSES[colorName ?? "slate"] ?? COLOR_CLASSES.slate;
+  return COLOR_CLASSES[colorName ?? "slate"] ?? COLOR_CLASSES["slate"]!;
 }

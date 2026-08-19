@@ -579,7 +579,7 @@ function AssetsPage() {
             const isCollapsed = !!collapsedSystems[systemName];
             const meta = systemMeta(systemName);
             const IconComponent = getSystemIcon(meta.icon);
-            const color = getSystemColor(meta.color);
+            const color = getSystemColor(meta.color)!;
 
             // Compute PM metrics for this system group
             let systemPmCount = 0;
