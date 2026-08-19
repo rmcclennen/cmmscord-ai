@@ -137,6 +137,293 @@ export function buildingOf(
   return "Other / Unassigned";
 }
 
+/** Standard Wastewater Process Systems */
+export const SYSTEM_RULES: Array<{
+  name: string;
+  category: string;
+  icon: string;
+  color: string;
+  test: (text: string, bldg: string) => boolean;
+}> = [
+  {
+    name: "Headworks Polymer System",
+    category: "Chemical / Pretreatment",
+    icon: "FlaskConical",
+    color: "purple",
+    test: (t, b) =>
+      (/polymer|poly feed|poly pump|poly blend|poly make-up|emulsion polymer/i.test(t) &&
+        (/headworks/i.test(b) || /headworks/i.test(t))) ||
+      /headworks.*polymer|polymer.*headworks/i.test(t),
+  },
+  {
+    name: "Solids Handling Polymer System",
+    category: "Solids Treatment",
+    icon: "FlaskConical",
+    color: "indigo",
+    test: (t, b) =>
+      (/polymer|poly feed|poly pump|poly blend|poly make-up|emulsion polymer|dry polymer/i.test(
+        t,
+      ) &&
+        (/solids/i.test(b) ||
+          /dewater|thick|rdt|centrifuge/i.test(b) ||
+          /dewater|thick|rdt|centrifuge/i.test(t))) ||
+      /solids.*polymer|polymer.*solids|rdt.*polymer|centrifuge.*polymer/i.test(t),
+  },
+  {
+    name: "Polymer Feed System",
+    category: "Chemical Feed",
+    icon: "FlaskConical",
+    color: "purple",
+    test: (t) =>
+      /polymer|poly feed|poly pump|poly blend|poly make-up|emulsion polymer|dry polymer/i.test(t),
+  },
+  {
+    name: "Grit System",
+    category: "Preliminary Treatment",
+    icon: "Hourglass",
+    color: "amber",
+    test: (t) =>
+      /grit|vortex grit|grit pump|grit classifier|grit washer|grit snail|grit cyclone|pista grit/i.test(
+        t,
+      ),
+  },
+  {
+    name: "RDT System",
+    category: "Solids Thickening",
+    icon: "RotateCw",
+    color: "teal",
+    test: (t) =>
+      /rotary drum thickener|\brdt\b|drum thickener|rdt feed|rdt sludge|rdt drive|thickened sludge/i.test(
+        t,
+      ),
+  },
+  {
+    name: "Centrifuge Dewatering System",
+    category: "Solids Dewatering",
+    icon: "Disc",
+    color: "sky",
+    test: (t) => /centrifuge|decanter|centrate|scroll drive|bowl drive/i.test(t),
+  },
+  {
+    name: "Sludge Cake & Pumping System",
+    category: "Solids Transport",
+    icon: "Layers",
+    color: "stone",
+    test: (t) =>
+      /schwing|cake pump|sludge cake|cake silo|cake conveyor|sludge piston pump|poppet valve/i.test(
+        t,
+      ),
+  },
+  {
+    name: "Influent Screening System",
+    category: "Preliminary Treatment",
+    icon: "Grid",
+    color: "blue",
+    test: (t) =>
+      /bar screen|step screen|climber screen|perforated screen|screening|screenings washer|washing compactor|monster|auger monster/i.test(
+        t,
+      ),
+  },
+  {
+    name: "UV Disinfection System",
+    category: "Disinfection",
+    icon: "SunMedium",
+    color: "violet",
+    test: (t) =>
+      /trojan|\buv\b|ultraviolet|uv bank|uv lamp|quartz sleeve|wiper system|uv ballast|uv controller|uv hpu|disinfection channel/i.test(
+        t,
+      ),
+  },
+  {
+    name: "Aeration & Blower System",
+    category: "Secondary Treatment",
+    icon: "Wind",
+    color: "emerald",
+    test: (t) =>
+      /aeration|blower|roots blower|diffuser|basin mixer|aeration tank|dissolved oxygen|\bdo probe\b/i.test(
+        t,
+      ),
+  },
+  {
+    name: "Digester & Biogas System",
+    category: "Anaerobic Digestion",
+    icon: "Flame",
+    color: "orange",
+    test: (t) =>
+      /digester|anaerobic digester|biogas|methane|gas mixer|gas compressor|waste gas burner|flare|digester boiler|\bp4\b|digested sludge/i.test(
+        t,
+      ),
+  },
+  {
+    name: "RAS / WAS Pumping System",
+    category: "Biological Sludge Return",
+    icon: "Repeat",
+    color: "cyan",
+    test: (t) =>
+      /\bras\b|\bwas\b|return activated sludge|waste activated sludge|ras pump|was pump|sludge return/i.test(
+        t,
+      ),
+  },
+  {
+    name: "Primary Clarifier System",
+    category: "Primary Treatment",
+    icon: "Waves",
+    color: "blue",
+    test: (t, b) =>
+      /primary clarifier|primary sludge|primary scum|primary skimmer/i.test(t) ||
+      (/primary/i.test(b) && /clarifier|skimmer|sludge collector/i.test(t)),
+  },
+  {
+    name: "Final Clarifier System",
+    category: "Secondary Treatment",
+    icon: "Waves",
+    color: "teal",
+    test: (t, b) =>
+      /final clarifier|secondary clarifier|clarifier drive|weir washer|scum beach/i.test(t) ||
+      (/final clarifier/i.test(b) && /clarifier|drive|weir/i.test(t)),
+  },
+  {
+    name: "Influent Pumping System",
+    category: "Plant Inflow",
+    icon: "ArrowDownToLine",
+    color: "indigo",
+    test: (t) => /influent pump|raw sewage|influent wet well|raw influent/i.test(t),
+  },
+  {
+    name: "Plant Water (W3) & Effluent System",
+    category: "Utility Water & Discharge",
+    icon: "Droplets",
+    color: "sky",
+    test: (t) =>
+      /plant water|non-potable water|\bw3\b|utility water|effluent pump|effluent reuse|water booster/i.test(
+        t,
+      ),
+  },
+  {
+    name: "Chemical Feed & Dosing System",
+    category: "Chemical Treatment",
+    icon: "Pipette",
+    color: "rose",
+    test: (t) =>
+      /hypochlorite|chlorine|chemical feed|ferric|alum|caustic|sodium hypo|bisulfite|acid feed/i.test(
+        t,
+      ),
+  },
+  {
+    name: "HVAC & Climate System",
+    category: "Facilities & Climate",
+    icon: "ThermometerSnowflake",
+    color: "slate",
+    test: (t) =>
+      /hvac|air handler|\bahu\b|make up air|\bmua\b|exhaust fan|roof fan|unit heater|chiller|condenser/i.test(
+        t,
+      ),
+  },
+  {
+    name: "Compressed Air System",
+    category: "Pneumatic Utilities",
+    icon: "Gauge",
+    color: "zinc",
+    test: (t) => /air compressor|air dryer|instrument air|sullair|ingersoll|pneumatic/i.test(t),
+  },
+  {
+    name: "Electrical & Emergency Power System",
+    category: "Power Distribution",
+    icon: "Zap",
+    color: "amber",
+    test: (t) =>
+      /generator|caterpillar|cummins|transfer switch|\bats\b|switchgear|\bmcc\b|transformer|ups system/i.test(
+        t,
+      ),
+  },
+  {
+    name: "Safety & Life Protection System",
+    category: "Health & Safety",
+    icon: "ShieldAlert",
+    color: "red",
+    test: (t) =>
+      /fire extinguish|extinguisher|eye ?wash|safety shower|\bscba\b|\baed\b|gas detect|fall protection|first aid/i.test(
+        t,
+      ),
+  },
+  {
+    name: "Septic Receiving System",
+    category: "Hauler Receiving",
+    icon: "Truck",
+    color: "amber",
+    test: (t) => /septic receiving|septage|hauler station|waste hauler|vac truck/i.test(t),
+  },
+  {
+    name: "Lift Station & Remote Pumping System",
+    category: "Collection System",
+    icon: "Building",
+    color: "cyan",
+    test: (t, b) =>
+      /lift station|wet well|submersible lift|remote station/i.test(t) || /lift station/i.test(b),
+  },
+];
+
+export const SYSTEM_NAMES = SYSTEM_RULES.map((s) => s.name);
+
+export const ALL_SYSTEM_OPTIONS = [...SYSTEM_NAMES, "General Plant Equipment"];
+
+/**
+ * Determines the specific wastewater process system for an asset based on name,
+ * building, location, class, category, and notes.
+ */
+export function systemOf(
+  assetName?: string | null,
+  building?: string | null,
+  location?: string | null,
+  type?: string | null,
+  category?: string | null,
+  override?: string | null,
+): string {
+  if (override && override.trim()) return override.trim();
+  if (
+    category &&
+    category.trim() &&
+    category !== "all" &&
+    category !== "null" &&
+    category !== "undefined"
+  ) {
+    return category.trim();
+  }
+
+  const bldg = building ?? buildingOf(assetName, null, location);
+  const text = `${assetName ?? ""} ${type ?? ""} ${location ?? ""}`.trim();
+
+  for (const rule of SYSTEM_RULES) {
+    if (rule.test(text, bldg)) {
+      return rule.name;
+    }
+  }
+
+  if (bldg && bldg !== "Other / Unassigned") {
+    return `${bldg} System`;
+  }
+
+  return "General Plant Equipment";
+}
+
+export function systemMeta(systemName?: string | null) {
+  const found = SYSTEM_RULES.find((s) => s.name === systemName);
+  if (found) {
+    return {
+      name: found.name,
+      category: found.category,
+      icon: found.icon,
+      color: found.color,
+    };
+  }
+  return {
+    name: systemName || "General Plant Equipment",
+    category: "General Equipment",
+    icon: "Cpu",
+    color: "slate",
+  };
+}
+
 /** Best-effort parse of a manufacturer-stated maintenance frequency into days. */
 export function frequencyToDays(frequency: string | null | undefined): number {
   const f = (frequency ?? "").toLowerCase();
