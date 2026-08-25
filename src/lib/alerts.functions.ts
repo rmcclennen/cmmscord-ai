@@ -43,7 +43,7 @@ export const sendAssignmentAlert = createServerFn({ method: "POST" })
       return { configured: false, results: [] };
     }
 
-    const siteUrl = process.env["SITE_URL"] || "https://cmmscord-ai.lovable.app";
+    const siteUrl = process.env["SITE_URL"] || "https://assetcareconnect.app";
     const url = data.link ? `${siteUrl}${data.link}` : siteUrl;
     const targets: Array<{ to: string; channel: "email" | "sms" }> = [];
 
