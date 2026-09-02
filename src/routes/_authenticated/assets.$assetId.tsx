@@ -709,7 +709,7 @@ function AssetDetail() {
         name: p.name,
         part_number: p.part_number || undefined,
         notes: p.description || undefined,
-      }));
+      })) as Part[];
     }
 
     return defaultIntelligence?.parts ?? [];
@@ -2498,28 +2498,28 @@ function AssetDetail() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
-                {consumables.oil && (
+                {consumables.oilGrade && (
                   <div className="rounded-lg border border-border bg-card p-3 space-y-1">
                     <p className="text-[11px] font-semibold uppercase text-muted-foreground">
                       Lube / Oil Spec
                     </p>
-                    <p className="text-xs font-bold text-foreground">{consumables.oil}</p>
+                    <p className="text-xs font-bold text-foreground">{consumables.oilGrade}</p>
                   </div>
                 )}
-                {consumables.grease && (
+                {consumables.greaseType && (
                   <div className="rounded-lg border border-border bg-card p-3 space-y-1">
                     <p className="text-[11px] font-semibold uppercase text-muted-foreground">
                       Bearing Grease Spec
                     </p>
-                    <p className="text-xs font-bold text-foreground">{consumables.grease}</p>
+                    <p className="text-xs font-bold text-foreground">{consumables.greaseType}</p>
                   </div>
                 )}
-                {consumables.belt && (
+                {consumables.beltSize && (
                   <div className="rounded-lg border border-border bg-card p-3 space-y-1">
                     <p className="text-[11px] font-semibold uppercase text-muted-foreground">
                       Drive Belt Spec
                     </p>
-                    <p className="text-xs font-bold text-foreground">{consumables.belt}</p>
+                    <p className="text-xs font-bold text-foreground">{consumables.beltSize}</p>
                   </div>
                 )}
               </div>

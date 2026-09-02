@@ -347,8 +347,8 @@ export function SendPartsDialog({
               <PartsLookupDialog
                 asset={
                   selectedAssetId !== "none"
-                    ? (assetsQuery.data ?? []).find((a) => a.id === selectedAssetId) || initialAsset
-                    : initialAsset
+                    ? (assetsQuery.data ?? []).find((a) => a.id === selectedAssetId) || initialAsset || null
+                    : initialAsset || null
                 }
                 assetId={selectedAssetId !== "none" ? selectedAssetId : initialAsset?.id}
                 onSelectParts={(parts, summaryText) => {
@@ -358,7 +358,7 @@ export function SendPartsDialog({
                   if (!title.trim() && parts.length > 0) {
                     const first = parts[0];
                     setTitle(
-                      `Part Request: ${first.name}${first.part_number ? ` (P/N ${first.part_number})` : ""}${parts.length > 1 ? ` (+${parts.length - 1} more)` : ""}`,
+                      `Part Request: ${first?.name ?? "Parts"}${first?.part_number ? ` (P/N ${first.part_number})` : ""}${parts.length > 1 ? ` (+${parts.length - 1} more)` : ""}`,
                     );
                   }
                 }}
