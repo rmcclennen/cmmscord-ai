@@ -19,7 +19,7 @@ import { prettyLabel, WO_STATUSES } from "@/lib/cmms";
 import { useTeamMembers } from "@/hooks/use-team-members";
 import { memberLabel, notifyUser } from "@/lib/notify";
 import { toast } from "sonner";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/work-orders")({
   head: () => ({
@@ -115,13 +115,25 @@ function WorkOrdersPage() {
           <p className="label-caps">Maintenance work</p>
           <h1 className="text-2xl font-bold">Work orders</h1>
         </div>
-        <WorkOrderDialog
-          trigger={
-            <Button>
-              <Plus className="size-4" /> New work order
-            </Button>
-          }
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <PartsLookupDialog
+            trigger={
+              <Button
+                variant="outline"
+                className="gap-1.5 font-semibold text-primary border-primary/40 hover:bg-primary/10 shadow-sm"
+              >
+                <Sparkles className="size-4 text-primary" /> AI Google Parts Lookup
+              </Button>
+            }
+          />
+          <WorkOrderDialog
+            trigger={
+              <Button>
+                <Plus className="size-4" /> New work order
+              </Button>
+            }
+          />
+        </div>
       </div>
 
       <div className="panel flex flex-wrap items-center gap-3 p-3">

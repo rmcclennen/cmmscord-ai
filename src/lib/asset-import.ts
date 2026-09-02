@@ -1,6 +1,16 @@
 import { supabase } from "@/integrations/supabase/client";
 import { buildingOf } from "@/lib/cmms";
 
+export interface ParsedPartRow {
+  name: string;
+  part_number?: string;
+  manufacturer?: string;
+  unit_cost?: number;
+  qty_on_hand?: number;
+  unit?: string;
+  notes?: string;
+}
+
 export interface ParsedAssetRow {
   name: string;
   tag_number?: string;
@@ -20,6 +30,7 @@ export interface ParsedAssetRow {
   status?: string;
   notes?: string;
   category?: string;
+  parts?: ParsedPartRow[];
 }
 
 export interface ColumnMapping {
@@ -49,7 +60,7 @@ export const KNOWN_FIELDS: Array<{ key: keyof ColumnMapping; label: string; requ
     { key: "make", label: "Make / Manufacturer" },
     { key: "model", label: "Model Number" },
     { key: "serial_number", label: "Serial Number" },
-    { key: "location_name", label: "Location / Room" },
+    { key: "location_name", label: "Location / Room (Optional)" },
     { key: "building", label: "Building / Plant Area" },
     { key: "manufacturer", label: "Manufacturer Brand" },
     { key: "supplier", label: "Vendor / Supplier" },
@@ -179,6 +190,204 @@ export function parseCsvText(text: string): { headers: string[]; rows: Record<st
 }
 
 /**
+ * Parses raw text from documents, CSV, TSV, or tab-indented hierarchical lists.
+ * Supports:
+ * 1. Standard CSV / TSV with headers.
+ * 2. Hierarchical tabbed text where root lines are Assets and indented lines are Parts.
+ */
+export function parseDocumentText(text: string): {
+  isHierarchical: boolean;
+  headers: string[];
+  rows: Record<string, string>[];
+  hierarchicalAssets: ParsedAssetRow[];
+} {
+  const rawLines = text.split(/\r?\n/);
+  const nonEmptyLines = rawLines.filter((l) => l.trim().length > 0);
+
+  if (nonEmptyLines.length === 0) {
+    return { isHierarchical: false, headers: [], rows: [], hierarchicalAssets: [] };
+  }
+
+  // Check if text is indented hierarchical structure (e.g. lines starting with \t or 2+ spaces or bullet)
+  let hasIndentedLines = false;
+  for (const line of nonEmptyLines) {
+    if (/^(\t|\s{2,}|-\s+|\*\s+)/.test(line)) {
+      hasIndentedLines = true;
+      break;
+    }
+  }
+
+  // Also check if any header or line has "Parent" or "Part" structure
+  const firstLine = nonEmptyLines[0] || "";
+  const isCsvWithCommaOrTab =
+    (firstLine.includes(",") || firstLine.includes("\t")) && !hasIndentedLines;
+
+  if (hasIndentedLines) {
+    // Parse hierarchical lines
+    const parsedAssets: ParsedAssetRow[] = [];
+    let currentAsset: ParsedAssetRow | null = null;
+
+    for (const rawLine of rawLines) {
+      if (!rawLine.trim()) continue;
+
+      const isIndented = /^(\t|\s{2,}|\s*[-*•]\s+)/.test(rawLine);
+      const cleanContent = rawLine.replace(/^[\t\s*-•]+/, "").trim();
+
+      if (!cleanContent) continue;
+
+      if (!isIndented) {
+        // This is an Asset line
+        // E.g., "Grit Pump #1 - Hayward Gordon - CR4-8" or "010002 - Grit Pump #2 (West)"
+        const segments = cleanContent
+          .split(/[\t,|;]+/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+        const rawName = segments[0] || cleanContent;
+        const name = stripShelfLocation(rawName) || rawName;
+
+        let tag_number: string | undefined;
+        let make: string | undefined;
+        let model: string | undefined;
+        let cls = "PEQ";
+
+        // Try extracting tag number if present
+        const tagMatch = cleanContent.match(/\[([A-Z0-9_-]+)\]|\bTag:\s*([A-Z0-9_-]+)/i);
+        if (tagMatch) tag_number = tagMatch[1] || tagMatch[2];
+
+        // Classify equipment
+        const upper = cleanContent.toUpperCase();
+        if (/PUMP|PMP/.test(upper)) cls = "PMP";
+        else if (/MOTOR|MOT/.test(upper)) cls = "MOT";
+        else if (/BLOWER|BLW|FAN|HVAC/.test(upper)) cls = "HVAC";
+        else if (/MIXER|MIX/.test(upper)) cls = "MIX";
+        else if (/DRIVE|CLARIFIER|PEQ|SCREEN/.test(upper)) cls = "PEQ";
+        else if (/ELEC|PANEL|ELD|DISCONNECT/.test(upper)) cls = "ELD";
+        else if (/VALVE|ACTUATOR/.test(upper)) cls = "VLV";
+
+        if (segments.length >= 2 && !make) make = segments[1];
+        if (segments.length >= 3 && !model) model = segments[2];
+
+        currentAsset = {
+          name,
+          tag_number,
+          class: cls,
+          make,
+          model,
+          manufacturer: make,
+          building: buildingOf(name, null, null),
+          criticality: "medium",
+          status: "operational",
+          parts: [],
+        };
+        parsedAssets.push(currentAsset);
+      } else {
+        // This is a Part for the preceding asset!
+        // E.g. "Chopper Impeller | Part#: VP-IMP-SE4L | Mfr: Vaughan | Qty: 2 | Cost: $1450"
+        if (!currentAsset) {
+          // If no parent asset yet, create a default equipment unit
+          currentAsset = {
+            name: "Plant Machinery Unit",
+            class: "PEQ",
+            building: "Main Process Area",
+            criticality: "medium",
+            status: "operational",
+            parts: [],
+          };
+          parsedAssets.push(currentAsset);
+        }
+
+        const segments = cleanContent
+          .split(/[\t,|;]+/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+        let partName = segments[0] || cleanContent;
+        let partNumber: string | undefined;
+        let manufacturer: string | undefined = currentAsset.make || currentAsset.manufacturer;
+        let unit_cost: number | undefined;
+        let qty_on_hand: number | undefined = 1;
+
+        // Parse key-value tokens in part line
+        for (const seg of segments) {
+          const pMatch = seg.match(
+            /(?:part\s*(?:#|no|number)?|sku|pn)\s*[:=]?\s*([A-Za-z0-9_-]+)/i,
+          );
+          if (pMatch) partNumber = pMatch[1];
+
+          const mfrMatch = seg.match(
+            /(?:mfr|make|manufacturer|brand)\s*[:=]?\s*([A-Za-z0-9_ -]+)/i,
+          );
+          if (mfrMatch) manufacturer = mfrMatch[1].trim();
+
+          const qtyMatch = seg.match(/(?:qty|quantity|count|stock|on hand)\s*[:=]?\s*(\d+)/i);
+          if (qtyMatch) qty_on_hand = parseInt(qtyMatch[1], 10);
+
+          const costMatch = seg.match(/(?:cost|price|\$)\s*[:=]?\s*\$?([\d,]+(?:\.\d{2})?)/i);
+          if (costMatch) unit_cost = parseFloat(costMatch[1].replace(/,/g, ""));
+        }
+
+        // Clean part name if it has prefixes
+        partName = partName
+          .replace(/^(?:part\s*(?:#|no)?[:\s-]*|item[:\s-]*)/i, "")
+          .replace(/\[.*?\]|\(.*?\)/g, (m) => {
+            if (/part|sku|qty|mfr/i.test(m)) return "";
+            return m;
+          })
+          .trim();
+
+        currentAsset.parts = currentAsset.parts || [];
+        currentAsset.parts.push({
+          name: partName,
+          part_number: partNumber,
+          manufacturer,
+          unit_cost,
+          qty_on_hand,
+        });
+      }
+    }
+
+    return {
+      isHierarchical: true,
+      headers: ["Asset Name", "Tag", "Class", "Parts Count"],
+      rows: parsedAssets.map((a) => ({
+        "Asset Name": a.name,
+        Tag: a.tag_number || "",
+        Class: a.class || "PEQ",
+        "Parts Count": `${a.parts?.length || 0} parts`,
+      })),
+      hierarchicalAssets: parsedAssets,
+    };
+  }
+
+  // Fallback to standard CSV parsing
+  const standard = parseCsvText(text);
+  return {
+    isHierarchical: false,
+    headers: standard.headers,
+    rows: standard.rows,
+    hierarchicalAssets: [],
+  };
+}
+
+/**
+ * Strips shelf and bin location codes (e.g., "1A3", "1B4", "Ph2-1", "1A13B", "1A10 and 1B4")
+ * from location names, equipment names, and notes as per plant preference.
+ */
+export function stripShelfLocation(text: string | null | undefined): string {
+  if (!text) return "";
+  const cleaned = text
+    // Replace phrases like "and 1B4" or ", 1A3"
+    .replace(
+      /(?:,\s*|\band\s*|\s*&\s*|\s*-\s*|\s*\/\s*)?(?:(?:Ph|Phase)\s*\d+-\d+|1[AB]\d{1,2}[A-Za-z]?)(?:\s*\*+|\s*Supplement)?/gi,
+      "",
+    )
+    // Clean up leftover leading/trailing commas, slashes, dashes, whitespace
+    .replace(/^[\s,;/-]+|[\s,;/-]+$/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return cleaned;
+}
+
+/**
  * Maps raw records to structured Asset objects according to column mapping.
  */
 export function transformRowsToAssets(
@@ -187,7 +396,8 @@ export function transformRowsToAssets(
 ): ParsedAssetRow[] {
   return rawRows
     .map((r) => {
-      const name = (r[mapping.name] || "").trim();
+      const rawName = (r[mapping.name] || "").trim();
+      const name = stripShelfLocation(rawName) || rawName;
       if (!name) return null;
 
       const tag_number = (r[mapping.tag_number] || "").trim() || undefined;
@@ -208,9 +418,14 @@ export function transformRowsToAssets(
         criticality = "high";
       if (rawCrit.includes("low") || rawCrit === "3") criticality = "low";
 
-      const location_name = (r[mapping.location_name] || "").trim() || undefined;
-      const buildingExplicit = (r[mapping.building] || "").trim() || undefined;
+      const rawLoc = (r[mapping.location_name] || "").trim();
+      const location_name = stripShelfLocation(rawLoc) || undefined;
+      const rawBuilding = (r[mapping.building] || "").trim();
+      const buildingExplicit = stripShelfLocation(rawBuilding) || undefined;
       const computedBuilding = buildingOf(name, null, location_name, buildingExplicit);
+
+      const rawNotes = (r[mapping.notes] || "").trim();
+      const notes = stripShelfLocation(rawNotes) || undefined;
 
       return {
         name,
@@ -229,7 +444,7 @@ export function transformRowsToAssets(
         frame: (r[mapping.frame] || "").trim() || undefined,
         criticality,
         status: "operational",
-        notes: (r[mapping.notes] || "").trim() || undefined,
+        notes,
       };
     })
     .filter(Boolean) as ParsedAssetRow[];
@@ -350,17 +565,91 @@ export function downloadSampleAssetCsv() {
 }
 
 /**
- * Bulk inserts assets into database with progress notification.
+ * Downloads a hierarchical tabbed template where parts are nested under each asset.
+ */
+export function downloadSampleHierarchicalDoc() {
+  const textContent = `Grit Pump #1\tTag: HD-GTP-140\tHayward Gordon\tCR4-8\tHeadworks
+\tChopper Impeller\tPart#: VP-IMP-SE4L\tMfr: Hayward Gordon\tQty: 2\tCost: 1450
+\tMechanical Seal Assembly\tPart#: VP-SEAL-4L\tMfr: Hayward Gordon\tQty: 2\tCost: 920
+\tCutter Bar Plate\tPart#: VP-CB-089\tMfr: Hayward Gordon\tQty: 1\tCost: 680
+RDT Feed Pump #1 (WAS)\tTag: WAS-P-845-10\tHayward Gordon\tXCS4A-VDP\tSecondary Settling
+\tVortex Impeller\tPart#: HG-IMP-XCS4\tMfr: Hayward Gordon\tQty: 1\tCost: 1250
+\tTungsten Carbide Seal Kit\tPart#: HG-SEAL-TC\tMfr: John Crane\tQty: 2\tCost: 780
+Digested Sludge Pump #1\tTag: ADW-BFP-381\tVogelsang\tVX186-184-H4Q\tSolids Dewatering
+\tHiFlo Rubber Coated Lobes\tPart#: VOG-LOBE-186\tMfr: Vogelsang\tQty: 4\tCost: 890
+\tFront Wear Plates\tPart#: VOG-WP-186\tMfr: Vogelsang\tQty: 2\tCost: 420
+\tMechanical Cartridge Seal\tPart#: VOG-SEAL-186\tMfr: Vogelsang\tQty: 2\tCost: 650
+Sodium Hypochlorite Feed Pump #1\tBlue-White\tM-324-MNKL\tDisinfection
+\tPeristaltic Pump Tube Assembly\tPart#: BW-TUBE-M3\tMfr: Blue-White\tQty: 6\tCost: 85
+\tRoller Assembly Kit\tPart#: BW-ROLL-M3\tMfr: Blue-White\tQty: 2\tCost: 140
+UV Disinfection Channel Bank A\tTag: UV-DIS-01\tTrojanUV\tSignet 60+\tUV Complex
+\tLow-Pressure High-Output UV Lamps\tPart#: TR-LAMP-3000\tMfr: TrojanUV\tQty: 40\tCost: 165
+\tHigh-Purity Quartz Sleeves\tPart#: TR-SLV-3000\tMfr: TrojanUV\tQty: 40\tCost: 95
+\tAutomatic Wiper Rings\tPart#: TR-WIP-3000\tMfr: TrojanUV\tQty: 40\tCost: 42`;
+
+  const blob = new Blob([textContent], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", "Plant_Assets_With_Parts_Tabbed_Template.txt");
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Completely clears all assets and their linked part relations from the database.
+ */
+export async function clearAllAssetsDatabase(): Promise<{
+  deletedAssets: number;
+  deletedLinks: number;
+}> {
+  // Delete all junction links first
+  const { data: delLinks, error: linkErr } = await supabase
+    .from("part_assets")
+    .delete()
+    .neq("asset_id", "00000000-0000-0000-0000-000000000000")
+    .select("asset_id");
+
+  if (linkErr) console.warn("Delete part_assets notice:", linkErr);
+
+  // Delete all assets
+  const { data: delAssets, error: assetErr } = await supabase
+    .from("assets")
+    .delete()
+    .neq("id", "00000000-0000-0000-0000-000000000000")
+    .select("id");
+
+  if (assetErr) {
+    console.error("Delete assets error:", assetErr);
+    throw assetErr;
+  }
+
+  return {
+    deletedAssets: delAssets?.length || 0,
+    deletedLinks: delLinks?.length || 0,
+  };
+}
+
+/**
+ * Bulk inserts assets (and their nested tabbed parts if provided) into database.
  */
 export async function bulkInsertAssets(
   assets: ParsedAssetRow[],
   options: {
+    cleanReset?: boolean;
     generatePmSchedules?: boolean;
     onProgress?: (progress: number, total: number) => void;
   } = {},
-): Promise<{ inserted: number; pmsCreated: number }> {
+): Promise<{ inserted: number; partsLinked: number; pmsCreated: number }> {
+  if (options.cleanReset) {
+    await clearAllAssetsDatabase();
+  }
+
   const BATCH_SIZE = 25;
   let totalInserted = 0;
+  let totalPartsLinked = 0;
   let totalPms = 0;
 
   for (let i = 0; i < assets.length; i += BATCH_SIZE) {
@@ -389,7 +678,7 @@ export async function bulkInsertAssets(
           notes: a.notes || null,
         })),
       )
-      .select("id, name, class, building");
+      .select("id, name, class, building, make, model, manufacturer");
 
     if (error) {
       console.error("Batch asset insert error:", error);
@@ -397,6 +686,65 @@ export async function bulkInsertAssets(
     }
 
     totalInserted += insertedAssets?.length || 0;
+
+    // Link tabbed parts for each inserted asset
+    if (insertedAssets && insertedAssets.length > 0) {
+      for (let j = 0; j < insertedAssets.length; j++) {
+        const dbAsset = insertedAssets[j];
+        const parsedAsset = batch[j];
+
+        if (parsedAsset?.parts && parsedAsset.parts.length > 0) {
+          for (const p of parsedAsset.parts) {
+            if (!p.name.trim()) continue;
+
+            // Check if part already exists in catalog or insert new
+            let partId: string | null = null;
+            const { data: existingPart } = await supabase
+              .from("parts")
+              .select("id")
+              .ilike("name", p.name.trim())
+              .maybeSingle();
+
+            if (existingPart) {
+              partId = existingPart.id;
+            } else {
+              const { data: newPart, error: pErr } = await supabase
+                .from("parts")
+                .insert({
+                  name: p.name.trim(),
+                  part_number: p.part_number || null,
+                  manufacturer: p.manufacturer || dbAsset.manufacturer || dbAsset.make || null,
+                  unit_cost: p.unit_cost || null,
+                  qty_on_hand: p.qty_on_hand ?? 1,
+                  min_qty: 1,
+                  unit: p.unit || "EA",
+                  location: "Warehouse Central Storage",
+                })
+                .select("id")
+                .single();
+
+              if (!pErr && newPart) {
+                partId = newPart.id;
+              }
+            }
+
+            if (partId) {
+              const { error: linkError } = await supabase.from("part_assets").upsert(
+                {
+                  asset_id: dbAsset.id,
+                  part_id: partId,
+                },
+                { onConflict: "part_id,asset_id" },
+              );
+
+              if (!linkError) {
+                totalPartsLinked++;
+              }
+            }
+          }
+        }
+      }
+    }
 
     // Optional Auto PM creation for imported assets
     if (options.generatePmSchedules && insertedAssets && insertedAssets.length > 0) {
@@ -446,5 +794,5 @@ export async function bulkInsertAssets(
     }
   }
 
-  return { inserted: totalInserted, pmsCreated: totalPms };
+  return { inserted: totalInserted, partsLinked: totalPartsLinked, pmsCreated: totalPms };
 }

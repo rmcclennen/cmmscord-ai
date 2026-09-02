@@ -35,8 +35,9 @@ import {
 } from "@/components/ui/select";
 import { PartRequestBids } from "@/components/part-request-bids";
 import { SendPartsDialog } from "@/components/send-parts-dialog";
+import { PartsLookupDialog } from "@/components/parts-lookup-dialog";
 import { toast } from "sonner";
-import { PackagePlus, PackageSearch, Send, ShoppingCart } from "lucide-react";
+import { PackagePlus, PackageSearch, Send, ShoppingCart, Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/part-requests")({
   head: () => ({
@@ -275,7 +276,17 @@ function PartRequestsPage() {
             included.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <PartsLookupDialog
+            trigger={
+              <Button
+                variant="outline"
+                className="gap-1.5 font-semibold text-primary border-primary/40 hover:bg-primary/10 shadow-sm"
+              >
+                <Sparkles className="size-4 text-primary" /> AI Google Parts Lookup
+              </Button>
+            }
+          />
           <SendPartsDialog
             trigger={
               <Button className="gap-1.5 font-bold shadow-sm">
