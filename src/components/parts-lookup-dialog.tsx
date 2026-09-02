@@ -79,12 +79,13 @@ export interface PartsLookupDialogProps {
   asset?: {
     id: string;
     name: string;
-    manufacturer?: string | null;
-    model?: string | null;
-    manufacturer_url?: string | null;
-    tag_number?: string | null;
+    manufacturer?: string | null | undefined;
+    model?: string | null | undefined;
+    manufacturer_url?: string | null | undefined;
+    tag_number?: string | null | undefined;
+    location_name?: string | null | undefined;
   } | null;
-  assetId?: string | null;
+  assetId?: string | null | undefined;
   initialNeed?: string;
   onSelectParts?: (parts: PartItem[], summaryText: string) => void;
   trigger?: React.ReactNode;

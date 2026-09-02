@@ -969,8 +969,12 @@ interface AssetWithNestedPartsRowProps {
     supplier: string | null;
     building: string;
     system: string;
+    hp?: string | null | undefined;
+    volts?: string | null | undefined;
+    rpm?: string | null | undefined;
+    frame?: string | null | undefined;
   };
-  pmInfo?: {
+  pmInfo?: undefined | {
     count: number;
     pms: Array<{ id: string; title: string; next_due: string | null }>;
     nextDue: string | null;
@@ -981,8 +985,8 @@ interface AssetWithNestedPartsRowProps {
   parts: LinkedPart[];
   isExpanded: boolean;
   onToggleParts: () => void;
-  showSystemBadge?: boolean;
-  onSystemClick?: (system: string) => void;
+  showSystemBadge?: boolean | undefined;
+  onSystemClick?: ((system: string) => void) | undefined;
 }
 
 function AssetWithNestedPartsRow({
@@ -1174,7 +1178,7 @@ function AssetWithNestedPartsRow({
             />
             <RelabelAssetDialog
               assetId={a.id}
-              initialAsset={a}
+              initialAsset={a as unknown as Parameters<typeof RelabelAssetDialog>[0]["initialAsset"]}
               trigger={
                 <Button
                   size="sm"

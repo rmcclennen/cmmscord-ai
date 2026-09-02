@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { generateComprehensiveMaintenanceData } from "./maintenance-intelligence";
+import { generateComprehensiveMaintenanceData, type AssetData } from "./maintenance-intelligence";
 
 const PartsSchema = z.object({
   notes: z.string(),
