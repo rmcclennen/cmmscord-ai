@@ -3,34 +3,34 @@ import { buildingOf } from "@/lib/cmms";
 
 export interface ParsedPartRow {
   name: string;
-  part_number?: string;
-  manufacturer?: string;
-  unit_cost?: number;
-  qty_on_hand?: number;
-  unit?: string;
-  notes?: string;
+  part_number?: undefined | string;
+  manufacturer?: undefined | string;
+  unit_cost?: undefined | number;
+  qty_on_hand?: undefined | number;
+  unit?: undefined | string;
+  notes?: undefined | string;
 }
 
 export interface ParsedAssetRow {
   name: string;
-  tag_number?: string;
-  class?: string;
-  make?: string;
-  model?: string;
-  serial_number?: string;
-  location_name?: string;
-  building?: string;
+  tag_number?: undefined | string;
+  class?: undefined | string;
+  make?: undefined | string;
+  model?: undefined | string;
+  serial_number?: undefined | string;
+  location_name?: undefined | string;
+  building?: undefined | string;
   manufacturer?: string;
-  supplier?: string;
-  hp?: string;
-  volts?: string;
-  rpm?: string;
-  frame?: string;
-  criticality?: "low" | "medium" | "high";
-  status?: string;
+  supplier?: undefined | string;
+  hp?: undefined | string;
+  volts?: undefined | string;
+  rpm?: undefined | string;
+  frame?: undefined | string;
+  criticality?: undefined | "low" | "medium" | "high";
+  status?: undefined | string;
   notes?: string;
-  category?: string;
-  parts?: ParsedPartRow[];
+  category?: undefined | string;
+  parts?: undefined | ParsedPartRow[];
 }
 
 export interface ColumnMapping {
@@ -692,6 +692,7 @@ export async function bulkInsertAssets(
       for (let j = 0; j < insertedAssets.length; j++) {
         const dbAsset = insertedAssets[j];
         const parsedAsset = batch[j];
+        if (!dbAsset) continue;
 
         if (parsedAsset?.parts && parsedAsset.parts.length > 0) {
           for (const p of parsedAsset.parts) {
