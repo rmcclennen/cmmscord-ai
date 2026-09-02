@@ -23,7 +23,9 @@ import {
 import { PRIORITIES, WO_TYPES, prettyLabel } from "@/lib/cmms";
 import { useTeamMembers } from "@/hooks/use-team-members";
 import { memberLabel, notifyUser } from "@/lib/notify";
+import { PartsLookupDialog } from "@/components/parts-lookup-dialog";
 import { toast } from "sonner";
+import { Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
 
 type Props = {
@@ -214,7 +216,29 @@ export function WorkOrderDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="wo-desc">Scope / notes</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="wo-desc">Scope / notes</Label>
+              <PartsLookupDialog
+                assetId={asset}
+                initialNeed={title}
+                onSelectParts={(parts, summaryText) => {
+                  const partsSummary = `Required Parts:\n${summaryText}`;
+                  setDescription((prev) =>
+                    prev.trim() ? `${prev.trim()}\n\n${partsSummary}` : partsSummary,
+                  );
+                }}
+                trigger={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-6 gap-1 px-2 text-[11px] font-semibold text-primary border-primary/40 hover:bg-primary/10"
+                  >
+                    <Sparkles className="size-3 text-primary" /> AI Google Parts Lookup
+                  </Button>
+                }
+              />
+            </div>
             <Textarea
               id="wo-desc"
               rows={4}

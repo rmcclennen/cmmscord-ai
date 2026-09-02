@@ -27,12 +27,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { PartsLookupDialog } from "@/components/parts-lookup-dialog";
 import {
   AlertTriangle,
   Boxes,
   Camera,
   CheckCircle2,
   PackagePlus,
+  PackageSearch,
   Send,
   ShieldCheck,
   Sparkles,
@@ -212,6 +214,7 @@ export function SendPartsDialog({
       });
 
       queryClient.invalidateQueries({ queryKey: ["part-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["asset-part-requests"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       queryClient.invalidateQueries({ queryKey: ["work-orders"] });
       queryClient.invalidateQueries({ queryKey: ["parts"] });
@@ -341,9 +344,35 @@ export function SendPartsDialog({
               <Label htmlFor={`${idPrefix}-lines`} className="text-xs font-bold text-foreground">
                 Parts Needed &amp; OEM Part Numbers <span className="text-destructive">*</span>
               </Label>
-              <span className="text-[10px] text-muted-foreground">
-                Include quantities, part #, make, and dimensions
-              </span>
+              <PartsLookupDialog
+                asset={
+                  selectedAssetId !== "none"
+                    ? (assetsQuery.data ?? []).find((a) => a.id === selectedAssetId) || initialAsset || null
+                    : initialAsset || null
+                }
+                assetId={selectedAssetId !== "none" ? selectedAssetId : initialAsset?.id}
+                onSelectParts={(parts, summaryText) => {
+                  setPartLines((prev) =>
+                    prev.trim() ? `${prev.trim()}\n${summaryText}` : summaryText,
+                  );
+                  if (!title.trim() && parts.length > 0) {
+                    const first = parts[0];
+                    setTitle(
+                      `Part Request: ${first?.name ?? "Parts"}${first?.part_number ? ` (P/N ${first.part_number})` : ""}${parts.length > 1 ? ` (+${parts.length - 1} more)` : ""}`,
+                    );
+                  }
+                }}
+                trigger={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-6 gap-1 px-2 text-[11px] font-semibold text-primary border-primary/40 hover:bg-primary/10"
+                  >
+                    <Sparkles className="size-3 text-primary" /> AI Google Parts Lookup
+                  </Button>
+                }
+              />
             </div>
             <Textarea
               id={`${idPrefix}-lines`}
