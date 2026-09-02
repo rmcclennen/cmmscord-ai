@@ -1267,16 +1267,15 @@ function AssetWithNestedPartsRow({
                       {parts.map((p) => {
                         const inStock = (p.qty_on_hand ?? 0) > 0;
                         const isLowStock =
-                          p.min_quantity !== null &&
-                          p.min_quantity !== undefined &&
-                          (p.qty_on_hand ?? 0) <= p.min_quantity;
+                          p.min_qty !== null &&
+                          p.min_qty !== undefined &&
+                          (p.qty_on_hand ?? 0) <= p.min_qty;
 
                         return (
                           <TableRow key={p.id} className="h-9 hover:bg-muted/40">
                             <TableCell className="py-1.5 font-medium text-xs">
                               <Link
-                                to="/parts/$partId"
-                                params={{ partId: p.id }}
+                                to="/inventory"
                                 className="text-foreground hover:text-primary hover:underline transition-colors flex items-center gap-1.5"
                               >
                                 <span className="text-primary font-bold">↳</span> {p.name}
@@ -1326,7 +1325,7 @@ function AssetWithNestedPartsRow({
                                 variant="ghost"
                                 className="h-6 px-2 text-[11px] font-medium text-primary hover:bg-primary/10"
                               >
-                                <Link to="/parts/$partId" params={{ partId: p.id }}>
+                                <Link to="/inventory">
                                   View Part
                                 </Link>
                               </Button>
