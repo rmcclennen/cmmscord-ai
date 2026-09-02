@@ -119,7 +119,7 @@ function AssetsPage() {
       const { data, error } = await supabase
         .from("assets")
         .select(
-          "id, name, tag_number, class, type, make, model, criticality, status, manufacturer, serial_number, supplier, building, category",
+          "id, name, tag_number, class, type, make, model, criticality, status, manufacturer, serial_number, supplier, building, category, hp, volts, rpm, frame",
         )
         .order("name")
         .limit(5000);
