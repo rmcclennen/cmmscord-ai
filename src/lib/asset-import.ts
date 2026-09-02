@@ -20,7 +20,7 @@ export interface ParsedAssetRow {
   serial_number?: undefined | string;
   location_name?: undefined | string;
   building?: undefined | string;
-  manufacturer?: string;
+  manufacturer?: undefined | string;
   supplier?: undefined | string;
   hp?: undefined | string;
   volts?: undefined | string;
@@ -28,7 +28,7 @@ export interface ParsedAssetRow {
   frame?: undefined | string;
   criticality?: undefined | "low" | "medium" | "high";
   status?: undefined | string;
-  notes?: string;
+  notes?: undefined | string;
   category?: undefined | string;
   parts?: undefined | ParsedPartRow[];
 }
@@ -279,7 +279,7 @@ export function parseDocumentText(text: string): {
           status: "operational",
           parts: [],
         };
-        parsedAssets.push(currentAsset);
+        parsedAssets.push(currentAsset!);
       } else {
         // This is a Part for the preceding asset!
         // E.g. "Chopper Impeller | Part#: VP-IMP-SE4L | Mfr: Vaughan | Qty: 2 | Cost: $1450"
@@ -311,18 +311,18 @@ export function parseDocumentText(text: string): {
           const pMatch = seg.match(
             /(?:part\s*(?:#|no|number)?|sku|pn)\s*[:=]?\s*([A-Za-z0-9_-]+)/i,
           );
-          if (pMatch) partNumber = pMatch[1];
+          if (pMatch) partNumber = pMatch[1] ?? undefined;
 
           const mfrMatch = seg.match(
             /(?:mfr|make|manufacturer|brand)\s*[:=]?\s*([A-Za-z0-9_ -]+)/i,
           );
-          if (mfrMatch) manufacturer = mfrMatch[1].trim();
+          if (mfrMatch) manufacturer = mfrMatch[1]?.trim() ?? manufacturer;
 
           const qtyMatch = seg.match(/(?:qty|quantity|count|stock|on hand)\s*[:=]?\s*(\d+)/i);
-          if (qtyMatch) qty_on_hand = parseInt(qtyMatch[1], 10);
+          if (qtyMatch) qty_on_hand = parseInt(qtyMatch[1] ?? "1", 10);
 
           const costMatch = seg.match(/(?:cost|price|\$)\s*[:=]?\s*\$?([\d,]+(?:\.\d{2})?)/i);
-          if (costMatch) unit_cost = parseFloat(costMatch[1].replace(/,/g, ""));
+          if (costMatch) unit_cost = parseFloat((costMatch[1] ?? "0").replace(/,/g, ""));
         }
 
         // Clean part name if it has prefixes
