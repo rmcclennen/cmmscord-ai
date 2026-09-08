@@ -784,8 +784,7 @@ export function MorningPrintDialog({
                   })}
 
                 {/* Work Order Job Tickets */}
-                {(activeTab === "all" || activeTab === "wos") &&
-                  filteredWos.map((wo) => {
+                {ticketWos.map((wo) => {
                     const assigned = assignedName(team.data, wo.assigned_to);
                     const isCrit = wo.priority === "critical" || wo.priority === "emergency";
                     return (
