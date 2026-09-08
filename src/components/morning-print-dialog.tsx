@@ -641,10 +641,9 @@ export function MorningPrintDialog({
 
             {/* 2. INDIVIDUAL JOB TICKETS (PRINTABLE CARDS) */}
             {includeTickets && (
-              <div className="space-y-4 print:space-y-6">
+              <div className="space-y-4 print:space-y-4">
                 {/* PM Job Tickets */}
-                {(activeTab === "all" || activeTab === "pms") &&
-                  filteredPms.map((pm, idx) => {
+                {ticketPms.map((pm, idx) => {
                     const assigned = assignedName(team.data, pm.assigned_to);
                     const isOverdue = pm.next_due < today;
                     return (
