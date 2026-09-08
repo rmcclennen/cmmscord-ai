@@ -127,7 +127,7 @@ export const Route = createFileRoute("/_authenticated/assets/$assetId")({
 });
 
 type Interval = { task: string; frequency: string; notes?: string };
-type Part = { name: string; part_number?: string; notes?: string };
+type Part = { name: string; part_number?: string | undefined; notes?: string | undefined };
 type Source = { title: string; url: string };
 
 const PART_STATUS_BADGE: Record<string, { label: string; className: string }> = {
@@ -1626,7 +1626,7 @@ function AssetDetail() {
                 lockAsset
                 initialPart={{
                   name: `Oil & Grease Consumables Pack for ${a.name}`,
-                  part_number: consumables.oilGrade.split(" ")[0] || "LUBE-SPEC",
+                  part_number: consumables.oilGradeGrade.split(" ")[0] || "LUBE-SPEC",
                   manufacturer: a.manufacturer,
                   qty: 1,
                 }}
@@ -1643,12 +1643,12 @@ function AssetDetail() {
                 <div className="flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400">
                   <Droplet className="size-4" /> Suggested Oil &amp; Viscosity
                 </div>
-                <p className="text-sm font-semibold text-foreground">{consumables.oilGrade}</p>
-                {consumables.oilCapacity && (
+                <p className="text-sm font-semibold text-foreground">{consumables.oilGradeGrade}</p>
+                {consumables.oilGradeCapacity && (
                   <p className="text-xs text-muted-foreground">
                     Sump Capacity:{" "}
                     <span className="font-mono font-medium text-foreground">
-                      {consumables.oilCapacity}
+                      {consumables.oilGradeCapacity}
                     </span>
                   </p>
                 )}
@@ -1658,7 +1658,7 @@ function AssetDetail() {
                 <div className="flex items-center gap-1.5 text-xs font-bold text-sky-600 dark:text-sky-400">
                   <Disc className="size-4" /> Recommended Grease Type
                 </div>
-                <p className="text-sm font-semibold text-foreground">{consumables.greaseType}</p>
+                <p className="text-sm font-semibold text-foreground">{consumables.greaseTypeType}</p>
                 <p className="text-xs text-muted-foreground">
                   Grease Bearing Schedule:{" "}
                   <span className="font-medium text-foreground">Clean relief plug first</span>
@@ -1669,7 +1669,7 @@ function AssetDetail() {
                 <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400">
                   <Layers className="size-4" /> Drive Belt / Coupling Sizing
                 </div>
-                <p className="text-sm font-semibold text-foreground">{consumables.beltSize}</p>
+                <p className="text-sm font-semibold text-foreground">{consumables.beltSizeSize}</p>
                 <p className="text-xs text-muted-foreground">
                   Always replace drive belts in matched sets.
                 </p>
@@ -2792,28 +2792,28 @@ function AssetDetail() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
-                {consumables.oil && (
+                {consumables.oilGrade && (
                   <div className="rounded-lg border border-border bg-card p-3 space-y-1">
                     <p className="text-[11px] font-semibold uppercase text-muted-foreground">
                       Lube / Oil Spec
                     </p>
-                    <p className="text-xs font-bold text-foreground">{consumables.oil}</p>
+                    <p className="text-xs font-bold text-foreground">{consumables.oilGrade}</p>
                   </div>
                 )}
-                {consumables.grease && (
+                {consumables.greaseType && (
                   <div className="rounded-lg border border-border bg-card p-3 space-y-1">
                     <p className="text-[11px] font-semibold uppercase text-muted-foreground">
                       Bearing Grease Spec
                     </p>
-                    <p className="text-xs font-bold text-foreground">{consumables.grease}</p>
+                    <p className="text-xs font-bold text-foreground">{consumables.greaseType}</p>
                   </div>
                 )}
-                {consumables.belt && (
+                {consumables.beltSize && (
                   <div className="rounded-lg border border-border bg-card p-3 space-y-1">
                     <p className="text-[11px] font-semibold uppercase text-muted-foreground">
                       Drive Belt Spec
                     </p>
-                    <p className="text-xs font-bold text-foreground">{consumables.belt}</p>
+                    <p className="text-xs font-bold text-foreground">{consumables.beltSize}</p>
                   </div>
                 )}
               </div>

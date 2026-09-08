@@ -27,7 +27,13 @@ import {
 } from "@/lib/auto-morning-print";
 import { prettyLabel, daysUntil } from "@/lib/cmms";
 import { useTeamMembers } from "@/hooks/use-team-members";
-import { memberLabel } from "@/lib/notify";
+import type { TeamMember } from "@/lib/notify";
+
+function assignedName(members: TeamMember[] | undefined, id: string | null): string {
+  if (!id) return "Unassigned";
+  const m = members?.find((x) => x.id === id);
+  return m?.full_name || m?.email || "Unassigned";
+}
 import { toast } from "sonner";
 import {
   Printer,
@@ -190,6 +196,7 @@ export function MorningPrintDialog({
       }, 750);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [open, autoPrintOnOpen, pmsQuery.isLoading, wosQuery.isLoading]);
 
   const copyRosterToClipboard = () => {
@@ -200,7 +207,7 @@ export function MorningPrintDialog({
     if (filteredPms.length > 0) {
       text += `PREVENTIVE MAINTENANCE (${filteredPms.length}):\n`;
       filteredPms.forEach((p, idx) => {
-        const assigned = memberLabel(team.data, p.assigned_to);
+        const assigned = assignedName(team.data, p.assigned_to);
         const bldg = p.assets?.building ? ` [${p.assets.building}]` : "";
         text += `${idx + 1}. ${p.title} - ${p.assets?.name || "Asset"}${bldg} (Due: ${p.next_due}, Assigned: ${assigned})\n`;
       });
@@ -210,7 +217,7 @@ export function MorningPrintDialog({
     if (filteredWos.length > 0) {
       text += `WORK ORDERS (${filteredWos.length}):\n`;
       filteredWos.forEach((w, idx) => {
-        const assigned = memberLabel(team.data, w.assigned_to);
+        const assigned = assignedName(team.data, w.assigned_to);
         const bldg = w.assets?.building ? ` [${w.assets.building}]` : "";
         text += `${idx + 1}. WO-${w.wo_number}: ${w.title} - ${w.assets?.name || "Asset"}${bldg} (${w.priority.toUpperCase()}, Assigned: ${assigned})\n`;
       });
@@ -438,7 +445,7 @@ export function MorningPrintDialog({
                           <tbody className="divide-y divide-border print:divide-black">
                             {filteredPms.map((pm) => {
                               const isOverdue = pm.next_due < today;
-                              const assigned = memberLabel(team.data, pm.assigned_to);
+                              const assigned = assignedName(team.data, pm.assigned_to);
                               return (
                                 <tr key={pm.id} className="hover:bg-muted/30">
                                   <td className="py-2 px-2.5 font-mono whitespace-nowrap">
@@ -519,7 +526,7 @@ export function MorningPrintDialog({
                           </thead>
                           <tbody className="divide-y divide-border print:divide-black">
                             {filteredWos.map((wo) => {
-                              const assigned = memberLabel(team.data, wo.assigned_to);
+                              const assigned = assignedName(team.data, wo.assigned_to);
                               const isCrit =
                                 wo.priority === "critical" || wo.priority === "emergency";
                               return (
@@ -594,7 +601,7 @@ export function MorningPrintDialog({
                 {/* PM Job Tickets */}
                 {(activeTab === "all" || activeTab === "pms") &&
                   filteredPms.map((pm, idx) => {
-                    const assigned = memberLabel(team.data, pm.assigned_to);
+                    const assigned = assignedName(team.data, pm.assigned_to);
                     const isOverdue = pm.next_due < today;
                     return (
                       <div
@@ -736,7 +743,7 @@ export function MorningPrintDialog({
                 {/* Work Order Job Tickets */}
                 {(activeTab === "all" || activeTab === "wos") &&
                   filteredWos.map((wo) => {
-                    const assigned = memberLabel(team.data, wo.assigned_to);
+                    const assigned = assignedName(team.data, wo.assigned_to);
                     const isCrit = wo.priority === "critical" || wo.priority === "emergency";
                     return (
                       <div

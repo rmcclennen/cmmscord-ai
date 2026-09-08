@@ -118,7 +118,7 @@ function EquipmentDownPage() {
       // If an asset has active bidding/ordered parts but status wasn't 'down', fetch that asset too
       const extraAssetIds = allPartReqs
         .map((r) => r.asset_id)
-        .filter((id): id is string => Boolean(id) && !assetIds.includes(id));
+        .filter((id): id is string => Boolean(id) && !assetIds.includes(id as string));
 
       if (extraAssetIds.length > 0) {
         const { data: extraAssets } = await supabase
@@ -135,7 +135,7 @@ function EquipmentDownPage() {
       }
 
       // Fetch open work orders for these assets
-      let wos: DownEquipmentItem["workOrders"] = [];
+      let wos: Array<DownEquipmentItem["workOrders"][number] & { asset_id: string | null }> = [];
       if (assetIds.length > 0) {
         const { data: woData } = await supabase
           .from("work_orders")
