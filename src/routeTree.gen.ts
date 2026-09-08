@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as OverviewRouteImport } from './routes/overview'
 import { Route as PortalRouteImport } from './routes/portal'
 import { Route as AuthenticatedApprovalsRouteImport } from './routes/_authenticated/approvals'
+import { Route as AuthenticatedCompanyRouteImport } from './routes/_authenticated/company'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedEquipmentDownRouteImport } from './routes/_authenticated/equipment-down'
 import { Route as AuthenticatedInventoryRouteImport } from './routes/_authenticated/inventory'
@@ -56,6 +57,11 @@ const PortalRoute = PortalRouteImport.update({
 const AuthenticatedApprovalsRoute = AuthenticatedApprovalsRouteImport.update({
   id: '/approvals',
   path: '/approvals',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedCompanyRoute = AuthenticatedCompanyRouteImport.update({
+  id: '/company',
+  path: '/company',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
@@ -135,6 +141,7 @@ export interface FileRoutesByFullPath {
   '/overview': typeof OverviewRoute
   '/portal': typeof PortalRoute
   '/approvals': typeof AuthenticatedApprovalsRoute
+  '/company': typeof AuthenticatedCompanyRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/equipment-down': typeof AuthenticatedEquipmentDownRoute
   '/inventory': typeof AuthenticatedInventoryRoute
@@ -155,6 +162,7 @@ export interface FileRoutesByTo {
   '/overview': typeof OverviewRoute
   '/portal': typeof PortalRoute
   '/approvals': typeof AuthenticatedApprovalsRoute
+  '/company': typeof AuthenticatedCompanyRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/equipment-down': typeof AuthenticatedEquipmentDownRoute
   '/inventory': typeof AuthenticatedInventoryRoute
@@ -177,6 +185,7 @@ export interface FileRoutesById {
   '/overview': typeof OverviewRoute
   '/portal': typeof PortalRoute
   '/_authenticated/approvals': typeof AuthenticatedApprovalsRoute
+  '/_authenticated/company': typeof AuthenticatedCompanyRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/equipment-down': typeof AuthenticatedEquipmentDownRoute
   '/_authenticated/inventory': typeof AuthenticatedInventoryRoute
@@ -199,6 +208,7 @@ export interface FileRouteTypes {
     | '/overview'
     | '/portal'
     | '/approvals'
+    | '/company'
     | '/dashboard'
     | '/equipment-down'
     | '/inventory'
@@ -219,6 +229,7 @@ export interface FileRouteTypes {
     | '/overview'
     | '/portal'
     | '/approvals'
+    | '/company'
     | '/dashboard'
     | '/equipment-down'
     | '/inventory'
@@ -240,6 +251,7 @@ export interface FileRouteTypes {
     | '/overview'
     | '/portal'
     | '/_authenticated/approvals'
+    | '/_authenticated/company'
     | '/_authenticated/dashboard'
     | '/_authenticated/equipment-down'
     | '/_authenticated/inventory'
@@ -305,6 +317,13 @@ declare module '@tanstack/react-router' {
       path: '/approvals'
       fullPath: '/approvals'
       preLoaderRoute: typeof AuthenticatedApprovalsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/company': {
+      id: '/_authenticated/company'
+      path: '/company'
+      fullPath: '/company'
+      preLoaderRoute: typeof AuthenticatedCompanyRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/dashboard': {
@@ -403,6 +422,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedApprovalsRoute: typeof AuthenticatedApprovalsRoute
+  AuthenticatedCompanyRoute: typeof AuthenticatedCompanyRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedEquipmentDownRoute: typeof AuthenticatedEquipmentDownRoute
   AuthenticatedInventoryRoute: typeof AuthenticatedInventoryRoute
@@ -420,6 +440,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedApprovalsRoute: AuthenticatedApprovalsRoute,
+  AuthenticatedCompanyRoute: AuthenticatedCompanyRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedEquipmentDownRoute: AuthenticatedEquipmentDownRoute,
   AuthenticatedInventoryRoute: AuthenticatedInventoryRoute,
