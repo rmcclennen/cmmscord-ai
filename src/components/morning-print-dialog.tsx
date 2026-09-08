@@ -67,7 +67,10 @@ export function MorningPrintDialog({
   const [activeTab, setActiveTab] = useState<"all" | "pms" | "wos">("all");
   const [selectedBuilding, setSelectedBuilding] = useState<string>("all");
   const [includeCover, setIncludeCover] = useState(true);
-  const [includeTickets, setIncludeTickets] = useState(true);
+  // Job tickets are one-per-page-ish; default to none so a print job stays a few pages.
+  const [ticketLimit, setTicketLimit] = useState<string>("0");
+  const [dueScope, setDueScope] = useState<"due" | "horizon">("due");
+  const includeTickets = ticketLimit !== "0";
 
   const team = useTeamMembers();
   const today = getTodayIso();
@@ -151,16 +154,18 @@ export function MorningPrintDialog({
 
   // Filtered lists based on building selection
   const filteredPms = useMemo(() => {
-    const list = pmsQuery.data || [];
+    let list = pmsQuery.data || [];
+    if (dueScope === "due") list = list.filter((p) => p.next_due <= today);
     if (selectedBuilding === "all") return list;
     return list.filter((p) => p.assets?.building === selectedBuilding);
-  }, [pmsQuery.data, selectedBuilding]);
+  }, [pmsQuery.data, selectedBuilding, dueScope, today]);
 
   const filteredWos = useMemo(() => {
     const list = wosQuery.data || [];
     if (selectedBuilding === "all") return list;
     return list.filter((w) => w.assets?.building === selectedBuilding);
   }, [wosQuery.data, selectedBuilding]);
+
 
   // Counts & Statistics
   const overduePms = useMemo(
@@ -181,6 +186,27 @@ export function MorningPrintDialog({
     const woHours = filteredWos.reduce((acc, w) => acc + (Number(w.labor_hours) || 1.0), 0);
     return Math.round((pmHours + woHours) * 10) / 10;
   }, [filteredPms, filteredWos]);
+
+  // Job tickets shown/printed (each ticket is roughly half a page)
+  const ticketPms = useMemo(() => {
+    if (!includeTickets || (activeTab !== "all" && activeTab !== "pms")) return [];
+    return ticketLimit === "all" ? filteredPms : filteredPms.slice(0, Number(ticketLimit));
+  }, [filteredPms, ticketLimit, includeTickets, activeTab]);
+
+  const ticketWos = useMemo(() => {
+    if (!includeTickets || (activeTab !== "all" && activeTab !== "wos")) return [];
+    return ticketLimit === "all" ? filteredWos : filteredWos.slice(0, Number(ticketLimit));
+  }, [filteredWos, ticketLimit, includeTickets, activeTab]);
+
+  // Rough page estimate so nobody sends 750 sheets to the printer by accident
+  const estimatedPages = useMemo(() => {
+    const rows =
+      (activeTab === "all" || activeTab === "pms" ? filteredPms.length : 0) +
+      (activeTab === "all" || activeTab === "wos" ? filteredWos.length : 0);
+    const listPages = includeCover ? Math.max(1, Math.ceil(rows / 45)) : 0;
+    const ticketPages = Math.ceil((ticketPms.length + ticketWos.length) / 2);
+    return Math.max(1, listPages + ticketPages);
+  }, [filteredPms, filteredWos, includeCover, ticketPms, ticketWos, activeTab]);
 
   // Trigger print
   const handlePrint = () => {
@@ -318,7 +344,27 @@ export function MorningPrintDialog({
               )}
             </div>
 
-            <div className="flex items-center gap-2 text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
+              <Select value={dueScope} onValueChange={(v) => setDueScope(v as "due" | "horizon")}>
+                <SelectTrigger className="h-8 w-48 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="due">Overdue &amp; due today only</SelectItem>
+                  <SelectItem value="horizon">Include upcoming PMs</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={ticketLimit} onValueChange={setTicketLimit}>
+                <SelectTrigger className="h-8 w-52 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">List only (no job tickets)</SelectItem>
+                  <SelectItem value="10">Job tickets: first 10</SelectItem>
+                  <SelectItem value="25">Job tickets: first 25</SelectItem>
+                  <SelectItem value="all">Job tickets: all (long)</SelectItem>
+                </SelectContent>
+              </Select>
               <label className="flex items-center gap-1.5 cursor-pointer select-none">
                 <input
                   type="checkbox"
@@ -328,17 +374,11 @@ export function MorningPrintDialog({
                 />
                 <span>Summary Sheet</span>
               </label>
+              <Badge variant="outline" className="h-7 text-[11px] font-mono">
+                ~{estimatedPages} page{estimatedPages === 1 ? "" : "s"}
+              </Badge>
               <span className="text-border">•</span>
-              <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={includeTickets}
-                  onChange={(e) => setIncludeTickets(e.target.checked)}
-                  className="rounded border-border"
-                />
-                <span>Job Tickets</span>
-              </label>
-              <span className="text-border">•</span>
+
               <Button
                 variant="ghost"
                 size="sm"
@@ -356,7 +396,11 @@ export function MorningPrintDialog({
           <div className="max-w-3xl mx-auto space-y-6 print:max-w-none print:m-0 print:space-y-4">
             {/* 1. COVER / DISPATCH SUMMARY SHEET */}
             {includeCover && (
-              <div className="bg-card text-card-foreground border border-border rounded-lg p-6 shadow-sm print:shadow-none print:border-2 print:border-black print:rounded-none print:p-6 print:break-after-page">
+              <div
+                className={`print-dense bg-card text-card-foreground border border-border rounded-lg p-6 shadow-sm print:shadow-none print:border-2 print:border-black print:rounded-none print:p-4 ${
+                  includeTickets ? "print:break-after-page" : ""
+                }`}
+              >
                 {/* Document Header */}
                 <div className="border-b-2 border-primary/60 pb-4 print:border-black">
                   <div className="flex items-center justify-between">
@@ -597,16 +641,15 @@ export function MorningPrintDialog({
 
             {/* 2. INDIVIDUAL JOB TICKETS (PRINTABLE CARDS) */}
             {includeTickets && (
-              <div className="space-y-4 print:space-y-6">
+              <div className="space-y-4 print:space-y-4">
                 {/* PM Job Tickets */}
-                {(activeTab === "all" || activeTab === "pms") &&
-                  filteredPms.map((pm, idx) => {
+                {ticketPms.map((pm, idx) => {
                     const assigned = assignedName(team.data, pm.assigned_to);
                     const isOverdue = pm.next_due < today;
                     return (
                       <div
                         key={pm.id}
-                        className="bg-card text-card-foreground border border-border rounded-lg p-5 shadow-sm print:shadow-none print:border-2 print:border-black print:rounded-none print:p-5 print:break-inside-avoid print:mb-6"
+                        className="bg-card text-card-foreground border border-border rounded-lg p-5 shadow-sm print:shadow-none print:border-2 print:border-black print:rounded-none print:p-5 print:break-inside-avoid print:mb-3"
                       >
                         {/* Ticket Header */}
                         <div className="flex items-start justify-between border-b border-border print:border-black pb-3 gap-2">
@@ -741,14 +784,13 @@ export function MorningPrintDialog({
                   })}
 
                 {/* Work Order Job Tickets */}
-                {(activeTab === "all" || activeTab === "wos") &&
-                  filteredWos.map((wo) => {
+                {ticketWos.map((wo) => {
                     const assigned = assignedName(team.data, wo.assigned_to);
                     const isCrit = wo.priority === "critical" || wo.priority === "emergency";
                     return (
                       <div
                         key={wo.id}
-                        className="bg-card text-card-foreground border border-border rounded-lg p-5 shadow-sm print:shadow-none print:border-2 print:border-black print:rounded-none print:p-5 print:break-inside-avoid print:mb-6"
+                        className="bg-card text-card-foreground border border-border rounded-lg p-5 shadow-sm print:shadow-none print:border-2 print:border-black print:rounded-none print:p-5 print:break-inside-avoid print:mb-3"
                       >
                         {/* Ticket Header */}
                         <div className="flex items-start justify-between border-b border-border print:border-black pb-3 gap-2">
