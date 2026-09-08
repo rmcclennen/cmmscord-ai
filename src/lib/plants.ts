@@ -9,7 +9,7 @@ export interface Plant {
   name: string;
   /** Buildings / areas that belong to this plant. */
   buildings: string[];
-  location?: string;
+  location?: string | undefined;
 }
 
 export interface CompanyWorkspace {
