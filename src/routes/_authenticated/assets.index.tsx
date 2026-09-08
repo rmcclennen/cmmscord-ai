@@ -1282,7 +1282,7 @@ function AssetWithNestedPartsRow({
             />
             <RelabelAssetDialog
               assetId={a.id}
-              initialAsset={{ ...a, criticality: a.criticality ?? "" }}
+              initialAsset={{ ...a, criticality: a.criticality ?? "", status: a.status ?? "active" }}
               trigger={
                 <Button
                   size="sm"
