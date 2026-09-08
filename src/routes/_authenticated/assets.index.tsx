@@ -1037,13 +1037,15 @@ interface AssetWithNestedPartsRowProps {
     frame?: string | null;
   };
   pmInfo?:
-    count: number;
-    pms: Array<{ id: string; title: string; next_due: string | null }>;
-    nextDue: string | null;
-    nextPmTitle: string | null;
-    hasOverdue: boolean;
-    hasDueSoon: boolean;
-  };
+    | {
+        count: number;
+        pms: Array<{ id: string; title: string; next_due: string | null }>;
+        nextDue: string | null;
+        nextPmTitle: string | null;
+        hasOverdue: boolean;
+        hasDueSoon: boolean;
+      }
+    | undefined;
   parts: LinkedPart[];
   isExpanded: boolean;
   onToggleParts: () => void;
