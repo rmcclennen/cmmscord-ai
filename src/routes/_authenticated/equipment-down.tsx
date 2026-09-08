@@ -50,6 +50,8 @@ import { RepairCostDialog } from "@/components/repair-cost-dialog";
 import { PartOrderUpdateDialog } from "@/components/part-order-update-dialog";
 import { WorkOrderDialog } from "@/components/work-order-dialog";
 import type { PartRequestRow } from "@/lib/part-requests";
+import { useWorkspace } from "@/hooks/use-workspace";
+import { plantForBuilding } from "@/lib/plants";
 
 export const Route = createFileRoute("/_authenticated/equipment-down")({
   component: EquipmentDownPage,
@@ -87,6 +89,8 @@ function EquipmentDownPage() {
   const [partsFilter, setPartsFilter] = useState<string>("all");
   const [criticalityFilter, setCriticalityFilter] = useState<string>("all");
   const [buildingFilter, setBuildingFilter] = useState<string>("all");
+  const [plantFilter, setPlantFilter] = useState<string>("all");
+  const { plants, companyName } = useWorkspace();
 
   // Query all assets that are down, need repair, or have active parts bidding/ordered
   const { data: downEquipment = [], isLoading } = useQuery({
@@ -214,6 +218,11 @@ function EquipmentDownPage() {
 
       // Building filter
       if (buildingFilter !== "all" && a.building !== buildingFilter) {
+        return false;
+      }
+
+      // Plant filter (asset inherits its plant from its building)
+      if (plantFilter !== "all" && plantForBuilding(a.building, plants)?.id !== plantFilter) {
         return false;
       }
 
@@ -515,6 +524,42 @@ function EquipmentDownPage() {
             </Select>
           )}
         </div>
+
+        {/* Plant tabs */}
+        {plants.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 border-t border-border/50 pt-2">
+            <span className="mr-1 text-[11px] font-medium text-muted-foreground">
+              {companyName}:
+            </span>
+            <Button
+              size="sm"
+              variant={plantFilter === "all" ? "secondary" : "ghost"}
+              onClick={() => setPlantFilter("all")}
+              className="h-6 rounded-full px-2.5 text-[11px] font-bold"
+            >
+              All Plants ({downEquipment.length})
+            </Button>
+            {plants.map((p) => {
+              const count = downEquipment.filter(
+                (item) => plantForBuilding(item.asset.building, plants)?.id === p.id,
+              ).length;
+              return (
+                <Button
+                  key={p.id}
+                  size="sm"
+                  variant={plantFilter === p.id ? "secondary" : "ghost"}
+                  onClick={() => setPlantFilter(p.id)}
+                  className="h-6 rounded-full px-2.5 text-[11px] font-bold"
+                >
+                  {p.name} ({count})
+                </Button>
+              );
+            })}
+            <Button asChild size="sm" variant="ghost" className="h-6 px-2 text-[11px]">
+              <Link to="/company">Manage plants</Link>
+            </Button>
+          </div>
+        )}
 
         {/* Quick Filter Tag Badges */}
         <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs border-t border-border/50">
