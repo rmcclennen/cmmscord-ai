@@ -13,8 +13,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ManualDialog } from "@/components/manual-dialog";
+import { ScanManualDialog } from "@/components/scan-manual-dialog";
 import { toast } from "sonner";
-import { ExternalLink, FileText, Plus, Search, Trash2 } from "lucide-react";
+import { ExternalLink, FileText, Plus, Search, Trash2, Zap } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/manuals")({
   head: () => ({
@@ -41,6 +42,20 @@ function ManualsPage() {
   const [search, setSearch] = useState("");
   const [scope, setScope] = useState("all");
   const queryClient = useQueryClient();
+
+  const [scanDialogOpen, setScanDialogOpen] = useState(false);
+  const [selectedManual, setSelectedManual] = useState<{
+    assetId: string;
+    assetName: string;
+    manualId?: string;
+    title: string;
+    url: string;
+  }>({
+    assetId: "",
+    assetName: "",
+    title: "",
+    url: "",
+  });
 
   const manuals = useQuery({
     queryKey: ["manuals", search, scope],
@@ -199,14 +214,38 @@ function ManualsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={remove.isPending}
-              onClick={() => remove.mutate(m.id)}
-            >
-              <Trash2 className="size-4" />
-            </Button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {m.assets && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 gap-1 text-xs border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
+                  onClick={() => {
+                    setSelectedManual({
+                      assetId: m.assets!.id,
+                      assetName: m.assets!.name,
+                      manualId: m.id,
+                      title: m.title,
+                      url: m.file_url,
+                    });
+                    setScanDialogOpen(true);
+                  }}
+                  title="Scan this manual with AI to generate PM schedules"
+                >
+                  <Zap className="size-3.5 text-amber-500" />
+                  Scan PMs
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={remove.isPending}
+                onClick={() => remove.mutate(m.id)}
+                title="Delete manual entry"
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </div>
           </div>
         ))}
         {manuals.isLoading && <p className="p-3 text-sm text-muted-foreground">Loading manuals…</p>}
@@ -214,6 +253,17 @@ function ManualsPage() {
           <p className="p-3 text-sm text-muted-foreground">No manuals match this filter.</p>
         )}
       </div>
+
+      {/* AI Scan Manual for PMs Dialog */}
+      <ScanManualDialog
+        open={scanDialogOpen}
+        onOpenChange={setScanDialogOpen}
+        assetId={selectedManual.assetId || undefined}
+        assetName={selectedManual.assetName || undefined}
+        manualId={selectedManual.manualId}
+        manualTitle={selectedManual.title}
+        manualUrl={selectedManual.url}
+      />
     </div>
   );
 }

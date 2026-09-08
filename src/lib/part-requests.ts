@@ -57,6 +57,7 @@ export type PartRequestRow = {
   requested_by: string | null;
   sent_to: string | null;
   work_order_id: string | null;
+  asset_id: string | null;
   awarded_vendor: string | null;
   awarded_cost: number | null;
   lead_time_days: number | null;

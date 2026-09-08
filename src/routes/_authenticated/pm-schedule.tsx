@@ -23,7 +23,17 @@ import { buildingOf, clampToSeason, dueTone, prettyLabel, seasonLabel } from "@/
 import { useTeamMembers } from "@/hooks/use-team-members";
 import { memberLabel, notifyUser } from "@/lib/notify";
 import { toast } from "sonner";
-import { CalendarPlus, CheckCircle2, Layers, Pencil, Search, Sparkles, Tag } from "lucide-react";
+import {
+  CalendarPlus,
+  CheckCircle2,
+  Layers,
+  Pencil,
+  Search,
+  Sparkles,
+  Tag,
+  Printer,
+} from "lucide-react";
+import { openMorningPrintDialog } from "@/lib/auto-morning-print";
 
 const PAGE_SIZE = 40;
 const today = () => new Date().toISOString().slice(0, 10);
@@ -301,6 +311,14 @@ function PmSchedulePage() {
           <h1 className="text-2xl font-bold">PM schedule</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => openMorningPrintDialog()}
+            className="gap-1.5 text-xs font-semibold"
+            title="Batch print today's PMs and work orders"
+          >
+            <Printer className="size-3.5 text-primary" /> Morning Print
+          </Button>
           <Link to="/assets">
             <Button variant="outline" className="gap-1.5 text-xs font-semibold">
               <Layers className="size-3.5" /> Plant Assets Register

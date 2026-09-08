@@ -45,6 +45,11 @@ import { AssetPhotosPanel } from "@/components/asset-photos-panel";
 import { SendPartsDialog } from "@/components/send-parts-dialog";
 import { PartsLookupDialog } from "@/components/parts-lookup-dialog";
 import { PartOrderUpdateDialog } from "@/components/part-order-update-dialog";
+import { ManufacturerManualSearch } from "@/components/manufacturer-manual-search";
+import { ScanManualDialog } from "@/components/scan-manual-dialog";
+import { getManufacturerPortalInfo } from "@/lib/manufacturer-links";
+import { RepairCostDialog } from "@/components/repair-cost-dialog";
+import { ReportDownAssetDialog } from "@/components/report-down-asset-dialog";
 import { upsertPartAndLink } from "@/lib/inventory";
 import {
   REQUEST_STATUSES,
@@ -62,6 +67,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import {
+  AlertOctagon,
   AlertTriangle,
   ArrowLeft,
   BookOpen,
@@ -99,6 +105,7 @@ import {
   Upload,
   User,
   Wrench,
+  Zap,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/assets/$assetId")({
@@ -120,7 +127,7 @@ export const Route = createFileRoute("/_authenticated/assets/$assetId")({
 });
 
 type Interval = { task: string; frequency: string; notes?: string };
-type Part = { name: string; part_number?: string; notes?: string };
+type Part = { name: string; part_number?: string | undefined; notes?: string | undefined };
 type Source = { title: string; url: string };
 
 const PART_STATUS_BADGE: Record<string, { label: string; className: string }> = {
@@ -173,6 +180,12 @@ function AssetDetail() {
   const research = useServerFn(researchAssetMaintenance);
   const team = useTeamMembers();
   const [tab, setTab] = useState("specs");
+  const [scanManualDialogOpen, setScanManualDialogOpen] = useState(false);
+  const [selectedManualForScan, setSelectedManualForScan] = useState<{
+    id?: string;
+    title: string;
+    url: string;
+  }>({ title: "", url: "" });
 
   const asset = useQuery({
     queryKey: ["asset", assetId],
@@ -388,7 +401,8 @@ function AssetDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("part_assets")
-        .select(`
+        .select(
+          `
           id,
           note,
           parts (
@@ -403,7 +417,8 @@ function AssetDetail() {
             where_to_buy,
             description
           )
-        `)
+        `,
+        )
         .eq("asset_id", assetId);
       if (error) throw error;
       return (data ?? []).map((r) => r.parts).filter(Boolean);
@@ -563,6 +578,24 @@ function AssetDetail() {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const updateAssetStatusMutation = useMutation({
+    mutationFn: async (newStatus: string) => {
+      const { error } = await supabase
+        .from("assets")
+        .update({ status: newStatus })
+        .eq("id", assetId);
+      if (error) throw error;
+      return newStatus;
+    },
+    onSuccess: (newStatus) => {
+      toast.success(`Asset status updated to ${newStatus.toUpperCase().replace("_", " ")}`);
+      queryClient.invalidateQueries({ queryKey: ["asset", assetId] });
+      queryClient.invalidateQueries({ queryKey: ["assets-all"] });
+      queryClient.invalidateQueries({ queryKey: ["equipment-down"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   const addPms = useMutation({
     mutationFn: async (items: Interval[]) => {
       const today = new Date();
@@ -648,32 +681,7 @@ function AssetDetail() {
     onError: (err: Error) => toast.error(err.message),
   });
 
-  if (asset.isLoading) return <p className="text-sm text-muted-foreground">Loading asset…</p>;
-  if (!asset.data) return <p className="text-sm text-muted-foreground">Asset not found.</p>;
-
   const a = asset.data;
-  const consumables = getManufacturerConsumables(a);
-  const specs: [string, string | null][] = [
-    ["Class", classLabel(a.class)],
-    ["Type", a.type],
-    ["Category", a.category],
-    ["Tag number", a.tag_number],
-    ["Make", a.make],
-    ["Model", a.model],
-    ["Serial", a.serial_number],
-    ["Manufacturer", a.manufacturer],
-    ["Supplier", a.supplier],
-    ["HP", a.hp],
-    ["Volts", a.volts],
-    ["Phase", a.phase],
-    ["Hertz", a.hertz],
-    ["RPM", a.rpm],
-    ["Frame", a.frame],
-    ["Enclosure", a.enclosure],
-    ["Building / area", resolvedBuilding],
-    ["Location", a.location_name],
-    ["Commissioned", a.commission_date],
-  ];
 
   const defaultIntelligence = useMemo(() => {
     if (!a) return null;
@@ -709,7 +717,7 @@ function AssetDetail() {
         name: p.name,
         part_number: p.part_number || undefined,
         notes: p.description || undefined,
-      })) as Part[];
+      }));
     }
 
     return defaultIntelligence?.parts ?? [];
@@ -721,6 +729,56 @@ function AssetDetail() {
     return defaultIntelligence?.sources ?? [];
   }, [info.data?.sources, defaultIntelligence]);
 
+  const dbPartMatch = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        qty_on_hand?: number | null;
+        unit_cost?: number | null;
+        min_qty?: number | null;
+        unit?: string | null;
+      }
+    >();
+    for (const dp of linkedPartsQuery.data ?? []) {
+      if (!dp) continue;
+      if (dp.part_number) map.set(dp.part_number.toLowerCase().trim(), dp);
+      map.set(dp.name.toLowerCase().trim(), dp);
+    }
+    return map;
+  }, [linkedPartsQuery.data]);
+
+  if (asset.isLoading) return <p className="text-sm text-muted-foreground">Loading asset…</p>;
+  if (!asset.data || !a) return <p className="text-sm text-muted-foreground">Asset not found.</p>;
+
+  const mfgPortalInfo = getManufacturerPortalInfo(
+    a.manufacturer || a.make,
+    a.model,
+    a.manufacturer_url,
+    a.name,
+  );
+  const consumables = getManufacturerConsumables(a);
+  const specs: [string, string | null][] = [
+    ["Class", classLabel(a.class)],
+    ["Type", a.type],
+    ["Category", a.category],
+    ["Tag number", a.tag_number],
+    ["Make", a.make],
+    ["Model", a.model],
+    ["Serial", a.serial_number],
+    ["Manufacturer", a.manufacturer],
+    ["Supplier", a.supplier],
+    ["HP", a.hp],
+    ["Volts", a.volts],
+    ["Phase", a.phase],
+    ["Hertz", a.hertz],
+    ["RPM", a.rpm],
+    ["Frame", a.frame],
+    ["Enclosure", a.enclosure],
+    ["Building / area", resolvedBuilding],
+    ["Location", a.location_name],
+    ["Commissioned", a.commission_date],
+  ];
+
   const pmList = pms.data ?? [];
   const overduePmsCount = pmList.filter((p) => dueTone(p.next_due) === "overdue").length;
   const dueSoonPmsCount = pmList.filter((p) => dueTone(p.next_due) === "due").length;
@@ -731,16 +789,6 @@ function AssetDetail() {
     (r) => r.status === "requested" || r.status === "bidding" || r.status === "ordered",
   );
   const activePartRequestsCount = activePartRequestsList.length;
-
-  const dbPartMatch = useMemo(() => {
-    const map = new Map<string, { qty_on_hand?: number | null; unit_cost?: number | null; min_qty?: number | null; unit?: string | null }>();
-    for (const dp of linkedPartsQuery.data ?? []) {
-      if (!dp) continue;
-      if (dp.part_number) map.set(dp.part_number.toLowerCase().trim(), dp);
-      map.set(dp.name.toLowerCase().trim(), dp);
-    }
-    return map;
-  }, [linkedPartsQuery.data]);
 
   return (
     <div className="space-y-5">
@@ -864,7 +912,166 @@ function AssetDetail() {
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <SystemBadge system={resolvedSystem} size="md" />
-            <Badge variant="outline">{prettyLabel(a.status)}</Badge>
+
+            {/* Interactive Status Switcher */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className={`h-6 text-xs font-semibold px-2.5 gap-1.5 rounded-full cursor-pointer ${
+                    a.status === "down"
+                      ? "bg-destructive/15 text-destructive border-destructive/40 hover:bg-destructive/25"
+                      : a.status === "needs_repair"
+                        ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/40 hover:bg-amber-500/25"
+                        : "text-foreground"
+                  }`}
+                >
+                  <span
+                    className={`size-2 rounded-full ${
+                      a.status === "down"
+                        ? "bg-destructive animate-pulse"
+                        : a.status === "needs_repair"
+                          ? "bg-amber-500"
+                          : "bg-emerald-500"
+                    }`}
+                  />
+                  {prettyLabel(a.status)}
+                  <ChevronDown className="size-3 opacity-60" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-52 text-xs">
+                <DropdownMenuLabel>Equipment Operational Status</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => updateAssetStatusMutation.mutate("down")}
+                  className="text-destructive font-semibold"
+                >
+                  🔴 Mark Down (Offline)
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => updateAssetStatusMutation.mutate("needs_repair")}
+                  className="text-amber-600 font-semibold"
+                >
+                  🟡 Mark Needs Repair
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => updateAssetStatusMutation.mutate("maintenance")}>
+                  🔵 Mark In Maintenance
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => updateAssetStatusMutation.mutate("operational")}
+                  className="text-emerald-600 font-semibold"
+                >
+                  🟢 Clear to Operational
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Direct Manufacturer Website & On-Site Search Links */}
+            {(a.manufacturer || a.make || a.manufacturer_url || mfgPortalInfo.hasDirectPortal) && (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  asChild
+                  className="h-6 text-xs gap-1 border-primary/30 text-primary hover:bg-primary/10"
+                >
+                  <a
+                    href={mfgPortalInfo.companySearchUrl || mfgPortalInfo.modelUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={`Search ${mfgPortalInfo.name}'s official website for ${a.model || a.name || "equipment"}`}
+                  >
+                    <Search className="size-3" />
+                    Search {mfgPortalInfo.name} {a.model ? `("${a.model}")` : "Site"}
+                    <ExternalLink className="size-2.5 opacity-70" />
+                  </a>
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  asChild
+                  className="h-6 text-xs gap-1 text-muted-foreground hover:text-foreground hidden sm:inline-flex"
+                >
+                  <a
+                    href={mfgPortalInfo.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={`Open ${mfgPortalInfo.name} Official Website`}
+                  >
+                    <Globe className="size-3" />
+                    Official Site
+                  </a>
+                </Button>
+                {mfgPortalInfo.directDocsUrl &&
+                  mfgPortalInfo.directDocsUrl !== mfgPortalInfo.website && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      asChild
+                      className="h-6 text-xs gap-1 text-muted-foreground hover:text-foreground hidden md:inline-flex"
+                    >
+                      <a
+                        href={mfgPortalInfo.directDocsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={`Open ${mfgPortalInfo.name} Documentation Library`}
+                      >
+                        <BookOpen className="size-3" />
+                        Tech Library
+                      </a>
+                    </Button>
+                  )}
+              </>
+            )}
+
+            {/* Scan for PMs AI generator button */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setSelectedManualForScan({
+                  title:
+                    `${a.manufacturer || a.make || "Equipment"} ${a.model || ""} O&M Manual`.trim(),
+                  url: mfgPortalInfo.modelUrl,
+                });
+                setScanManualDialogOpen(true);
+              }}
+              className="h-6 text-xs gap-1 border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
+              title="Scan manual & extract PM schedules with AI"
+            >
+              <Zap className="size-3 text-amber-500" />
+              Scan for PMs
+            </Button>
+
+            {/* AI Maintenance / PMs Research button */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setTab("specs");
+                lookup.mutate();
+              }}
+              disabled={lookup.isPending}
+              className="h-6 text-xs gap-1 border-primary/40 text-primary hover:bg-primary/10"
+              title="Generate PM schedule, lubrication intervals, and wear parts with AI"
+            >
+              <Sparkles className="size-3 text-primary" />
+              {lookup.isPending ? "AI Researching…" : "AI PM Research"}
+            </Button>
+
+            {/* Quick Search Manuals tab switcher */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setTab("manuals")}
+              className="h-6 text-xs gap-1 border-border hover:bg-muted text-foreground"
+            >
+              <BookOpen className="size-3 text-rose-500" />
+              Manuals &amp; Diagrams
+            </Button>
+
             <Badge variant={a.criticality === "high" ? "destructive" : "secondary"}>
               {prettyLabel(a.criticality)} criticality
             </Badge>
@@ -929,6 +1136,22 @@ function AssetDetail() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {(a.status === "down" || a.status === "needs_repair") && (
+            <RepairCostDialog
+              assetId={a.id}
+              assetName={a.name}
+              partRequestId={partRequestsList[0]?.id}
+              currentQuotedCost={partRequestsList[0]?.quoted_cost}
+              currentAwardedCost={partRequestsList[0]?.awarded_cost}
+              currentNotes={a.notes}
+              trigger={
+                <Button variant="destructive" className="gap-1.5 font-bold shadow-xs text-xs h-9">
+                  <AlertOctagon className="size-3.5" />
+                  {a.status === "down" ? "DOWN — Track Repair Cost" : "REPAIR — Track Cost"}
+                </Button>
+              }
+            />
+          )}
           <PartsLookupDialog
             asset={{
               id: a.id,
@@ -1034,6 +1257,9 @@ function AssetDetail() {
         </TabsContent>
 
         <TabsContent value="manuals" className="mt-4 space-y-4">
+          {/* Manufacturer Manual Search & Direct Model Links Component */}
+          <ManufacturerManualSearch asset={a} />
+
           <div className="panel p-4">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-3">
               <div>
@@ -1046,15 +1272,32 @@ function AssetDetail() {
                   to {a.name}.
                 </p>
               </div>
-              <ManualDialog
-                assetId={a.id}
-                lockAsset
-                trigger={
-                  <Button variant="outline" size="sm" className="gap-1.5 font-medium">
-                    <Plus className="size-4 text-primary" /> Add manual or link
-                  </Button>
-                }
-              />
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 font-semibold text-xs border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
+                  onClick={() => {
+                    setSelectedManualForScan({
+                      title:
+                        `${a.manufacturer || a.make || "Equipment"} ${a.model || ""} O&M Manual`.trim(),
+                      url: mfgPortalInfo.modelUrl,
+                    });
+                    setScanManualDialogOpen(true);
+                  }}
+                >
+                  <Zap className="size-3.5 text-amber-500" /> Scan Manual for PMs
+                </Button>
+                <ManualDialog
+                  assetId={a.id}
+                  lockAsset
+                  trigger={
+                    <Button variant="outline" size="sm" className="gap-1.5 font-medium">
+                      <Plus className="size-4 text-primary" /> Add manual or link
+                    </Button>
+                  }
+                />
+              </div>
             </div>
 
             <ul className="mt-3 divide-y divide-border/60 text-sm">
@@ -1089,6 +1332,23 @@ function AssetDetail() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 gap-1 text-xs border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
+                      onClick={() => {
+                        setSelectedManualForScan({
+                          id: m.id,
+                          title: m.title,
+                          url: m.file_url,
+                        });
+                        setScanManualDialogOpen(true);
+                      }}
+                      title="Scan this manual with AI to extract PMs into the PM schedule"
+                    >
+                      <Zap className="size-3.5 text-amber-500" />
+                      Scan for PMs
+                    </Button>
                     <Button size="sm" variant="outline" className="h-8 gap-1 text-xs" asChild>
                       <a href={m.file_url} target="_blank" rel="noreferrer">
                         <ExternalLink className="size-3.5" /> View
@@ -1580,6 +1840,37 @@ function AssetDetail() {
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 font-semibold text-xs border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
+                  onClick={() => {
+                    setSelectedManualForScan({
+                      title:
+                        `${a.manufacturer || a.make || "Equipment"} ${a.model || ""} O&M Manual`.trim(),
+                      url: mfgPortalInfo.modelUrl,
+                    });
+                    setScanManualDialogOpen(true);
+                  }}
+                  title="Scan manual & extract PM schedules with AI"
+                >
+                  <Zap className="size-3.5 text-amber-500" />
+                  Scan Manual for PMs
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 font-semibold text-xs border-primary/40 text-primary hover:bg-primary/10"
+                  onClick={() => {
+                    setTab("specs");
+                    lookup.mutate();
+                  }}
+                  disabled={lookup.isPending}
+                  title="Generate PM schedules automatically with AI from equipment make and model"
+                >
+                  <Sparkles className="size-3.5 text-primary" />
+                  {lookup.isPending ? "Generating PMs…" : "AI Generate PMs"}
+                </Button>
                 <MatchPmAssetDialog
                   targetAsset={a}
                   trigger={
@@ -2297,7 +2588,10 @@ function AssetDetail() {
                           )}
 
                           {matchedInv?.unit_cost != null && (
-                            <Badge variant="outline" className="text-[11px] font-mono text-muted-foreground bg-muted/40">
+                            <Badge
+                              variant="outline"
+                              className="text-[11px] font-mono text-muted-foreground bg-muted/40"
+                            >
                               ${matchedInv.unit_cost.toFixed(2)}
                             </Badge>
                           )}
@@ -2535,15 +2829,27 @@ function AssetDetail() {
                 Pulls published O&amp;M intervals, wear parts, and manual links for this make/model.
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              {a.manufacturer_url && (
+            <div className="flex flex-wrap items-center gap-2">
+              {(a.manufacturer_url || mfgPortalInfo.website) && (
                 <a
-                  href={a.manufacturer_url}
+                  href={a.manufacturer_url || mfgPortalInfo.website}
                   target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 text-sm text-primary underline"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-medium"
                 >
-                  Manufacturer site <ExternalLink className="size-3.5" />
+                  <Globe className="size-3.5" />
+                  {mfgPortalInfo.name} Site <ExternalLink className="size-3" />
+                </a>
+              )}
+              {mfgPortalInfo.companySearchUrl && (
+                <a
+                  href={mfgPortalInfo.companySearchUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:underline"
+                >
+                  <Search className="size-3" />
+                  Search {mfgPortalInfo.name} <ExternalLink className="size-3" />
                 </a>
               )}
               <Button onClick={() => lookup.mutate()} disabled={lookup.isPending}>
@@ -2914,6 +3220,17 @@ function AssetDetail() {
           </div>
         </div>
       )}
+
+      {/* AI Scan Manual for PMs Dialog */}
+      <ScanManualDialog
+        open={scanManualDialogOpen}
+        onOpenChange={setScanManualDialogOpen}
+        assetId={a.id}
+        assetName={a.name}
+        manualId={selectedManualForScan.id}
+        manualTitle={selectedManualForScan.title}
+        manualUrl={selectedManualForScan.url}
+      />
     </div>
   );
 }

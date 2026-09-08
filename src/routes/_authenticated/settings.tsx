@@ -18,20 +18,23 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { MailCheck, MessageSquare, Save } from "lucide-react";
+import { AutoMorningPrintSettings } from "@/components/auto-morning-print-settings";
+import { openMorningPrintDialog } from "@/lib/auto-morning-print";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
     meta: [
-      { title: "Alert Settings | AssetCareConnect" },
+      { title: "Alert & Automation Settings | AssetCareConnect" },
       {
         name: "description",
         content:
-          "Choose how work order and PM assignments reach you — email inbox, text message, or both.",
+          "Configure assignment alerts and automatic morning print schedules for PMs and work orders.",
       },
-      { property: "og:title", content: "Alert Settings" },
+      { property: "og:title", content: "Alert & Automation Settings" },
       {
         property: "og:description",
-        content: "Set your phone, carrier and alert channels for plant maintenance assignments.",
+        content:
+          "Set assignment alert channels and scheduled morning printing for plant work orders and PMs.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -203,6 +206,9 @@ function SettingsPage() {
           {save.isPending ? "Saving…" : "Save settings"}
         </Button>
       </div>
+
+      {/* Automatic Morning Print & Dispatch Scheduler */}
+      <AutoMorningPrintSettings onOpenBatchPreview={() => openMorningPrintDialog()} />
 
       <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 text-xs text-muted-foreground">
         <Badge variant="outline" className="mb-2">

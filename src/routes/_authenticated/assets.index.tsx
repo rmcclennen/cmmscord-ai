@@ -38,7 +38,9 @@ import { CreatePmScheduleDialog } from "@/components/create-pm-schedule-dialog";
 import { MatchPmAssetDialog } from "@/components/match-pm-asset-dialog";
 import { PartsLookupDialog } from "@/components/parts-lookup-dialog";
 import { SystemBadge, getSystemIcon, getSystemColor } from "@/components/system-badge";
+import { getManufacturerPortalInfo } from "@/lib/manufacturer-links";
 import {
+  AlertOctagon,
   AlertTriangle,
   Boxes,
   CalendarPlus,
@@ -103,6 +105,7 @@ function AssetsPage() {
   const [building, setBuilding] = useState("all");
   const [systemFilter, setSystemFilter] = useState("all");
   const [pmFilter, setPmFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [partsFilter, setPartsFilter] = useState<"all" | "has_parts" | "no_parts">("all");
   const [viewMode, setViewMode] = useState<"grouped" | "flat">("grouped");
   const [collapsedSystems, setCollapsedSystems] = useState<Record<string, boolean>>({});
@@ -119,7 +122,7 @@ function AssetsPage() {
       const { data, error } = await supabase
         .from("assets")
         .select(
-          "id, name, tag_number, class, type, make, model, criticality, status, manufacturer, serial_number, supplier, building, category, hp, volts, rpm, frame",
+          "id, name, tag_number, class, type, make, model, criticality, status, manufacturer, manufacturer_url, serial_number, supplier, building, category, hp, volts, rpm, frame",
         )
         .order("name")
         .limit(5000);
@@ -143,7 +146,8 @@ function AssetsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("part_assets")
-        .select(`
+        .select(
+          `
           asset_id,
           part_id,
           parts (
@@ -157,7 +161,8 @@ function AssetsPage() {
             unit,
             where_to_buy
           )
-        `)
+        `,
+        )
         .limit(10000);
       if (error) throw error;
       return data ?? [];
@@ -198,12 +203,17 @@ function AssetsPage() {
           name: p.name,
           part_number: p.part_number || null,
           manufacturer: a.manufacturer || a.make || "OEM Standard",
-          unit_cost: p.name.toLowerCase().includes("seal") ? 650 : p.name.toLowerCase().includes("bearing") ? 280 : 85,
+          unit_cost: p.name.toLowerCase().includes("seal")
+            ? 650
+            : p.name.toLowerCase().includes("bearing")
+              ? 280
+              : 85,
           qty_on_hand: 2,
           min_qty: 1,
           unit: "ea",
           where_to_buy: null,
-          critical: p.name.toLowerCase().includes("seal") || p.name.toLowerCase().includes("impeller"),
+          critical:
+            p.name.toLowerCase().includes("seal") || p.name.toLowerCase().includes("impeller"),
         }));
         map.set(a.id, generatedParts);
       }
@@ -319,6 +329,14 @@ function AssetsPage() {
       if (partsFilter === "has_parts" && parts.length === 0) return false;
       if (partsFilter === "no_parts" && parts.length > 0) return false;
 
+      if (statusFilter !== "all") {
+        if (statusFilter === "down_repair" && a.status !== "down" && a.status !== "needs_repair")
+          return false;
+        if (statusFilter === "down" && a.status !== "down") return false;
+        if (statusFilter === "needs_repair" && a.status !== "needs_repair") return false;
+        if (statusFilter === "operational" && a.status !== "operational") return false;
+      }
+
       if (!term) return true;
 
       // Also check nested part names/part numbers in search!
@@ -343,7 +361,18 @@ function AssetsPage() {
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(term));
     });
-  }, [all, search, cls, building, systemFilter, pmFilter, partsFilter, pmMap, partsByAsset]);
+  }, [
+    all,
+    search,
+    cls,
+    building,
+    systemFilter,
+    pmFilter,
+    statusFilter,
+    partsFilter,
+    pmMap,
+    partsByAsset,
+  ]);
 
   // Group filtered assets by system
   const groupedBySystem = useMemo(() => {
@@ -546,7 +575,7 @@ function AssetsPage() {
               setPage(0);
             }}
           >
-            <SelectTrigger className="w-44">
+            <SelectTrigger className="w-40">
               <SelectValue placeholder="All PM statuses" />
             </SelectTrigger>
             <SelectContent>
@@ -557,6 +586,38 @@ function AssetsPage() {
               <SelectItem value="no_pms">No PM scheduled</SelectItem>
             </SelectContent>
           </Select>
+
+          {/* Operational Status Filter */}
+          <Select
+            value={statusFilter}
+            onValueChange={(v) => {
+              setStatusFilter(v);
+              setPage(0);
+            }}
+          >
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="All equipment statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="down_repair">🔴 Outages &amp; Repairs</SelectItem>
+              <SelectItem value="down">🔴 Down Only</SelectItem>
+              <SelectItem value="needs_repair">🟡 Needs Repair Only</SelectItem>
+              <SelectItem value="operational">🟢 Operational Only</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Link to Equipment Down Page */}
+          <Button
+            variant="outline"
+            size="sm"
+            asChild
+            className="h-9 px-3 text-xs font-semibold gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10"
+          >
+            <Link to="/equipment-down">
+              <AlertOctagon className="size-3.5" /> Equipment Down Tracker
+            </Link>
+          </Button>
 
           {/* Global Toggle for Tabbed Parts Sections */}
           <Button
@@ -969,24 +1030,27 @@ interface AssetWithNestedPartsRowProps {
     supplier: string | null;
     building: string;
     system: string;
-    hp?: string | null | undefined;
-    volts?: string | null | undefined;
-    rpm?: string | null | undefined;
-    frame?: string | null | undefined;
+    manufacturer_url?: string | null;
+    hp?: string | null;
+    volts?: string | null;
+    rpm?: string | null;
+    frame?: string | null;
   };
-  pmInfo?: undefined | {
-    count: number;
-    pms: Array<{ id: string; title: string; next_due: string | null }>;
-    nextDue: string | null;
-    nextPmTitle: string | null;
-    hasOverdue: boolean;
-    hasDueSoon: boolean;
-  };
+  pmInfo?:
+    | {
+        count: number;
+        pms: Array<{ id: string; title: string; next_due: string | null }>;
+        nextDue: string | null;
+        nextPmTitle: string | null;
+        hasOverdue: boolean;
+        hasDueSoon: boolean;
+      }
+    | undefined;
   parts: LinkedPart[];
   isExpanded: boolean;
   onToggleParts: () => void;
-  showSystemBadge?: boolean | undefined;
-  onSystemClick?: ((system: string) => void) | undefined;
+  showSystemBadge?: boolean;
+  onSystemClick?: (system: string) => void;
 }
 
 function AssetWithNestedPartsRow({
@@ -998,6 +1062,13 @@ function AssetWithNestedPartsRow({
   showSystemBadge,
   onSystemClick,
 }: AssetWithNestedPartsRowProps) {
+  const portalInfo = getManufacturerPortalInfo(
+    a.manufacturer || a.make,
+    a.model,
+    a.manufacturer_url,
+    a.name,
+  );
+
   return (
     <>
       <TableRow
@@ -1018,13 +1089,31 @@ function AssetWithNestedPartsRow({
               )}
             </button>
             <div className="flex flex-col">
-              <Link
-                to="/assets/$assetId"
-                params={{ assetId: a.id }}
-                className="font-semibold text-foreground hover:text-primary hover:underline transition-colors"
-              >
-                {a.name}
-              </Link>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <Link
+                  to="/assets/$assetId"
+                  params={{ assetId: a.id }}
+                  className="font-semibold text-foreground hover:text-primary hover:underline transition-colors"
+                >
+                  {a.name}
+                </Link>
+                {a.status === "down" && (
+                  <Badge
+                    variant="destructive"
+                    className="text-[9px] py-0 px-1 font-mono uppercase gap-1"
+                  >
+                    <span className="size-1.5 rounded-full bg-white animate-pulse" /> DOWN
+                  </Badge>
+                )}
+                {a.status === "needs_repair" && (
+                  <Badge
+                    variant="outline"
+                    className="text-[9px] py-0 px-1 font-mono uppercase text-amber-600 border-amber-500/40"
+                  >
+                    REPAIR
+                  </Badge>
+                )}
+              </div>
               {a.tag_number && (
                 <span className="font-mono text-xs text-muted-foreground">Tag: {a.tag_number}</span>
               )}
@@ -1098,7 +1187,22 @@ function AssetWithNestedPartsRow({
         </TableCell>
 
         <TableCell className="text-sm text-muted-foreground">
-          {[a.make, a.model].filter(Boolean).join(" · ") || "—"}
+          <div className="flex flex-col gap-0.5">
+            <span className="font-medium text-foreground">
+              {[a.make, a.model].filter(Boolean).join(" · ") || a.manufacturer || "—"}
+            </span>
+            {(a.manufacturer || a.make || a.manufacturer_url || portalInfo.hasDirectPortal) && (
+              <a
+                href={portalInfo.companySearchUrl || portalInfo.modelUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline font-mono"
+                title={`Search ${portalInfo.name} official website for model ${a.model ?? a.name}`}
+              >
+                <ExternalLink className="size-2.5" /> {portalInfo.name} Site
+              </a>
+            )}
+          </div>
         </TableCell>
 
         <TableCell className="font-mono text-xs text-muted-foreground">
@@ -1178,7 +1282,7 @@ function AssetWithNestedPartsRow({
             />
             <RelabelAssetDialog
               assetId={a.id}
-              initialAsset={a as unknown as Parameters<typeof RelabelAssetDialog>[0]["initialAsset"]}
+              initialAsset={{ ...a, criticality: a.criticality ?? "", status: a.status ?? "active" }}
               trigger={
                 <Button
                   size="sm"

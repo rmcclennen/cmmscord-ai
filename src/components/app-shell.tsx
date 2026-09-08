@@ -7,8 +7,11 @@ import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/notification-bell";
 import { BulkAssetUploader } from "@/components/bulk-asset-uploader";
 import { CompanyOnboardingDialog } from "@/components/company-onboarding-dialog";
+import { AutoMorningPrintListener } from "@/components/auto-morning-print-listener";
+import { openMorningPrintDialog } from "@/lib/auto-morning-print";
 import {
   AlertTriangle,
+  AlertOctagon,
   Boxes,
   CalendarClock,
   ClipboardList,
@@ -21,12 +24,14 @@ import {
   LayoutDashboard,
   UploadCloud,
   Building2,
+  Printer,
 } from "lucide-react";
 import type { ReactNode } from "react";
 
 const NAV = [
   { to: "/pm-schedule", label: "PM Schedule", icon: CalendarClock },
   { to: "/pm-due", label: "Due & Overdue", icon: AlertTriangle },
+  { to: "/equipment-down", label: "Equipment Down", icon: AlertOctagon },
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/assets", label: "Assets", icon: Boxes },
   { to: "/work-orders", label: "Work Orders", icon: ClipboardList },
@@ -109,6 +114,19 @@ export function AppShell({ children }: { children: ReactNode }) {
               <span>Bulk Import</span>
             </Button>
 
+            {/* Daily Morning Print Dispatch Trigger */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => openMorningPrintDialog()}
+              className="hidden md:inline-flex items-center gap-1.5 border-sidebar-border bg-sidebar-accent/40 text-sidebar-foreground text-xs font-bold hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              aria-label="Morning Maintenance Print Dispatch"
+              title="Daily Morning Print Dispatch for PMs and Work Orders"
+            >
+              <Printer className="size-3.5 text-primary" aria-hidden="true" />
+              <span>Morning Print</span>
+            </Button>
+
             {/* Company Purchase / Plan Trigger */}
             <Button
               size="sm"
@@ -185,6 +203,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         onOpenChange={setOnboardOpen}
         onLaunchUploader={() => setImportOpen(true)}
       />
+
+      {/* Global In-App Automatic Morning Print Dispatch Scheduler & Dialog */}
+      <AutoMorningPrintListener />
     </div>
   );
 }

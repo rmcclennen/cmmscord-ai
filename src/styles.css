@@ -329,3 +329,42 @@ html.reduce-motion *::after {
 .skip-to-content:focus {
   top: 16px;
 }
+
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  header,
+  nav,
+  footer,
+  .skip-to-content,
+  [role="banner"],
+  [role="navigation"],
+  .no-print {
+    display: none !important;
+  }
+
+  /* Unroll Radix dialogs for clean multi-page document printing */
+  [role="dialog"] {
+    position: static !important;
+    transform: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: transparent !important;
+    inset: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Hide modal overlay backdrop during print */
+  [data-radix-portal] > div:first-child {
+    display: none !important;
+  }
+}
