@@ -344,7 +344,27 @@ export function MorningPrintDialog({
               )}
             </div>
 
-            <div className="flex items-center gap-2 text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
+              <Select value={dueScope} onValueChange={(v) => setDueScope(v as "due" | "horizon")}>
+                <SelectTrigger className="h-8 w-48 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="due">Overdue &amp; due today only</SelectItem>
+                  <SelectItem value="horizon">Include upcoming PMs</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={ticketLimit} onValueChange={setTicketLimit}>
+                <SelectTrigger className="h-8 w-52 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">List only (no job tickets)</SelectItem>
+                  <SelectItem value="10">Job tickets: first 10</SelectItem>
+                  <SelectItem value="25">Job tickets: first 25</SelectItem>
+                  <SelectItem value="all">Job tickets: all (long)</SelectItem>
+                </SelectContent>
+              </Select>
               <label className="flex items-center gap-1.5 cursor-pointer select-none">
                 <input
                   type="checkbox"
@@ -354,17 +374,11 @@ export function MorningPrintDialog({
                 />
                 <span>Summary Sheet</span>
               </label>
+              <Badge variant="outline" className="h-7 text-[11px] font-mono">
+                ~{estimatedPages} page{estimatedPages === 1 ? "" : "s"}
+              </Badge>
               <span className="text-border">•</span>
-              <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={includeTickets}
-                  onChange={(e) => setIncludeTickets(e.target.checked)}
-                  className="rounded border-border"
-                />
-                <span>Job Tickets</span>
-              </label>
-              <span className="text-border">•</span>
+
               <Button
                 variant="ghost"
                 size="sm"
