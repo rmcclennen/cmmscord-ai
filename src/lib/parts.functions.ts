@@ -159,17 +159,17 @@ Respond strictly with valid JSON conforming to this schema (no extra text):
         type: "equipment",
       };
 
-      const maint = generateComprehensiveMaintenanceData(mockAsset);
+      const maint = generateComprehensiveMaintenanceData(mockAsset as unknown as AssetData);
       const feedbackText = data.feedback?.trim() || "";
 
       // If technician provided specific keywords or corrections, add them to the top of the list
       const customFeedbackParts: Array<{
         name: string;
-        part_number?: string;
-        manufacturer?: string;
-        qty?: string;
-        where_to_buy?: string;
-        search_terms?: string;
+        part_number?: string | undefined;
+        manufacturer?: string | undefined;
+        qty?: string | undefined;
+        where_to_buy?: string | undefined;
+        search_terms?: string | undefined;
       }> = [];
 
       if (feedbackText) {
