@@ -704,7 +704,7 @@ Asset record:
 - Recorded model: ${currentModel || "Unknown"}
 - Serial number: ${asset.serial_number || "Unknown"}
 - Type / class: ${asset.type || asset.class || "Unknown"}
-- Location: ${asset.location || "Unknown"}
+- Location: ${asset.location_name || "Unknown"}
 - Nameplate data: HP ${asset.hp || "?"}, Volts ${asset.volts || "?"}, RPM ${asset.rpm || "?"}, Frame ${asset.frame || "?"}
 - Extra hint from technician: ${data.hint?.trim() || "none"}
 
