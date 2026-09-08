@@ -396,7 +396,11 @@ export function MorningPrintDialog({
           <div className="max-w-3xl mx-auto space-y-6 print:max-w-none print:m-0 print:space-y-4">
             {/* 1. COVER / DISPATCH SUMMARY SHEET */}
             {includeCover && (
-              <div className="bg-card text-card-foreground border border-border rounded-lg p-6 shadow-sm print:shadow-none print:border-2 print:border-black print:rounded-none print:p-6 print:break-after-page">
+              <div
+                className={`print-dense bg-card text-card-foreground border border-border rounded-lg p-6 shadow-sm print:shadow-none print:border-2 print:border-black print:rounded-none print:p-4 ${
+                  includeTickets ? "print:break-after-page" : ""
+                }`}
+              >
                 {/* Document Header */}
                 <div className="border-b-2 border-primary/60 pb-4 print:border-black">
                   <div className="flex items-center justify-between">
