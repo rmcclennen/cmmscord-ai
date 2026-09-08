@@ -39,11 +39,11 @@ import { toast } from "sonner";
 export interface ScanManualDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  assetId?: string;
-  assetName?: string;
-  manualId?: string;
-  manualTitle?: string;
-  manualUrl?: string;
+  assetId?: string | undefined;
+  assetName?: string | undefined;
+  manualId?: string | undefined;
+  manualTitle?: string | undefined;
+  manualUrl?: string | undefined;
 }
 
 export function ScanManualDialog({

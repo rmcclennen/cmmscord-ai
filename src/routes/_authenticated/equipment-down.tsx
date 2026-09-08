@@ -43,6 +43,7 @@ import {
   Printer,
   ChevronRight,
   Sparkles,
+  Globe,
 } from "lucide-react";
 import { ReportDownAssetDialog } from "@/components/report-down-asset-dialog";
 import { RepairCostDialog } from "@/components/repair-cost-dialog";
@@ -112,7 +113,7 @@ function EquipmentDownPage() {
         .or("status.eq.bidding,status.eq.ordered,status.eq.requested")
         .order("created_at", { ascending: false });
 
-      const allPartReqs = (activePartReqsData || []) as PartRequestRow[];
+      const allPartReqs = (activePartReqsData || []) as unknown as PartRequestRow[];
 
       // If an asset has active bidding/ordered parts but status wasn't 'down', fetch that asset too
       const extraAssetIds = allPartReqs
@@ -134,7 +135,7 @@ function EquipmentDownPage() {
       }
 
       // Fetch open work orders for these assets
-      let wos: WorkOrderRow[] = [];
+      let wos: DownEquipmentItem["workOrders"] = [];
       if (assetIds.length > 0) {
         const { data: woData } = await supabase
           .from("work_orders")

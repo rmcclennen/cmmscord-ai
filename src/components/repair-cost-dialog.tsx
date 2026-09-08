@@ -20,14 +20,14 @@ import { DollarSign, Calculator, CheckCircle2 } from "lucide-react";
 interface RepairCostDialogProps {
   assetId: string;
   assetName: string;
-  partRequestId?: string | null;
-  workOrderId?: string | null;
-  currentQuotedCost?: number | null;
-  currentAwardedCost?: number | null;
-  currentLaborHours?: number | null;
-  currentNotes?: string | null;
-  trigger?: React.ReactNode;
-  onSaved?: () => void;
+  partRequestId?: string | null | undefined;
+  workOrderId?: string | null | undefined;
+  currentQuotedCost?: number | null | undefined;
+  currentAwardedCost?: number | null | undefined;
+  currentLaborHours?: number | null | undefined;
+  currentNotes?: string | null | undefined;
+  trigger?: React.ReactNode | undefined;
+  onSaved?: (() => void) | undefined;
 }
 
 export function RepairCostDialog({

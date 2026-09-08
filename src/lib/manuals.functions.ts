@@ -195,8 +195,8 @@ Respond strictly with valid JSON with this schema:
         const mdLinkRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
         let match: RegExpExecArray | null;
         while ((match = mdLinkRegex.exec(text)) !== null) {
-          const title = match[1].trim();
-          const url = match[2].trim();
+          const title = (match[1] ?? "").trim();
+          const url = (match[2] ?? "").trim();
           if (url && !discovered.some((d) => d.url === url) && !url.includes("google.com/search")) {
             let domain = "";
             try {
@@ -485,8 +485,8 @@ Respond strictly with valid JSON with this schema:
               priority: p.priority,
               category: p.category,
               estimated_hours: p.estimated_hours || 1.0,
-              instructions: p.instructions,
-              safety_notes: p.safety_notes,
+              instructions: p.instructions ?? "",
+              safety_notes: p.safety_notes ?? "",
             }));
           }
         }

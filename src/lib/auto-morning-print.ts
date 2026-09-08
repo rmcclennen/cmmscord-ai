@@ -57,8 +57,8 @@ export function getCurrentTime24(): string {
 export function formatTime12h(time24: string): string {
   if (!time24 || !time24.includes(":")) return time24;
   const [hStr, mStr] = time24.split(":");
-  const h = parseInt(hStr, 10);
-  const m = parseInt(mStr, 10);
+  const h = parseInt(hStr ?? "", 10);
+  const m = parseInt(mStr ?? "", 10);
   if (isNaN(h) || isNaN(m)) return time24;
   const period = h >= 12 ? "PM" : "AM";
   const displayH = h % 12 === 0 ? 12 : h % 12;
