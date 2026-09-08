@@ -649,7 +649,7 @@ export function MorningPrintDialog({
                     return (
                       <div
                         key={pm.id}
-                        className="bg-card text-card-foreground border border-border rounded-lg p-5 shadow-sm print:shadow-none print:border-2 print:border-black print:rounded-none print:p-5 print:break-inside-avoid print:mb-6"
+                        className="bg-card text-card-foreground border border-border rounded-lg p-5 shadow-sm print:shadow-none print:border-2 print:border-black print:rounded-none print:p-5 print:break-inside-avoid print:mb-3"
                       >
                         {/* Ticket Header */}
                         <div className="flex items-start justify-between border-b border-border print:border-black pb-3 gap-2">
@@ -790,7 +790,7 @@ export function MorningPrintDialog({
                     return (
                       <div
                         key={wo.id}
-                        className="bg-card text-card-foreground border border-border rounded-lg p-5 shadow-sm print:shadow-none print:border-2 print:border-black print:rounded-none print:p-5 print:break-inside-avoid print:mb-6"
+                        className="bg-card text-card-foreground border border-border rounded-lg p-5 shadow-sm print:shadow-none print:border-2 print:border-black print:rounded-none print:p-5 print:break-inside-avoid print:mb-3"
                       >
                         {/* Ticket Header */}
                         <div className="flex items-start justify-between border-b border-border print:border-black pb-3 gap-2">
