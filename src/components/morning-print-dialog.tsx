@@ -187,6 +187,27 @@ export function MorningPrintDialog({
     return Math.round((pmHours + woHours) * 10) / 10;
   }, [filteredPms, filteredWos]);
 
+  // Job tickets shown/printed (each ticket is roughly half a page)
+  const ticketPms = useMemo(() => {
+    if (!includeTickets || (activeTab !== "all" && activeTab !== "pms")) return [];
+    return ticketLimit === "all" ? filteredPms : filteredPms.slice(0, Number(ticketLimit));
+  }, [filteredPms, ticketLimit, includeTickets, activeTab]);
+
+  const ticketWos = useMemo(() => {
+    if (!includeTickets || (activeTab !== "all" && activeTab !== "wos")) return [];
+    return ticketLimit === "all" ? filteredWos : filteredWos.slice(0, Number(ticketLimit));
+  }, [filteredWos, ticketLimit, includeTickets, activeTab]);
+
+  // Rough page estimate so nobody sends 750 pheets to the printer by accident
+  const estimatedPages = useMemo(() => {
+    const rows =
+      (activeTab === "all" || activeTab === "pms" ? filteredPms.length : 0) +
+      (activeTab === "all" || activeTab === "wos" ? filteredWos.length : 0);
+    const listPages = includeCover ? Math.max(1, Math.ceil(rows / 45)) : 0;
+    const ticketPages = Math.ceil((ticketPms.length + ticketWos.length) / 2);
+    return Math.max(1, listPages + ticketPages);
+  }, [filteredPms, filteredWos, includeCover, ticketPms, ticketWos, activeTab]);
+
   // Trigger print
   const handlePrint = () => {
     markPrintedToday();
