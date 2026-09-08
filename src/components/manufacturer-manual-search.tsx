@@ -6,8 +6,10 @@ import { getManufacturerPortalInfo } from "@/lib/manufacturer-links";
 import {
   searchInternetManuals,
   placeManualInAsset,
+  identifyAssetBrandModel,
   type DiscoveredManual,
 } from "@/lib/manuals.functions";
+
 import { ScanManualDialog } from "@/components/scan-manual-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
