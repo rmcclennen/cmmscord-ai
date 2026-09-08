@@ -51,16 +51,85 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
   const queryClient = useQueryClient();
   const searchInternetFn = useServerFn(searchInternetManuals);
   const placeManualFn = useServerFn(placeManualInAsset);
+  const identifyFn = useServerFn(identifyAssetBrandModel);
 
-  const mfg = asset.manufacturer || asset.make || "";
-  const model = asset.model || "";
+  const storedMfg = asset.manufacturer || asset.make || "";
+  const storedModel = asset.model || "";
+
+  // Identified (web-verified) brand & model
+  const [identity, setIdentity] = useState<{
+    brand: string;
+    model: string;
+    equipmentType: string;
+    website: string;
+    manualsPage: string;
+    confidence: string;
+    reasoning: string;
+    changedBrand: boolean;
+    changedModel: boolean;
+  } | null>(null);
+  const [identityHint, setIdentityHint] = useState("");
+  const [identitySaved, setIdentitySaved] = useState(false);
+
+  const mfg = identity?.brand || storedMfg;
+  const model = identity?.model || storedModel;
 
   const portalInfo = useMemo(() => {
-    return getManufacturerPortalInfo(mfg, model, asset.manufacturer_url, asset.name);
-  }, [mfg, model, asset.manufacturer_url, asset.name]);
+    return getManufacturerPortalInfo(
+      mfg,
+      model,
+      identity?.website || asset.manufacturer_url,
+      asset.name,
+    );
+  }, [mfg, model, identity?.website, asset.manufacturer_url, asset.name]);
+
+  const identifyMutation = useMutation({
+    mutationFn: async () =>
+      await identifyFn({
+        data: { assetId: asset.id, ...(identityHint.trim() ? { hint: identityHint.trim() } : {}) },
+      }),
+    onSuccess: (data) => {
+      setIdentity(data);
+      setIdentitySaved(false);
+      if (data.brand) {
+        const q = [data.brand, data.model, "O&M manual PDF"].filter(Boolean).join(" ");
+        setSearchQuery(q);
+        searchMutation.mutate(q);
+        toast.success(
+          `Identified ${data.brand}${data.model ? ` · Model ${data.model}` : ""} (${data.confidence} confidence)`,
+        );
+      } else {
+        toast.warning("Could not confirm the brand — add a hint like a nameplate word or part number.");
+      }
+    },
+    onError: (err: Error) => toast.error(err.message || "Brand identification failed"),
+  });
+
+  const saveIdentity = useMutation({
+    mutationFn: async () => {
+      if (!identity?.brand) throw new Error("Nothing to save yet.");
+      const { error } = await supabase
+        .from("assets")
+        .update({
+          manufacturer: identity.brand,
+          ...(identity.model ? { model: identity.model } : {}),
+          ...(identity.website ? { manufacturer_url: identity.website } : {}),
+        })
+        .eq("id", asset.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setIdentitySaved(true);
+      toast.success("Saved brand & model to the asset record.");
+      queryClient.invalidateQueries({ queryKey: ["asset", asset.id] });
+      queryClient.invalidateQueries({ queryKey: ["assets"] });
+    },
+    onError: (err: Error) => toast.error(err.message || "Could not save to asset"),
+  });
 
   const defaultSearch = [mfg, model, "O&M manual PDF"].filter(Boolean).join(" ");
   const [searchQuery, setSearchQuery] = useState(defaultSearch);
+
 
   // Internet Search Results State
   const [searchResults, setSearchResults] = useState<DiscoveredManual[]>([]);
