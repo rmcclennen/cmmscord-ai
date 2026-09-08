@@ -16,6 +16,7 @@ import { Route as OverviewRouteImport } from './routes/overview'
 import { Route as PortalRouteImport } from './routes/portal'
 import { Route as AuthenticatedApprovalsRouteImport } from './routes/_authenticated/approvals'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedEquipmentDownRouteImport } from './routes/_authenticated/equipment-down'
 import { Route as AuthenticatedInventoryRouteImport } from './routes/_authenticated/inventory'
 import { Route as AuthenticatedManualsRouteImport } from './routes/_authenticated/manuals'
 import { Route as AuthenticatedPartRequestsRouteImport } from './routes/_authenticated/part-requests'
@@ -62,6 +63,12 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedEquipmentDownRoute =
+  AuthenticatedEquipmentDownRouteImport.update({
+    id: '/equipment-down',
+    path: '/equipment-down',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedInventoryRoute = AuthenticatedInventoryRouteImport.update({
   id: '/inventory',
   path: '/inventory',
@@ -129,6 +136,7 @@ export interface FileRoutesByFullPath {
   '/portal': typeof PortalRoute
   '/approvals': typeof AuthenticatedApprovalsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/equipment-down': typeof AuthenticatedEquipmentDownRoute
   '/inventory': typeof AuthenticatedInventoryRoute
   '/manuals': typeof AuthenticatedManualsRoute
   '/part-requests': typeof AuthenticatedPartRequestsRoute
@@ -148,6 +156,7 @@ export interface FileRoutesByTo {
   '/portal': typeof PortalRoute
   '/approvals': typeof AuthenticatedApprovalsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/equipment-down': typeof AuthenticatedEquipmentDownRoute
   '/inventory': typeof AuthenticatedInventoryRoute
   '/manuals': typeof AuthenticatedManualsRoute
   '/part-requests': typeof AuthenticatedPartRequestsRoute
@@ -169,6 +178,7 @@ export interface FileRoutesById {
   '/portal': typeof PortalRoute
   '/_authenticated/approvals': typeof AuthenticatedApprovalsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/equipment-down': typeof AuthenticatedEquipmentDownRoute
   '/_authenticated/inventory': typeof AuthenticatedInventoryRoute
   '/_authenticated/manuals': typeof AuthenticatedManualsRoute
   '/_authenticated/part-requests': typeof AuthenticatedPartRequestsRoute
@@ -190,6 +200,7 @@ export interface FileRouteTypes {
     | '/portal'
     | '/approvals'
     | '/dashboard'
+    | '/equipment-down'
     | '/inventory'
     | '/manuals'
     | '/part-requests'
@@ -209,6 +220,7 @@ export interface FileRouteTypes {
     | '/portal'
     | '/approvals'
     | '/dashboard'
+    | '/equipment-down'
     | '/inventory'
     | '/manuals'
     | '/part-requests'
@@ -229,6 +241,7 @@ export interface FileRouteTypes {
     | '/portal'
     | '/_authenticated/approvals'
     | '/_authenticated/dashboard'
+    | '/_authenticated/equipment-down'
     | '/_authenticated/inventory'
     | '/_authenticated/manuals'
     | '/_authenticated/part-requests'
@@ -299,6 +312,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/equipment-down': {
+      id: '/_authenticated/equipment-down'
+      path: '/equipment-down'
+      fullPath: '/equipment-down'
+      preLoaderRoute: typeof AuthenticatedEquipmentDownRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/inventory': {
@@ -384,6 +404,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedApprovalsRoute: typeof AuthenticatedApprovalsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedEquipmentDownRoute: typeof AuthenticatedEquipmentDownRoute
   AuthenticatedInventoryRoute: typeof AuthenticatedInventoryRoute
   AuthenticatedManualsRoute: typeof AuthenticatedManualsRoute
   AuthenticatedPartRequestsRoute: typeof AuthenticatedPartRequestsRoute
@@ -400,6 +421,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedApprovalsRoute: AuthenticatedApprovalsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedEquipmentDownRoute: AuthenticatedEquipmentDownRoute,
   AuthenticatedInventoryRoute: AuthenticatedInventoryRoute,
   AuthenticatedManualsRoute: AuthenticatedManualsRoute,
   AuthenticatedPartRequestsRoute: AuthenticatedPartRequestsRoute,
