@@ -653,3 +653,128 @@ function generateDefaultOemPms(
 
   return pms;
 }
+
+/**
+ * Identifies the real manufacturer brand, model number and official website for an asset
+ * using live web search, based on whatever identifying info exists (name, tag, serial, type).
+ */
+export const identifyAssetBrandModel = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z.object({ assetId: z.string().uuid(), hint: z.string().max(300).optional() }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    const supabase = getSupabaseClient();
+
+    const { data: asset, error } = await supabase
+      .from("assets")
+      .select("*")
+      .eq("id", data.assetId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!asset) throw new Error("Asset not found");
+
+    const currentMfg = (asset.manufacturer || asset.make || "").trim();
+    const currentModel = (asset.model || "").trim();
+
+    const IdentitySchema = z.object({
+      brand: z.string().default(""),
+      model: z.string().default(""),
+      official_website: z.string().default(""),
+      manuals_page: z.string().default(""),
+      equipment_type: z.string().default(""),
+      confidence: z.enum(["high", "medium", "low"]).default("medium"),
+      reasoning: z.string().default(""),
+    });
+
+    const geminiKey = process.env["GEMINI_API_KEY"];
+    if (geminiKey) {
+      try {
+        const { GoogleGenAI } = await import("@google/genai");
+        const ai = new GoogleGenAI({
+          apiKey: geminiKey,
+          httpOptions: { headers: { "User-Agent": "aistudio-build" } },
+        });
+
+        const prompt = `Identify the real equipment manufacturer brand and model number for this wastewater treatment plant asset. Use web search to confirm the brand actually makes this equipment and that the model designation exists.
+
+Asset record:
+- Name / description: ${asset.name}
+- Tag number: ${asset.tag_number || "Unknown"}
+- Recorded manufacturer/make: ${currentMfg || "Unknown"}
+- Recorded model: ${currentModel || "Unknown"}
+- Serial number: ${asset.serial_number || "Unknown"}
+- Type / class: ${asset.type || asset.class || "Unknown"}
+- Location: ${asset.location_name || "Unknown"}
+- Nameplate data: HP ${asset.hp || "?"}, Volts ${asset.volts || "?"}, RPM ${asset.rpm || "?"}, Frame ${asset.frame || "?"}
+- Extra hint from technician: ${data.hint?.trim() || "none"}
+
+Rules:
+- brand must be the real corporate/brand name as used on the manufacturer website (e.g. "Gorman-Rupp", "Flygt (Xylem)", "Vaughan Company").
+- model must be the actual manufacturer model designation (e.g. "T4A60S-B", "NP 3202 HT", "SE4L"), never a plant tag number.
+- If a value truly cannot be determined, return an empty string rather than a guess.
+- official_website and manuals_page must be real URLs on the manufacturer's own domain.
+
+Respond strictly with JSON:
+{"brand":"","model":"","official_website":"https://...","manuals_page":"https://...","equipment_type":"","confidence":"high|medium|low","reasoning":"1-2 sentences citing what confirmed the brand and model"}`;
+
+        const response = await ai.models.generateContent({
+          model: "gemini-3.6-flash",
+          contents: prompt,
+          config: { tools: [{ googleSearch: {} }] },
+        });
+
+        const text = response.text || "";
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = IdentitySchema.safeParse(JSON.parse(jsonMatch[0]));
+          if (parsed.success) {
+            const brand = parsed.data.brand.trim() || currentMfg;
+            const model = parsed.data.model.trim() || currentModel;
+            const portal = getManufacturerPortalInfo(
+              brand,
+              model,
+              parsed.data.official_website || asset.manufacturer_url,
+              asset.name,
+            );
+            return {
+              brand,
+              model,
+              equipmentType: parsed.data.equipment_type,
+              website: parsed.data.official_website || portal.website,
+              manualsPage: parsed.data.manuals_page || portal.directDocsUrl,
+              confidence: parsed.data.confidence,
+              reasoning: parsed.data.reasoning,
+              changedBrand: brand.toLowerCase() !== currentMfg.toLowerCase(),
+              changedModel: model.toLowerCase() !== currentModel.toLowerCase(),
+              source: "web" as const,
+            };
+          }
+        }
+      } catch (err) {
+        console.warn("Brand/model identification search failed:", err);
+      }
+    }
+
+    // Fallback: brand inference from the asset name using the curated OEM rule set
+    const portal = getManufacturerPortalInfo(
+      currentMfg,
+      currentModel,
+      asset.manufacturer_url,
+      asset.name,
+    );
+    const fallbackBrand = currentMfg || (portal.hasDirectPortal ? portal.name : "");
+    return {
+      brand: fallbackBrand,
+      model: currentModel,
+      equipmentType: asset.type || asset.class || "",
+      website: portal.website,
+      manualsPage: portal.directDocsUrl,
+      confidence: "low" as const,
+      reasoning: fallbackBrand
+        ? `Matched "${fallbackBrand}" from the asset description against the OEM directory. Verify against the nameplate.`
+        : "Could not determine the brand from the stored asset information. Add a nameplate photo or hint.",
+      changedBrand: fallbackBrand.toLowerCase() !== currentMfg.toLowerCase(),
+      changedModel: false,
+      source: "directory" as const,
+    };
+  });

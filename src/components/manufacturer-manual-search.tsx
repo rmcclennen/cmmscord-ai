@@ -6,8 +6,10 @@ import { getManufacturerPortalInfo } from "@/lib/manufacturer-links";
 import {
   searchInternetManuals,
   placeManualInAsset,
+  identifyAssetBrandModel,
   type DiscoveredManual,
 } from "@/lib/manuals.functions";
+
 import { ScanManualDialog } from "@/components/scan-manual-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,16 +51,85 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
   const queryClient = useQueryClient();
   const searchInternetFn = useServerFn(searchInternetManuals);
   const placeManualFn = useServerFn(placeManualInAsset);
+  const identifyFn = useServerFn(identifyAssetBrandModel);
 
-  const mfg = asset.manufacturer || asset.make || "";
-  const model = asset.model || "";
+  const storedMfg = asset.manufacturer || asset.make || "";
+  const storedModel = asset.model || "";
+
+  // Identified (web-verified) brand & model
+  const [identity, setIdentity] = useState<{
+    brand: string;
+    model: string;
+    equipmentType: string;
+    website: string;
+    manualsPage: string;
+    confidence: string;
+    reasoning: string;
+    changedBrand: boolean;
+    changedModel: boolean;
+  } | null>(null);
+  const [identityHint, setIdentityHint] = useState("");
+  const [identitySaved, setIdentitySaved] = useState(false);
+
+  const mfg = identity?.brand || storedMfg;
+  const model = identity?.model || storedModel;
 
   const portalInfo = useMemo(() => {
-    return getManufacturerPortalInfo(mfg, model, asset.manufacturer_url, asset.name);
-  }, [mfg, model, asset.manufacturer_url, asset.name]);
+    return getManufacturerPortalInfo(
+      mfg,
+      model,
+      identity?.website || asset.manufacturer_url,
+      asset.name,
+    );
+  }, [mfg, model, identity?.website, asset.manufacturer_url, asset.name]);
+
+  const identifyMutation = useMutation({
+    mutationFn: async () =>
+      await identifyFn({
+        data: { assetId: asset.id, ...(identityHint.trim() ? { hint: identityHint.trim() } : {}) },
+      }),
+    onSuccess: (data) => {
+      setIdentity(data);
+      setIdentitySaved(false);
+      if (data.brand) {
+        const q = [data.brand, data.model, "O&M manual PDF"].filter(Boolean).join(" ");
+        setSearchQuery(q);
+        searchMutation.mutate(q);
+        toast.success(
+          `Identified ${data.brand}${data.model ? ` · Model ${data.model}` : ""} (${data.confidence} confidence)`,
+        );
+      } else {
+        toast.warning("Could not confirm the brand — add a hint like a nameplate word or part number.");
+      }
+    },
+    onError: (err: Error) => toast.error(err.message || "Brand identification failed"),
+  });
+
+  const saveIdentity = useMutation({
+    mutationFn: async () => {
+      if (!identity?.brand) throw new Error("Nothing to save yet.");
+      const { error } = await supabase
+        .from("assets")
+        .update({
+          manufacturer: identity.brand,
+          ...(identity.model ? { model: identity.model } : {}),
+          ...(identity.website ? { manufacturer_url: identity.website } : {}),
+        })
+        .eq("id", asset.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setIdentitySaved(true);
+      toast.success("Saved brand & model to the asset record.");
+      queryClient.invalidateQueries({ queryKey: ["asset", asset.id] });
+      queryClient.invalidateQueries({ queryKey: ["assets"] });
+    },
+    onError: (err: Error) => toast.error(err.message || "Could not save to asset"),
+  });
 
   const defaultSearch = [mfg, model, "O&M manual PDF"].filter(Boolean).join(" ");
   const [searchQuery, setSearchQuery] = useState(defaultSearch);
+
 
   // Internet Search Results State
   const [searchResults, setSearchResults] = useState<DiscoveredManual[]>([]);
@@ -132,6 +203,14 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
     }
   }, [asset.id]);
 
+  // Auto-identify the real brand/model when the record is missing one
+  useEffect(() => {
+    if (!identity && !identifyMutation.isPending && (!storedMfg || !storedModel)) {
+      identifyMutation.mutate();
+    }
+  }, [asset.id]);
+
+
   // Place in Manuals Mutation (One-Click)
   const placeManual = useMutation({
     mutationFn: async (manual: { title: string; url: string; kind: string; snippet?: string }) => {
@@ -189,8 +268,97 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
 
   return (
     <div className={`panel p-5 space-y-5 border-primary/40 bg-card/60 ${className}`}>
+      {/* Verified Brand & Model Identification */}
+      <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-3">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+              <Sparkles className="size-3.5 text-emerald-500" /> Identified Brand &amp; Model
+            </p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Finds the real manufacturer brand and model number for {asset.name} from live web
+              search, then targets the manual search at it.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => identifyMutation.mutate()}
+            disabled={identifyMutation.isPending}
+            className="h-7 text-xs gap-1.5 font-semibold bg-background"
+          >
+            {identifyMutation.isPending ? (
+              <>
+                <Loader2 className="size-3 animate-spin" /> Identifying…
+              </>
+            ) : (
+              <>
+                <Search className="size-3 text-emerald-600" /> Identify Brand &amp; Model
+              </>
+            )}
+          </Button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <Badge variant="outline" className="bg-background font-semibold">
+            Brand: {mfg || "Not identified"}
+          </Badge>
+          <Badge variant="outline" className="bg-background font-mono font-semibold">
+            Model: {model || "Not identified"}
+          </Badge>
+          {identity?.equipmentType && (
+            <Badge variant="secondary" className="text-[10px]">
+              {identity.equipmentType}
+            </Badge>
+          )}
+          {identity && (
+            <Badge
+              variant="outline"
+              className="text-[10px] uppercase border-emerald-500/40 text-emerald-600 dark:text-emerald-400"
+            >
+              {identity.confidence} confidence
+            </Badge>
+          )}
+        </div>
+
+        {identity?.reasoning && (
+          <p className="text-[11px] text-muted-foreground leading-relaxed">{identity.reasoning}</p>
+        )}
+
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Input
+            value={identityHint}
+            onChange={(e) => setIdentityHint(e.target.value)}
+            placeholder="Optional hint from the nameplate (brand word, model, part or serial number)…"
+            className="h-8 text-xs bg-background"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") identifyMutation.mutate();
+            }}
+          />
+          {identity && (identity.changedBrand || identity.changedModel) && identity.brand && (
+            <Button
+              size="sm"
+              onClick={() => saveIdentity.mutate()}
+              disabled={saveIdentity.isPending || identitySaved}
+              className="h-8 text-xs gap-1.5 font-semibold shrink-0"
+            >
+              {identitySaved ? (
+                <>
+                  <CheckCircle2 className="size-3.5" /> Saved to Asset
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="size-3.5" /> Save to Asset Record
+                </>
+              )}
+            </Button>
+          )}
+        </div>
+      </div>
+
       {/* Top Header: Manufacturer Verified Links & Model Lookup */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-border/70 pb-4">
+
         <div>
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
