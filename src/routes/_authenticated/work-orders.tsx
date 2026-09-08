@@ -19,7 +19,8 @@ import { prettyLabel, WO_STATUSES } from "@/lib/cmms";
 import { useTeamMembers } from "@/hooks/use-team-members";
 import { memberLabel, notifyUser } from "@/lib/notify";
 import { toast } from "sonner";
-import { Plus, Search, Sparkles } from "lucide-react";
+import { Plus, Search, Sparkles, Printer } from "lucide-react";
+import { openMorningPrintDialog } from "@/lib/auto-morning-print";
 
 export const Route = createFileRoute("/_authenticated/work-orders")({
   head: () => ({
@@ -116,6 +117,14 @@ function WorkOrdersPage() {
           <h1 className="text-2xl font-bold">Work orders</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => openMorningPrintDialog()}
+            className="gap-1.5 font-semibold text-foreground border-border hover:bg-muted shadow-sm"
+            title="Batch print daily work orders and PMs"
+          >
+            <Printer className="size-4 text-primary" /> Daily Print Batch
+          </Button>
           <PartsLookupDialog
             trigger={
               <Button

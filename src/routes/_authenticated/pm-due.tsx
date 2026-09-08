@@ -8,7 +8,12 @@ import { WorkOrderDialog } from "@/components/work-order-dialog";
 import { EditPmScheduleDialog } from "@/components/edit-pm-schedule-dialog";
 import { clampToSeason, daysUntil, prettyLabel, seasonLabel } from "@/lib/cmms";
 import { toast } from "sonner";
-import { AlertTriangle, CalendarClock, CheckCircle2, RefreshCw } from "lucide-react";
+import { AlertTriangle, CalendarClock, CheckCircle2, RefreshCw, Printer } from "lucide-react";
+import {
+  openMorningPrintDialog,
+  getAutoPrintConfig,
+  formatTime12h,
+} from "@/lib/auto-morning-print";
 
 const isoDay = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -35,6 +40,17 @@ export const Route = createFileRoute("/_authenticated/pm-due")({
 function PmDuePage() {
   const queryClient = useQueryClient();
   const [day, setDay] = useState(() => isoDay(new Date()));
+  const [config, setConfig] = useState(getAutoPrintConfig);
+
+  useEffect(() => {
+    const handleConfigChange = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail) setConfig(customEvent.detail);
+    };
+    window.addEventListener("auto-morning-print-config-changed", handleConfigChange);
+    return () =>
+      window.removeEventListener("auto-morning-print-config-changed", handleConfigChange);
+  }, []);
 
   // Roll the worklist over automatically at midnight (and whenever the tab
   // regains focus on a new calendar day).
@@ -214,6 +230,14 @@ function PmDuePage() {
         </div>
         <div className="flex items-center gap-2">
           <Button
+            size="sm"
+            onClick={() => openMorningPrintDialog()}
+            className="gap-1.5 text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
+            title="Batch print today's PMs and work orders"
+          >
+            <Printer className="size-3.5" /> Morning Print Dispatch
+          </Button>
+          <Button
             variant="outline"
             size="sm"
             onClick={() => pms.refetch()}
@@ -225,6 +249,51 @@ function PmDuePage() {
           <Link to="/pm-schedule">
             <Button variant="outline" size="sm" className="text-xs font-semibold">
               Full PM schedule
+            </Button>
+          </Link>
+        </div>
+      </div>
+
+      {/* Auto-Print Schedule Status Banner */}
+      <div className="rounded-lg border border-border bg-card p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs shadow-sm">
+        <div className="flex items-center gap-2.5">
+          <div className="flex size-7 items-center justify-center rounded-md bg-primary/10 text-primary shrink-0">
+            <Printer className="size-3.5" />
+          </div>
+          <div>
+            {config.enabled ? (
+              <p className="text-foreground font-medium">
+                Automatic morning printing is <span className="font-bold text-primary">active</span>
+                . Daily shift packet set to print at{" "}
+                <span className="font-mono font-bold text-foreground">
+                  {formatTime12h(config.scheduledTime)}
+                </span>
+                .
+              </p>
+            ) : (
+              <p className="text-muted-foreground">
+                Automatic morning printing is currently <span className="italic">off</span>. Turn it
+                on in settings to automatically print morning PMs and work orders at shift start.
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() => openMorningPrintDialog()}
+          >
+            Preview Daily Packet
+          </Button>
+          <Link to="/settings">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs text-muted-foreground hover:text-foreground"
+            >
+              Configure Schedule
             </Button>
           </Link>
         </div>
