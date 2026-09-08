@@ -367,4 +367,31 @@ html.reduce-motion *::after {
   [data-radix-portal] > div:first-child {
     display: none !important;
   }
+
+  /* Tight page margins so more rows fit per sheet */
+  @page {
+    margin: 0.4in;
+  }
+
+  /* Dense list printing: repeat table headers, no page breaks inside rows */
+  .print-dense table {
+    font-size: 9.5px !important;
+    line-height: 1.15 !important;
+  }
+
+  .print-dense thead {
+    display: table-header-group;
+  }
+
+  .print-dense tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-dense td,
+  .print-dense th {
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+  }
 }
+
