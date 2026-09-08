@@ -67,7 +67,10 @@ export function MorningPrintDialog({
   const [activeTab, setActiveTab] = useState<"all" | "pms" | "wos">("all");
   const [selectedBuilding, setSelectedBuilding] = useState<string>("all");
   const [includeCover, setIncludeCover] = useState(true);
-  const [includeTickets, setIncludeTickets] = useState(true);
+  // Job tickets are one-per-page-ish; default to none so a print job stays a few pages.
+  const [ticketLimit, setTicketLimit] = useState<string>("0");
+  const [dueScope, setDueScope] = useState<"due" | "horizon">("due");
+  const includeTickets = ticketLimit !== "0";
 
   const team = useTeamMembers();
   const today = getTodayIso();
