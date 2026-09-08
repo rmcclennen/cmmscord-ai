@@ -154,16 +154,18 @@ export function MorningPrintDialog({
 
   // Filtered lists based on building selection
   const filteredPms = useMemo(() => {
-    const list = pmsQuery.data || [];
+    let list = pmsQuery.data || [];
+    if (dueScope === "due") list = list.filter((p) => p.next_due <= today);
     if (selectedBuilding === "all") return list;
     return list.filter((p) => p.assets?.building === selectedBuilding);
-  }, [pmsQuery.data, selectedBuilding]);
+  }, [pmsQuery.data, selectedBuilding, dueScope, today]);
 
   const filteredWos = useMemo(() => {
     const list = wosQuery.data || [];
     if (selectedBuilding === "all") return list;
     return list.filter((w) => w.assets?.building === selectedBuilding);
   }, [wosQuery.data, selectedBuilding]);
+
 
   // Counts & Statistics
   const overduePms = useMemo(
