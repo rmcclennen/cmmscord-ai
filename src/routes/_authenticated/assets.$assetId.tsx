@@ -1626,7 +1626,7 @@ function AssetDetail() {
                 lockAsset
                 initialPart={{
                   name: `Oil & Grease Consumables Pack for ${a.name}`,
-                  part_number: consumables.oilGradeGrade.split(" ")[0] || "LUBE-SPEC",
+                  part_number: consumables.oilGrade.split(" ")[0] || "LUBE-SPEC",
                   manufacturer: a.manufacturer,
                   qty: 1,
                 }}
@@ -1643,12 +1643,12 @@ function AssetDetail() {
                 <div className="flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400">
                   <Droplet className="size-4" /> Suggested Oil &amp; Viscosity
                 </div>
-                <p className="text-sm font-semibold text-foreground">{consumables.oilGradeGrade}</p>
-                {consumables.oilGradeCapacity && (
+                <p className="text-sm font-semibold text-foreground">{consumables.oilGrade}</p>
+                {consumables.oilCapacity && (
                   <p className="text-xs text-muted-foreground">
                     Sump Capacity:{" "}
                     <span className="font-mono font-medium text-foreground">
-                      {consumables.oilGradeCapacity}
+                      {consumables.oilCapacity}
                     </span>
                   </p>
                 )}
@@ -1658,7 +1658,7 @@ function AssetDetail() {
                 <div className="flex items-center gap-1.5 text-xs font-bold text-sky-600 dark:text-sky-400">
                   <Disc className="size-4" /> Recommended Grease Type
                 </div>
-                <p className="text-sm font-semibold text-foreground">{consumables.greaseTypeType}</p>
+                <p className="text-sm font-semibold text-foreground">{consumables.greaseType}</p>
                 <p className="text-xs text-muted-foreground">
                   Grease Bearing Schedule:{" "}
                   <span className="font-medium text-foreground">Clean relief plug first</span>
@@ -1669,7 +1669,7 @@ function AssetDetail() {
                 <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400">
                   <Layers className="size-4" /> Drive Belt / Coupling Sizing
                 </div>
-                <p className="text-sm font-semibold text-foreground">{consumables.beltSizeSize}</p>
+                <p className="text-sm font-semibold text-foreground">{consumables.beltSize}</p>
                 <p className="text-xs text-muted-foreground">
                   Always replace drive belts in matched sets.
                 </p>
