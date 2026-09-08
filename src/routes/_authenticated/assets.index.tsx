@@ -122,7 +122,7 @@ function AssetsPage() {
       const { data, error } = await supabase
         .from("assets")
         .select(
-          "id, name, tag_number, class, type, make, model, criticality, status, manufacturer, serial_number, supplier, building, category",
+          "id, name, tag_number, class, type, make, model, criticality, status, manufacturer, manufacturer_url, serial_number, supplier, building, category, hp, volts, rpm, frame",
         )
         .order("name")
         .limit(5000);
@@ -1030,8 +1030,13 @@ interface AssetWithNestedPartsRowProps {
     supplier: string | null;
     building: string;
     system: string;
+    manufacturer_url?: string | null;
+    hp?: string | null;
+    volts?: string | null;
+    rpm?: string | null;
+    frame?: string | null;
   };
-  pmInfo?: {
+  pmInfo?:
     count: number;
     pms: Array<{ id: string; title: string; next_due: string | null }>;
     nextDue: string | null;
@@ -1368,16 +1373,15 @@ function AssetWithNestedPartsRow({
                       {parts.map((p) => {
                         const inStock = (p.qty_on_hand ?? 0) > 0;
                         const isLowStock =
-                          p.min_quantity !== null &&
-                          p.min_quantity !== undefined &&
-                          (p.qty_on_hand ?? 0) <= p.min_quantity;
+                          p.min_qty !== null &&
+                          p.min_qty !== undefined &&
+                          (p.qty_on_hand ?? 0) <= p.min_qty;
 
                         return (
                           <TableRow key={p.id} className="h-9 hover:bg-muted/40">
                             <TableCell className="py-1.5 font-medium text-xs">
                               <Link
-                                to="/parts/$partId"
-                                params={{ partId: p.id }}
+                                to="/inventory"
                                 className="text-foreground hover:text-primary hover:underline transition-colors flex items-center gap-1.5"
                               >
                                 <span className="text-primary font-bold">↳</span> {p.name}
@@ -1427,7 +1431,7 @@ function AssetWithNestedPartsRow({
                                 variant="ghost"
                                 className="h-6 px-2 text-[11px] font-medium text-primary hover:bg-primary/10"
                               >
-                                <Link to="/parts/$partId" params={{ partId: p.id }}>
+                                <Link to="/inventory">
                                   View Part
                                 </Link>
                               </Button>
