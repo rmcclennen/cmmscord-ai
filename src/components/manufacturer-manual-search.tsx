@@ -203,6 +203,14 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
     }
   }, [asset.id]);
 
+  // Auto-identify the real brand/model when the record is missing one
+  useEffect(() => {
+    if (!identity && !identifyMutation.isPending && (!storedMfg || !storedModel)) {
+      identifyMutation.mutate();
+    }
+  }, [asset.id]);
+
+
   // Place in Manuals Mutation (One-Click)
   const placeManual = useMutation({
     mutationFn: async (manual: { title: string; url: string; kind: string; snippet?: string }) => {
