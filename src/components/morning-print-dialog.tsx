@@ -198,7 +198,7 @@ export function MorningPrintDialog({
     return ticketLimit === "all" ? filteredWos : filteredWos.slice(0, Number(ticketLimit));
   }, [filteredWos, ticketLimit, includeTickets, activeTab]);
 
-  // Rough page estimate so nobody sends 750 pheets to the printer by accident
+  // Rough page estimate so nobody sends 750 sheets to the printer by accident
   const estimatedPages = useMemo(() => {
     const rows =
       (activeTab === "all" || activeTab === "pms" ? filteredPms.length : 0) +
