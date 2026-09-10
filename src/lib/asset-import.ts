@@ -28,12 +28,17 @@ export async function parseSpreadsheetFile(
   // metadata often contain 2+ values before the actual table begins.
   const headingPattern =
     /asset|equipment|description|name|tag|model|serial|manufacturer|make|building|location|part/i;
-  let headerIdx = matrix.findIndex(
-    (row) =>
-      Array.isArray(row) &&
-      row.filter((c) => String(c ?? "").trim()).length >= 2 &&
-      row.some((c) => headingPattern.test(String(c ?? "").trim())),
-  );
+  let headerIdx = -1;
+  let bestHeaderScore = 0;
+  matrix.slice(0, 100).forEach((row, index) => {
+    if (!Array.isArray(row)) return;
+    const cells = row.map((cell) => String(cell ?? "").trim()).filter(Boolean);
+    const score = cells.filter((cell) => headingPattern.test(cell)).length;
+    if (cells.length >= 2 && score > bestHeaderScore) {
+      bestHeaderScore = score;
+      headerIdx = index;
+    }
+  });
   if (headerIdx < 0) {
     headerIdx = matrix.findIndex(
       (row) => Array.isArray(row) && row.filter((c) => String(c ?? "").trim()).length >= 2,
