@@ -719,65 +719,122 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
             </div>
 
 
-            {/* Hierarchical Preview Tree */}
+            {/* Selectable preview */}
             <div className="rounded-lg border border-border bg-card overflow-hidden">
-              <div className="bg-muted px-4 py-2 text-xs font-bold text-foreground flex items-center justify-between">
-                <span>Document Hierarchy Preview (Assets & Nested Parts)</span>
-                <span className="text-[11px] text-muted-foreground font-normal">
-                  Showing first {Math.min(10, parsedAssets.length)} assets
-                </span>
+              <div className="bg-muted px-4 py-2 text-xs font-bold text-foreground flex flex-wrap items-center justify-between gap-2">
+                <span>Choose what to import (equipment, components & parts)</span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 text-[11px]"
+                    onClick={() => {
+                      setExcludedAssets(new Set());
+                      setExcludedParts(new Set());
+                    }}
+                  >
+                    Select all
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 text-[11px]"
+                    onClick={() => setExcludedAssets(new Set(parsedAssets.map((_, i) => i)))}
+                  >
+                    Clear all
+                  </Button>
+                  <span className="text-[11px] font-normal text-muted-foreground">
+                    Showing first {Math.min(200, parsedAssets.length)}
+                  </span>
+                </div>
               </div>
-              <div className="overflow-y-auto max-h-72 p-3 space-y-3">
-                {parsedAssets.slice(0, 10).map((asset, idx) => (
-                  <div key={idx} className="rounded-lg border border-border bg-background/70 p-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Boxes className="size-4 text-primary" />
-                        <span className="font-bold text-sm text-foreground">{asset.name}</span>
-                        {asset.tag_number && (
-                          <Badge variant="outline" className="font-mono text-[10px]">
-                            {asset.tag_number}
+              <div className="overflow-y-auto max-h-80 p-3 space-y-3">
+                {parsedAssets.slice(0, 200).map((asset, idx) => {
+                  const assetIncluded = !excludedAssets.has(idx);
+                  return (
+                    <div
+                      key={idx}
+                      className={`rounded-lg border p-3 ${
+                        assetIncluded ? "border-border bg-background/70" : "border-dashed opacity-60"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <Checkbox
+                            id={`asset-${idx}`}
+                            checked={assetIncluded}
+                            onCheckedChange={() => toggleAsset(idx)}
+                          />
+                          <Boxes className="size-4 shrink-0 text-primary" />
+                          <Label
+                            htmlFor={`asset-${idx}`}
+                            className="truncate font-bold text-sm text-foreground cursor-pointer"
+                          >
+                            {asset.name}
+                          </Label>
+                          {asset.tag_number && (
+                            <Badge variant="outline" className="font-mono text-[10px]">
+                              {asset.tag_number}
+                            </Badge>
+                          )}
+                          <Badge variant="secondary" className="text-[10px]">
+                            {asset.category === "component" ? "Component" : asset.class}
                           </Badge>
-                        )}
-                        <Badge variant="secondary" className="text-[10px]">
-                          {asset.class}
-                        </Badge>
+                        </div>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {asset.building}
+                        </span>
                       </div>
-                      <span className="text-xs text-muted-foreground">{asset.building}</span>
-                    </div>
 
-                    {/* Tabbed-over nested parts section */}
-                    {asset.parts && asset.parts.length > 0 ? (
-                      <div className="mt-2.5 ml-4 border-l-2 border-primary/40 pl-3 space-y-1.5">
-                        <div className="text-[11px] font-semibold text-primary flex items-center gap-1">
-                          <Package className="size-3" /> Tabbed Parts for this Unit (
-                          {asset.parts.length}):
+                      {asset.parts && asset.parts.length > 0 ? (
+                        <div className="mt-2.5 ml-4 border-l-2 border-primary/40 pl-3 space-y-1.5">
+                          <div className="text-[11px] font-semibold text-primary flex items-center gap-1">
+                            <Package className="size-3" /> Parts for this unit ({asset.parts.length}
+                            ):
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                            {asset.parts.map((p, pIdx) => {
+                              const key = `${idx}:${pIdx}`;
+                              const partIncluded = assetIncluded && !excludedParts.has(key);
+                              return (
+                                <div
+                                  key={pIdx}
+                                  className="flex items-center justify-between gap-2 rounded bg-muted/40 px-2.5 py-1 text-xs"
+                                >
+                                  <div className="flex min-w-0 items-center gap-2">
+                                    <Checkbox
+                                      id={`part-${key}`}
+                                      checked={partIncluded}
+                                      disabled={!assetIncluded}
+                                      onCheckedChange={() => togglePart(key)}
+                                    />
+                                    <Label
+                                      htmlFor={`part-${key}`}
+                                      className="truncate max-w-[160px] font-medium text-foreground cursor-pointer"
+                                    >
+                                      {p.name}
+                                    </Label>
+                                  </div>
+                                  <div className="flex shrink-0 items-center gap-2 text-[11px] text-muted-foreground font-mono">
+                                    {p.part_number && <span>#{p.part_number}</span>}
+                                    {p.qty_on_hand !== undefined && <span>Qty: {p.qty_on_hand}</span>}
+                                    {p.unit_cost !== undefined && <span>${p.unit_cost}</span>}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                          {asset.parts.map((p, pIdx) => (
-                            <div
-                              key={pIdx}
-                              className="flex items-center justify-between rounded bg-muted/40 px-2.5 py-1 text-xs"
-                            >
-                              <span className="font-medium text-foreground truncate max-w-[180px]">
-                                ↳ {p.name}
-                              </span>
-                              <div className="flex items-center gap-2 text-[11px] text-muted-foreground font-mono">
-                                {p.part_number && <span>#{p.part_number}</span>}
-                                {p.qty_on_hand !== undefined && <span>Qty: {p.qty_on_hand}</span>}
-                                {p.unit_cost !== undefined && <span>${p.unit_cost}</span>}
-                              </div>
-                            </div>
-                          ))}
+                      ) : (
+                        <div className="mt-1.5 ml-4 text-[11px] text-muted-foreground italic">
+                          ↳ No parts found for this unit
                         </div>
-                      </div>
-                    ) : (
-                      <div className="mt-1.5 ml-4 text-[11px] text-muted-foreground italic">
-                        ↳ No parts attached in document row
-                      </div>
-                    )}
-                  </div>
-                ))}
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -785,11 +842,17 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
               <Button variant="outline" size="sm" onClick={() => setStep(isHierarchical ? 1 : 2)}>
                 <ArrowLeft className="mr-1.5 size-3.5" /> Back
               </Button>
-              <Button size="sm" onClick={executeImport} className="font-bold">
-                <Boxes className="mr-1.5 size-4" /> Start Ingestion ({parsedAssets.length} Assets,{" "}
-                {totalNestedPartsCount} Parts)
+              <Button
+                size="sm"
+                onClick={executeImport}
+                disabled={selectedAssets.length === 0}
+                className="font-bold"
+              >
+                <Boxes className="mr-1.5 size-4" /> Import {selectedAssets.length} records,{" "}
+                {selectedPartsCount} parts
               </Button>
             </div>
+
           </div>
         )}
 
