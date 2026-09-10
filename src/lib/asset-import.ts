@@ -788,17 +788,45 @@ export async function bulkInsertAssets(
   options: {
     cleanReset?: boolean;
     generatePmSchedules?: boolean;
+    skipDuplicates?: boolean;
     onProgress?: (progress: number, total: number) => void;
   } = {},
-): Promise<{ inserted: number; partsLinked: number; pmsCreated: number }> {
+): Promise<{ inserted: number; partsLinked: number; pmsCreated: number; skipped: number }> {
   if (options.cleanReset) {
     await clearAllAssetsDatabase();
   }
+
+  let skipped = 0;
+  let queue = assets;
+
+  if (options.skipDuplicates && !options.cleanReset) {
+    const { data: existing } = await supabase.from("assets").select("name, tag_number");
+    const seen = new Set<string>();
+    (existing ?? []).forEach((a) => {
+      if (a.name) seen.add(`n:${a.name.trim().toLowerCase()}`);
+      if (a.tag_number) seen.add(`t:${a.tag_number.trim().toLowerCase()}`);
+    });
+    queue = assets.filter((a) => {
+      const nameKey = `n:${a.name.trim().toLowerCase()}`;
+      const tagKey = a.tag_number ? `t:${a.tag_number.trim().toLowerCase()}` : "";
+      if (seen.has(nameKey) || (tagKey && seen.has(tagKey))) {
+        skipped++;
+        return false;
+      }
+      seen.add(nameKey);
+      if (tagKey) seen.add(tagKey);
+      return true;
+    });
+  }
+
+  assets = queue;
 
   const BATCH_SIZE = 25;
   let totalInserted = 0;
   let totalPartsLinked = 0;
   let totalPms = 0;
+
+
 
   for (let i = 0; i < assets.length; i += BATCH_SIZE) {
     const batch = assets.slice(i, i + BATCH_SIZE);
