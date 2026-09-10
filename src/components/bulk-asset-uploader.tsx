@@ -611,28 +611,41 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
         {/* Step 3: Preview & Import Options */}
         {step === 3 && (
           <div className="mt-4 space-y-5">
+            {scanSummary && (
+              <p className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs text-muted-foreground">
+                <Sparkles className="mr-1 inline size-3.5 text-primary" />
+                {scanSummary}
+              </p>
+            )}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="rounded-lg border border-border bg-card p-3 text-center">
                 <p className="text-[11px] text-muted-foreground font-semibold uppercase">
-                  Assets to Ingest
+                  Selected Equipment
                 </p>
-                <p className="text-2xl font-bold text-foreground">{parsedAssets.length}</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {selectedAssets.length}
+                  <span className="text-sm text-muted-foreground"> / {parsedAssets.length}</span>
+                </p>
               </div>
               <div className="rounded-lg border border-border bg-card p-3 text-center">
                 <p className="text-[11px] text-muted-foreground font-semibold uppercase">
-                  Parts to Link
+                  Selected Parts
                 </p>
-                <p className="text-2xl font-bold text-primary">{totalNestedPartsCount} Parts</p>
+                <p className="text-2xl font-bold text-primary">
+                  {selectedPartsCount}
+                  <span className="text-sm text-muted-foreground"> / {totalNestedPartsCount}</span>
+                </p>
               </div>
               <div className="rounded-lg border border-border bg-card p-3 text-center">
                 <p className="text-[11px] text-muted-foreground font-semibold uppercase">
                   High Criticality
                 </p>
                 <p className="text-2xl font-bold text-destructive">
-                  {parsedAssets.filter((a) => a.criticality === "high").length}
+                  {selectedAssets.filter((a) => a.criticality === "high").length}
                 </p>
               </div>
             </div>
+
 
             {/* Ingestion Options: Clean Replace & Auto PM */}
             <div className="space-y-3">
