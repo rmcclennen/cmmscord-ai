@@ -226,8 +226,9 @@ export function MatchPmAssetDialog({
   // Matches for specific target asset (if in targetAsset mode)
   const targetAssetMatches = useMemo(() => {
     if (!targetAsset || pms.length === 0) return [];
-    return findMatchingPmsForAsset(targetAsset, pms);
-  }, [targetAsset, pms]);
+    return findMatchingPmsForAsset(targetAsset, pms).filter((m) => !resolvedPmIds.has(m.pm.id));
+  }, [targetAsset, pms, resolvedPmIds]);
+
 
   // Mutation to link PMs to Assets
   const linkMutation = useMutation({
