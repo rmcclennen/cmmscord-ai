@@ -101,6 +101,7 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
   const [excludedParts, setExcludedParts] = useState<Set<string>>(new Set());
   const [isImporting, setIsImporting] = useState<boolean>(false);
   const [isScanning, setIsScanning] = useState<boolean>(false);
+  const [manualUrl, setManualUrl] = useState<string>("");
   const [isWiping, setIsWiping] = useState<boolean>(false);
   const [scanSummary, setScanSummary] = useState<string>("");
   const [progress, setProgress] = useState<{ current: number; total: number }>({
