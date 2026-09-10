@@ -1,5 +1,153 @@
 import { supabase } from "@/integrations/supabase/client";
 import { buildingOf } from "@/lib/cmms";
+import type { DocumentScanResult } from "@/lib/document-scan.functions";
+
+/**
+ * Reads an Excel workbook (.xlsx / .xls) or a delimited text file into headers + rows.
+ * Excel files are binary, so they must never be read with FileReader.readAsText.
+ */
+export async function parseSpreadsheetFile(
+  file: File,
+): Promise<{ headers: string[]; rows: Record<string, string>[] }> {
+  const XLSX = await import("xlsx");
+  const buffer = await file.arrayBuffer();
+  const wb = XLSX.read(buffer, { type: "array" });
+  const firstSheetName = wb.SheetNames[0];
+  if (!firstSheetName) return { headers: [], rows: [] };
+  const sheet = wb.Sheets[firstSheetName];
+  if (!sheet) return { headers: [], rows: [] };
+
+  const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+    header: 1,
+    blankrows: false,
+    defval: "",
+    raw: false,
+  });
+
+  // Find the first row that looks like a header (2+ non-empty cells)
+  let headerIdx = matrix.findIndex(
+    (row) => Array.isArray(row) && row.filter((c) => String(c ?? "").trim()).length >= 2,
+  );
+  if (headerIdx < 0) headerIdx = 0;
+
+  const rawHeaders = (matrix[headerIdx] ?? []).map((h, i) => {
+    const label = String(h ?? "").trim();
+    return label || `Column ${i + 1}`;
+  });
+  const headers: string[] = [];
+  rawHeaders.forEach((h) => {
+    let label = h;
+    let n = 2;
+    while (headers.includes(label)) label = `${h} (${n++})`;
+    headers.push(label);
+  });
+
+  const rows: Record<string, string>[] = [];
+  for (let r = headerIdx + 1; r < matrix.length; r++) {
+    const values = matrix[r] ?? [];
+    if (!values.some((v) => String(v ?? "").trim())) continue;
+    const row: Record<string, string> = {};
+    headers.forEach((h, i) => {
+      row[h] = String(values[i] ?? "").trim();
+    });
+    rows.push(row);
+  }
+
+  return { headers, rows };
+}
+
+/** Reads any file as base64 (used to send PDFs / photos to the AI scanner). */
+export function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || "");
+      resolve(result.includes(",") ? result.slice(result.indexOf(",") + 1) : result);
+    };
+    reader.onerror = () => reject(new Error("Could not read this file."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function classifyName(text: string): string {
+  const upper = text.toUpperCase();
+  if (/PUMP|PMP/.test(upper)) return "PMP";
+  if (/MOTOR|MOT/.test(upper)) return "MOT";
+  if (/BLOWER|BLW|FAN|HVAC/.test(upper)) return "HVAC";
+  if (/MIXER|MIX/.test(upper)) return "MIX";
+  if (/PANEL|DISCONNECT|VFD|ELEC/.test(upper)) return "ELD";
+  if (/VALVE|ACTUATOR/.test(upper)) return "VLV";
+  return "PEQ";
+}
+
+/**
+ * Converts an AI document/manual scan into importable assets.
+ * Equipment becomes an asset; each component becomes its own asset linked by name;
+ * parts are nested under whichever unit they belong to.
+ */
+export function scanResultToAssets(result: DocumentScanResult): ParsedAssetRow[] {
+  const assets: ParsedAssetRow[] = [];
+
+  for (const eq of result.equipment ?? []) {
+    const name = stripShelfLocation(eq.name) || eq.name;
+    if (!name.trim()) continue;
+
+    assets.push({
+      name,
+      tag_number: eq.tag_number,
+      class: classifyName(name),
+      make: eq.make || eq.manufacturer,
+      model: eq.model,
+      serial_number: eq.serial_number,
+      manufacturer: eq.manufacturer || eq.make,
+      hp: eq.hp,
+      volts: eq.volts,
+      rpm: eq.rpm,
+      frame: eq.frame,
+      building: buildingOf(name, null, null),
+      criticality: eq.criticality || "medium",
+      status: "operational",
+      notes: eq.notes,
+      parts: (eq.parts ?? []).map((p) => ({
+        name: p.name,
+        part_number: p.part_number,
+        manufacturer: p.manufacturer || eq.manufacturer || eq.make,
+        unit_cost: p.unit_cost,
+        qty_on_hand: p.qty,
+        notes: p.notes,
+      })),
+    });
+
+    for (const comp of eq.components ?? []) {
+      const compName = stripShelfLocation(comp.name) || comp.name;
+      if (!compName.trim()) continue;
+      assets.push({
+        name: `${name} — ${compName}`,
+        class: classifyName(compName),
+        make: comp.make || eq.make || eq.manufacturer,
+        model: comp.model,
+        serial_number: comp.serial_number,
+        manufacturer: comp.make || eq.manufacturer || eq.make,
+        building: buildingOf(name, null, null),
+        criticality: "medium",
+        status: "operational",
+        notes: comp.notes,
+        category: "component",
+        parts: (comp.parts ?? []).map((p) => ({
+          name: p.name,
+          part_number: p.part_number,
+          manufacturer: p.manufacturer || comp.make || eq.manufacturer,
+          unit_cost: p.unit_cost,
+          qty_on_hand: p.qty,
+          notes: p.notes,
+        })),
+      });
+    }
+  }
+
+  return assets;
+}
+
 
 export interface ParsedPartRow {
   name: string;
