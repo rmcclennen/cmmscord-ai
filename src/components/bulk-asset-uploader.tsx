@@ -473,13 +473,24 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
                 className="mt-2 h-32 w-full rounded-md border border-input bg-background p-3 font-mono text-xs text-foreground focus-visible:ring-2 focus-visible:ring-primary"
               />
               {rawText.trim().length > 0 && (
-                <div className="mt-3 flex justify-end">
+                <div className="mt-3 flex flex-wrap justify-end gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={isScanning}
+                    onClick={() => void runAiScan(undefined, rawText)}
+                    className="font-bold"
+                  >
+                    <Sparkles className="mr-1 size-3.5 text-primary" />
+                    {isScanning ? "Reading…" : "Read with AI"}
+                  </Button>
                   <Button size="sm" onClick={() => processFileText(rawText)} className="font-bold">
                     Parse Document & Load <ArrowRight className="ml-1 size-3.5" />
                   </Button>
                 </div>
               )}
             </div>
+
 
             {/* Database Clear Utility */}
             <div className="flex items-center justify-between rounded-lg border border-destructive/30 bg-destructive/5 p-3">
