@@ -971,5 +971,5 @@ export async function bulkInsertAssets(
     }
   }
 
-  return { inserted: totalInserted, partsLinked: totalPartsLinked, pmsCreated: totalPms };
+  return { inserted: totalInserted, partsLinked: totalPartsLinked, pmsCreated: totalPms, skipped };
 }
