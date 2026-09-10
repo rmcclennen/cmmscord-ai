@@ -98,10 +98,45 @@ export const scanDocumentForAssets = createServerFn({ method: "POST" })
       data.hint ? `\n\nOperator note: ${data.hint}` : ""
     }`;
 
-    const mediaType = data.mediaType || "application/pdf";
+    let mediaType = data.mediaType || "application/pdf";
+    let fileBase64 = data.fileBase64;
+
+    if (!fileBase64 && data.fileUrl) {
+      let res: Response;
+      try {
+        res = await fetch(data.fileUrl, { redirect: "follow" });
+      } catch {
+        throw new Error("Could not download that link — check the address and try again.");
+      }
+      if (!res.ok) {
+        throw new Error(
+          `That link could not be downloaded (${res.status}). Some sites block downloads — save the file and upload it instead.`,
+        );
+      }
+      const contentType = res.headers.get("content-type") || "";
+      if (/text\/html/i.test(contentType)) {
+        throw new Error(
+          "That link is a web page, not a manual file. Use the direct link to the PDF.",
+        );
+      }
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      if (bytes.byteLength === 0) throw new Error("That link returned an empty file.");
+      if (bytes.byteLength > 18 * 1024 * 1024) {
+        throw new Error(
+          "That manual is larger than 18 MB. Upload just the parts list or nameplate pages instead.",
+        );
+      }
+      mediaType = contentType.split(";")[0]?.trim() || "application/pdf";
+      let binary = "";
+      for (let i = 0; i < bytes.length; i += 8192) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+      }
+      fileBase64 = btoa(binary);
+    }
+
     const content: Array<Record<string, unknown>> = [{ type: "text", text: header }];
 
-    if (data.fileBase64) {
+    if (fileBase64) {
       if (mediaType.startsWith("image/")) {
         content.push({ type: "image", image: `data:${mediaType};base64,${data.fileBase64}` });
       } else {
