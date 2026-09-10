@@ -473,6 +473,35 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
 
             <div className="rounded-lg border border-border bg-card p-4">
               <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <Link2 className="size-3.5 text-primary" /> Or Paste a Manual Link (PDF found
+                online)
+              </h4>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Paste the direct link to a PDF manual or cut sheet and we&apos;ll read the equipment,
+                components and parts out of it.
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <input
+                  type="url"
+                  value={manualUrl}
+                  onChange={(e) => setManualUrl(e.target.value)}
+                  placeholder="https://manufacturer.com/manuals/pump-om-manual.pdf"
+                  className="min-w-56 flex-1 rounded-md border border-input bg-background px-3 py-2 text-xs text-foreground focus-visible:ring-2 focus-visible:ring-primary"
+                />
+                <Button
+                  size="sm"
+                  disabled={isScanning || !manualUrl.trim()}
+                  onClick={() => void runAiScan(undefined, undefined, manualUrl)}
+                  className="font-bold"
+                >
+                  <Sparkles className="mr-1 size-3.5" />
+                  {isScanning ? "Reading…" : "Scan PDF Link"}
+                </Button>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-border bg-card p-4">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                 <FileText className="size-3.5 text-primary" /> Or Paste Tabbed / Hierarchical
                 Document Text
               </h4>
