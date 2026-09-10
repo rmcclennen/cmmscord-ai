@@ -287,10 +287,22 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
       toast.error("No valid assets found. Ensure rows have a name.");
       return;
     }
+    if (assets.length > 5000) {
+      toast.error(
+        `${assets.length.toLocaleString()} rows look like assets. Choose the actual equipment-name column or split the workbook into smaller lists.`,
+      );
+      return;
+    }
+    const removedCount = rawRows.length - assets.length;
     setParsedAssets(assets);
     setExcludedAssets(new Set());
     setExcludedParts(new Set());
     setStep(3);
+    if (removedCount > 0) {
+      toast.info(
+        `Ignored ${removedCount.toLocaleString()} blank, numeric, header, date, or unreadable rows.`,
+      );
+    }
   };
 
   const toggleAsset = (idx: number) => {
@@ -645,7 +657,7 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
                 <ArrowLeft className="mr-1.5 size-3.5" /> Back
               </Button>
               <Button size="sm" onClick={proceedToPreview} className="font-bold">
-                Continue to Preview ({rawRows.length} Assets){" "}
+                Review Cleaned Assets{" "}
                 <ArrowRight className="ml-1.5 size-3.5" />
               </Button>
             </div>
