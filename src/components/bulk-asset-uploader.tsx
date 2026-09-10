@@ -195,19 +195,25 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
     }
   };
 
-  const runAiScan = async (file?: File, text?: string) => {
+  const runAiScan = async (file?: File, text?: string, url?: string) => {
     setIsScanning(true);
     try {
       const payload: {
         fileName?: string;
         mediaType?: string;
         fileBase64?: string;
+        fileUrl?: string;
         text?: string;
       } = {};
       if (file) {
         payload.fileName = file.name;
         payload.mediaType = file.type || "application/pdf";
         payload.fileBase64 = await fileToBase64(file);
+      }
+      if (url?.trim()) {
+        payload.fileUrl = url.trim();
+        payload.fileName = url.trim().split("/").pop() || "manual.pdf";
+        setFileName(payload.fileName);
       }
       if (text?.trim()) payload.text = text.trim();
 
