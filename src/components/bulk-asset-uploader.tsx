@@ -53,6 +53,7 @@ import {
   Package,
   Sparkles,
   CopyCheck,
+  Link2,
 } from "lucide-react";
 
 
