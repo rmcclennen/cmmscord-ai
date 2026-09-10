@@ -252,9 +252,15 @@ export function MatchPmAssetDialog({
       }
     },
     onSuccess: (_, variables) => {
+      setResolvedPmIds((prev) => {
+        const next = new Set(prev);
+        for (const link of variables) next.add(link.pmId);
+        return next;
+      });
       toast.success(
         `Successfully linked ${variables.length} PM schedule${variables.length > 1 ? "s" : ""} to asset${variables.length > 1 ? "s" : ""}!`,
       );
+
       queryClient.invalidateQueries({ queryKey: ["pms"] });
       queryClient.invalidateQueries({ queryKey: ["all-pms-for-matching"] });
       queryClient.invalidateQueries({ queryKey: ["pm-schedules"] });
