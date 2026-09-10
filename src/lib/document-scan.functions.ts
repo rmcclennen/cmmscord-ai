@@ -138,9 +138,9 @@ export const scanDocumentForAssets = createServerFn({ method: "POST" })
 
     if (fileBase64) {
       if (mediaType.startsWith("image/")) {
-        content.push({ type: "image", image: `data:${mediaType};base64,${data.fileBase64}` });
+        content.push({ type: "image", image: `data:${mediaType};base64,${fileBase64}` });
       } else {
-        content.push({ type: "file", data: data.fileBase64, mediaType });
+        content.push({ type: "file", data: fileBase64, mediaType });
       }
     }
     if (data.text?.trim()) {
