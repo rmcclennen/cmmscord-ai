@@ -23,6 +23,9 @@ import {
   KNOWN_FIELDS,
   autoDetectColumns,
   parseDocumentText,
+  parseSpreadsheetFile,
+  fileToBase64,
+  scanResultToAssets,
   transformRowsToAssets,
   downloadSampleAssetCsv,
   downloadSampleHierarchicalDoc,
@@ -31,13 +34,15 @@ import {
   type ColumnMapping,
   type ParsedAssetRow,
 } from "@/lib/asset-import";
+import { useServerFn } from "@tanstack/react-start";
+import { scanDocumentForAssets } from "@/lib/document-scan.functions";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import {
   UploadCloud,
   FileSpreadsheet,
   Download,
   CheckCircle2,
-  AlertTriangle,
   ArrowRight,
   ArrowLeft,
   Boxes,
@@ -46,7 +51,10 @@ import {
   FileText,
   Trash2,
   Package,
+  Sparkles,
+  CopyCheck,
 } from "lucide-react";
+
 
 interface BulkAssetUploaderProps {
   open: boolean;
@@ -86,9 +94,14 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
 
   const [cleanReset, setCleanReset] = useState<boolean>(false);
   const [autoGeneratePms, setAutoGeneratePms] = useState<boolean>(true);
+  const [skipDuplicates, setSkipDuplicates] = useState<boolean>(true);
   const [parsedAssets, setParsedAssets] = useState<ParsedAssetRow[]>([]);
+  const [excludedAssets, setExcludedAssets] = useState<Set<number>>(new Set());
+  const [excludedParts, setExcludedParts] = useState<Set<string>>(new Set());
   const [isImporting, setIsImporting] = useState<boolean>(false);
+  const [isScanning, setIsScanning] = useState<boolean>(false);
   const [isWiping, setIsWiping] = useState<boolean>(false);
+  const [scanSummary, setScanSummary] = useState<string>("");
   const [progress, setProgress] = useState<{ current: number; total: number }>({
     current: 0,
     total: 0,
@@ -97,7 +110,10 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
     inserted: number;
     partsLinked: number;
     pmsCreated: number;
+    skipped: number;
   } | null>(null);
+
+  const scanFn = useServerFn(scanDocumentForAssets);
 
   const resetState = () => {
     setStep(1);
@@ -107,40 +123,108 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
     setHeaders([]);
     setRawRows([]);
     setParsedAssets([]);
+    setExcludedAssets(new Set());
+    setExcludedParts(new Set());
     setCleanReset(false);
     setIsImporting(false);
+    setIsScanning(false);
     setIsWiping(false);
+    setScanSummary("");
     setProgress({ current: 0, total: 0 });
     setResultSummary(null);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    setFileName(file.name);
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = String(event.target?.result || "");
-      setRawText(text);
-      processFileText(text);
-    };
-    reader.readAsText(file);
+    if (file) void ingestFile(file);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
-    if (!file) return;
-    setFileName(file.name);
+    if (file) void ingestFile(file);
+  };
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = String(event.target?.result || "");
+  const ingestFile = async (file: File) => {
+    setFileName(file.name);
+    setExcludedAssets(new Set());
+    setExcludedParts(new Set());
+    setScanSummary("");
+
+    const lower = file.name.toLowerCase();
+    const isExcel = /\.(xlsx|xlsm|xls)$/.test(lower);
+    const isScannable = /\.(pdf|png|jpg|jpeg|webp|docx)$/.test(lower);
+
+    try {
+      if (isExcel) {
+        const parsed = await parseSpreadsheetFile(file);
+        if (parsed.rows.length === 0) {
+          toast.error("That workbook had no readable rows on its first sheet.");
+          return;
+        }
+        setIsHierarchical(false);
+        setHeaders(parsed.headers);
+        setRawRows(parsed.rows);
+        setMapping(autoDetectColumns(parsed.headers));
+        setStep(2);
+        toast.success(
+          `Read ${parsed.rows.length} rows and ${parsed.headers.length} columns from ${file.name}.`,
+        );
+        return;
+      }
+
+      if (isScannable) {
+        await runAiScan(file);
+        return;
+      }
+
+      const text = await file.text();
       setRawText(text);
       processFileText(text);
-    };
-    reader.readAsText(file);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not read that file.");
+    }
+  };
+
+  const runAiScan = async (file?: File, text?: string) => {
+    setIsScanning(true);
+    try {
+      const payload: {
+        fileName?: string;
+        mediaType?: string;
+        fileBase64?: string;
+        text?: string;
+      } = {};
+      if (file) {
+        payload.fileName = file.name;
+        payload.mediaType = file.type || "application/pdf";
+        payload.fileBase64 = await fileToBase64(file);
+      }
+      if (text?.trim()) payload.text = text.trim();
+
+      const result = await scanFn({ data: payload });
+      const assets = scanResultToAssets(result);
+      if (assets.length === 0) {
+        toast.error("No equipment, components or parts were found in that document.");
+        return;
+      }
+      setIsHierarchical(true);
+      setHeaders([]);
+      setRawRows([]);
+      setParsedAssets(assets);
+      setExcludedAssets(new Set());
+      setExcludedParts(new Set());
+      setScanSummary(result.document_summary || "");
+      setStep(3);
+      const partCount = assets.reduce((acc, a) => acc + (a.parts?.length || 0), 0);
+      toast.success(
+        `Found ${assets.length} equipment/component records and ${partCount} parts. Pick what to keep.`,
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Document scan failed.");
+    } finally {
+      setIsScanning(false);
+    }
   };
 
   const processFileText = (text: string) => {
@@ -156,8 +240,9 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
       setRawRows(parsed.rows);
 
       if (parsed.isHierarchical && parsed.hierarchicalAssets.length > 0) {
-        // Direct hierarchical asset-parts structure detected!
         setParsedAssets(parsed.hierarchicalAssets);
+        setExcludedAssets(new Set());
+        setExcludedParts(new Set());
         setStep(3);
         const totalParts = parsed.hierarchicalAssets.reduce(
           (acc, a) => acc + (a.parts?.length || 0),
@@ -167,7 +252,6 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
           `Detected tabbed hierarchy: ${parsed.hierarchicalAssets.length} Assets with ${totalParts} nested Parts!`,
         );
       } else {
-        // Standard tabular format
         const autoMap = autoDetectColumns(parsed.headers);
         setMapping(autoMap);
         setStep(2);
@@ -189,8 +273,39 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
       return;
     }
     setParsedAssets(assets);
+    setExcludedAssets(new Set());
+    setExcludedParts(new Set());
     setStep(3);
   };
+
+  const toggleAsset = (idx: number) => {
+    setExcludedAssets((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  };
+
+  const togglePart = (key: string) => {
+    setExcludedParts((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const selectedAssets: ParsedAssetRow[] = parsedAssets
+    .map((asset, idx) => ({ asset, idx }))
+    .filter(({ idx }) => !excludedAssets.has(idx))
+    .map(({ asset, idx }) => ({
+      ...asset,
+      parts: (asset.parts ?? []).filter((_, pIdx) => !excludedParts.has(`${idx}:${pIdx}`)),
+    }));
+
+  const selectedPartsCount = selectedAssets.reduce((acc, a) => acc + (a.parts?.length || 0), 0);
+
 
   const executeWipeDatabase = async () => {
     if (
@@ -214,17 +329,22 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
   };
 
   const executeImport = async () => {
-    if (parsedAssets.length === 0) return;
+    if (selectedAssets.length === 0) {
+      toast.error("Select at least one piece of equipment to import.");
+      return;
+    }
     setIsImporting(true);
     setStep(4);
-    setProgress({ current: 0, total: parsedAssets.length });
+    setProgress({ current: 0, total: selectedAssets.length });
 
     try {
-      const res = await bulkInsertAssets(parsedAssets, {
+      const res = await bulkInsertAssets(selectedAssets, {
         cleanReset,
         generatePmSchedules: autoGeneratePms,
+        skipDuplicates,
         onProgress: (curr, tot) => setProgress({ current: curr, total: tot }),
       });
+
 
       setResultSummary(res);
       queryClient.invalidateQueries({ queryKey: ["assets-all"] });
@@ -285,20 +405,26 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
             >
               <FileSpreadsheet className="size-12 text-primary" aria-hidden="true" />
               <h3 className="mt-3 text-base font-bold text-foreground">
-                Drop your document or spreadsheet here (.csv, .tsv, .txt)
+                Drop a spreadsheet, manual or photo here
               </h3>
               <p className="mt-1 max-w-md text-xs text-muted-foreground">
-                Supports hierarchical lists (Assets with indented/tabbed Parts) or standard CSV
-                equipment tables.
+                Excel (.xlsx, .xls), CSV/TSV/TXT lists, or a manual / cut sheet / nameplate photo
+                (.pdf, .png, .jpg) that we read for equipment, components and parts.
               </p>
+              {isScanning && (
+                <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-primary">
+                  <Sparkles className="size-3.5 animate-pulse" /> Reading {fileName}…
+                </p>
+              )}
 
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".csv,.tsv,.txt"
+                accept=".csv,.tsv,.txt,.xlsx,.xlsm,.xls,.pdf,.png,.jpg,.jpeg,.webp"
                 className="sr-only"
                 onChange={handleFileChange}
               />
+
 
               <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
                 <Button
@@ -347,13 +473,24 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
                 className="mt-2 h-32 w-full rounded-md border border-input bg-background p-3 font-mono text-xs text-foreground focus-visible:ring-2 focus-visible:ring-primary"
               />
               {rawText.trim().length > 0 && (
-                <div className="mt-3 flex justify-end">
+                <div className="mt-3 flex flex-wrap justify-end gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={isScanning}
+                    onClick={() => void runAiScan(undefined, rawText)}
+                    className="font-bold"
+                  >
+                    <Sparkles className="mr-1 size-3.5 text-primary" />
+                    {isScanning ? "Reading…" : "Read with AI"}
+                  </Button>
                   <Button size="sm" onClick={() => processFileText(rawText)} className="font-bold">
                     Parse Document & Load <ArrowRight className="ml-1 size-3.5" />
                   </Button>
                 </div>
               )}
             </div>
+
 
             {/* Database Clear Utility */}
             <div className="flex items-center justify-between rounded-lg border border-destructive/30 bg-destructive/5 p-3">
@@ -474,28 +611,41 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
         {/* Step 3: Preview & Import Options */}
         {step === 3 && (
           <div className="mt-4 space-y-5">
+            {scanSummary && (
+              <p className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs text-muted-foreground">
+                <Sparkles className="mr-1 inline size-3.5 text-primary" />
+                {scanSummary}
+              </p>
+            )}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="rounded-lg border border-border bg-card p-3 text-center">
                 <p className="text-[11px] text-muted-foreground font-semibold uppercase">
-                  Assets to Ingest
+                  Selected Equipment
                 </p>
-                <p className="text-2xl font-bold text-foreground">{parsedAssets.length}</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {selectedAssets.length}
+                  <span className="text-sm text-muted-foreground"> / {parsedAssets.length}</span>
+                </p>
               </div>
               <div className="rounded-lg border border-border bg-card p-3 text-center">
                 <p className="text-[11px] text-muted-foreground font-semibold uppercase">
-                  Parts to Link
+                  Selected Parts
                 </p>
-                <p className="text-2xl font-bold text-primary">{totalNestedPartsCount} Parts</p>
+                <p className="text-2xl font-bold text-primary">
+                  {selectedPartsCount}
+                  <span className="text-sm text-muted-foreground"> / {totalNestedPartsCount}</span>
+                </p>
               </div>
               <div className="rounded-lg border border-border bg-card p-3 text-center">
                 <p className="text-[11px] text-muted-foreground font-semibold uppercase">
                   High Criticality
                 </p>
                 <p className="text-2xl font-bold text-destructive">
-                  {parsedAssets.filter((a) => a.criticality === "high").length}
+                  {selectedAssets.filter((a) => a.criticality === "high").length}
                 </p>
               </div>
             </div>
+
 
             {/* Ingestion Options: Clean Replace & Auto PM */}
             <div className="space-y-3">
@@ -543,67 +693,148 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
                   onCheckedChange={setAutoGeneratePms}
                 />
               </div>
+
+              <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 p-3.5">
+                <div className="flex items-start gap-3">
+                  <CopyCheck className="mt-0.5 size-4 text-primary" aria-hidden="true" />
+                  <div>
+                    <Label
+                      htmlFor="skip-dupes-toggle"
+                      className="text-xs font-bold text-foreground cursor-pointer"
+                    >
+                      Skip equipment that is already in the system
+                    </Label>
+                    <p className="text-[11px] text-muted-foreground">
+                      Matches on tag number or name so re-uploading a document does not create
+                      duplicates.
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  id="skip-dupes-toggle"
+                  checked={skipDuplicates}
+                  onCheckedChange={setSkipDuplicates}
+                />
+              </div>
             </div>
 
-            {/* Hierarchical Preview Tree */}
-            <div className="rounded-lg border border-border bg-card overflow-hidden">
-              <div className="bg-muted px-4 py-2 text-xs font-bold text-foreground flex items-center justify-between">
-                <span>Document Hierarchy Preview (Assets & Nested Parts)</span>
-                <span className="text-[11px] text-muted-foreground font-normal">
-                  Showing first {Math.min(10, parsedAssets.length)} assets
-                </span>
-              </div>
-              <div className="overflow-y-auto max-h-72 p-3 space-y-3">
-                {parsedAssets.slice(0, 10).map((asset, idx) => (
-                  <div key={idx} className="rounded-lg border border-border bg-background/70 p-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Boxes className="size-4 text-primary" />
-                        <span className="font-bold text-sm text-foreground">{asset.name}</span>
-                        {asset.tag_number && (
-                          <Badge variant="outline" className="font-mono text-[10px]">
-                            {asset.tag_number}
-                          </Badge>
-                        )}
-                        <Badge variant="secondary" className="text-[10px]">
-                          {asset.class}
-                        </Badge>
-                      </div>
-                      <span className="text-xs text-muted-foreground">{asset.building}</span>
-                    </div>
 
-                    {/* Tabbed-over nested parts section */}
-                    {asset.parts && asset.parts.length > 0 ? (
-                      <div className="mt-2.5 ml-4 border-l-2 border-primary/40 pl-3 space-y-1.5">
-                        <div className="text-[11px] font-semibold text-primary flex items-center gap-1">
-                          <Package className="size-3" /> Tabbed Parts for this Unit (
-                          {asset.parts.length}):
+            {/* Selectable preview */}
+            <div className="rounded-lg border border-border bg-card overflow-hidden">
+              <div className="bg-muted px-4 py-2 text-xs font-bold text-foreground flex flex-wrap items-center justify-between gap-2">
+                <span>Choose what to import (equipment, components & parts)</span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 text-[11px]"
+                    onClick={() => {
+                      setExcludedAssets(new Set());
+                      setExcludedParts(new Set());
+                    }}
+                  >
+                    Select all
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 text-[11px]"
+                    onClick={() => setExcludedAssets(new Set(parsedAssets.map((_, i) => i)))}
+                  >
+                    Clear all
+                  </Button>
+                  <span className="text-[11px] font-normal text-muted-foreground">
+                    Showing first {Math.min(200, parsedAssets.length)}
+                  </span>
+                </div>
+              </div>
+              <div className="overflow-y-auto max-h-80 p-3 space-y-3">
+                {parsedAssets.slice(0, 200).map((asset, idx) => {
+                  const assetIncluded = !excludedAssets.has(idx);
+                  return (
+                    <div
+                      key={idx}
+                      className={`rounded-lg border p-3 ${
+                        assetIncluded ? "border-border bg-background/70" : "border-dashed opacity-60"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <Checkbox
+                            id={`asset-${idx}`}
+                            checked={assetIncluded}
+                            onCheckedChange={() => toggleAsset(idx)}
+                          />
+                          <Boxes className="size-4 shrink-0 text-primary" />
+                          <Label
+                            htmlFor={`asset-${idx}`}
+                            className="truncate font-bold text-sm text-foreground cursor-pointer"
+                          >
+                            {asset.name}
+                          </Label>
+                          {asset.tag_number && (
+                            <Badge variant="outline" className="font-mono text-[10px]">
+                              {asset.tag_number}
+                            </Badge>
+                          )}
+                          <Badge variant="secondary" className="text-[10px]">
+                            {asset.category === "component" ? "Component" : asset.class}
+                          </Badge>
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                          {asset.parts.map((p, pIdx) => (
-                            <div
-                              key={pIdx}
-                              className="flex items-center justify-between rounded bg-muted/40 px-2.5 py-1 text-xs"
-                            >
-                              <span className="font-medium text-foreground truncate max-w-[180px]">
-                                ↳ {p.name}
-                              </span>
-                              <div className="flex items-center gap-2 text-[11px] text-muted-foreground font-mono">
-                                {p.part_number && <span>#{p.part_number}</span>}
-                                {p.qty_on_hand !== undefined && <span>Qty: {p.qty_on_hand}</span>}
-                                {p.unit_cost !== undefined && <span>${p.unit_cost}</span>}
-                              </div>
-                            </div>
-                          ))}
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {asset.building}
+                        </span>
+                      </div>
+
+                      {asset.parts && asset.parts.length > 0 ? (
+                        <div className="mt-2.5 ml-4 border-l-2 border-primary/40 pl-3 space-y-1.5">
+                          <div className="text-[11px] font-semibold text-primary flex items-center gap-1">
+                            <Package className="size-3" /> Parts for this unit ({asset.parts.length}
+                            ):
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                            {asset.parts.map((p, pIdx) => {
+                              const key = `${idx}:${pIdx}`;
+                              const partIncluded = assetIncluded && !excludedParts.has(key);
+                              return (
+                                <div
+                                  key={pIdx}
+                                  className="flex items-center justify-between gap-2 rounded bg-muted/40 px-2.5 py-1 text-xs"
+                                >
+                                  <div className="flex min-w-0 items-center gap-2">
+                                    <Checkbox
+                                      id={`part-${key}`}
+                                      checked={partIncluded}
+                                      disabled={!assetIncluded}
+                                      onCheckedChange={() => togglePart(key)}
+                                    />
+                                    <Label
+                                      htmlFor={`part-${key}`}
+                                      className="truncate max-w-[160px] font-medium text-foreground cursor-pointer"
+                                    >
+                                      {p.name}
+                                    </Label>
+                                  </div>
+                                  <div className="flex shrink-0 items-center gap-2 text-[11px] text-muted-foreground font-mono">
+                                    {p.part_number && <span>#{p.part_number}</span>}
+                                    {p.qty_on_hand !== undefined && <span>Qty: {p.qty_on_hand}</span>}
+                                    {p.unit_cost !== undefined && <span>${p.unit_cost}</span>}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    ) : (
-                      <div className="mt-1.5 ml-4 text-[11px] text-muted-foreground italic">
-                        ↳ No parts attached in document row
-                      </div>
-                    )}
-                  </div>
-                ))}
+                      ) : (
+                        <div className="mt-1.5 ml-4 text-[11px] text-muted-foreground italic">
+                          ↳ No parts found for this unit
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -611,11 +842,17 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
               <Button variant="outline" size="sm" onClick={() => setStep(isHierarchical ? 1 : 2)}>
                 <ArrowLeft className="mr-1.5 size-3.5" /> Back
               </Button>
-              <Button size="sm" onClick={executeImport} className="font-bold">
-                <Boxes className="mr-1.5 size-4" /> Start Ingestion ({parsedAssets.length} Assets,{" "}
-                {totalNestedPartsCount} Parts)
+              <Button
+                size="sm"
+                onClick={executeImport}
+                disabled={selectedAssets.length === 0}
+                className="font-bold"
+              >
+                <Boxes className="mr-1.5 size-4" /> Import {selectedAssets.length} records,{" "}
+                {selectedPartsCount} parts
               </Button>
             </div>
+
           </div>
         )}
 
@@ -668,6 +905,12 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
                     <p className="text-xl font-bold text-foreground">{resultSummary.pmsCreated}</p>
                   </div>
                 </div>
+                {resultSummary.skipped > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Skipped {resultSummary.skipped} records that were already in the system.
+                  </p>
+                )}
+
 
                 <div className="pt-4">
                   <Button
