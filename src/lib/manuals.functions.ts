@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
@@ -86,6 +87,7 @@ const ScanPmsResponseSchema = z.object({
  * cut sheets, and parts drawings using Gemini with Google Search Grounding and OEM verified indexes.
  */
 export const searchInternetManuals = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
       .object({
@@ -94,8 +96,8 @@ export const searchInternetManuals = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .handler(async ({ data }) => {
-    const supabase = getSupabaseClient();
+  .handler(async ({ data, context }) => {
+    const supabase = context.supabase;
 
     const { data: asset, error } = await supabase
       .from("assets")
@@ -330,6 +332,7 @@ Respond strictly with valid JSON with this schema:
  * Places a discovered or custom manual directly into the asset's attached manuals.
  */
 export const placeManualInAsset = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
       .object({
@@ -342,8 +345,8 @@ export const placeManualInAsset = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .handler(async ({ data }) => {
-    const supabase = getSupabaseClient();
+  .handler(async ({ data, context }) => {
+    const supabase = context.supabase;
 
     const { data: row, error } = await supabase
       .from("manuals")
@@ -371,6 +374,7 @@ export const placeManualInAsset = createServerFn({ method: "POST" })
  * manufacturer-recommended Preventive Maintenance (PM) schedule tasks.
  */
 export const scanManualForPms = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
       .object({
@@ -382,8 +386,8 @@ export const scanManualForPms = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .handler(async ({ data }) => {
-    const supabase = getSupabaseClient();
+  .handler(async ({ data, context }) => {
+    const supabase = context.supabase;
 
     const { data: asset, error: assetErr } = await supabase
       .from("assets")
@@ -551,6 +555,7 @@ Set manualTitle to "${docTitle}". Return between 5 and 20 practical tasks.`;
  * Adds multiple scanned PM tasks into the asset's active PM schedule table (pm_schedules).
  */
 export const addScannedPmsToSchedule = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
       .object({
@@ -569,8 +574,8 @@ export const addScannedPmsToSchedule = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .handler(async ({ data }) => {
-    const supabase = getSupabaseClient();
+  .handler(async ({ data, context }) => {
+    const supabase = context.supabase;
     const today = new Date();
 
     const rows = data.pms.map((pm) => {
@@ -696,11 +701,12 @@ function generateDefaultOemPms(
  * using live web search, based on whatever identifying info exists (name, tag, serial, type).
  */
 export const identifyAssetBrandModel = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z.object({ assetId: z.string().uuid(), hint: z.string().max(300).optional() }).parse(input),
   )
-  .handler(async ({ data }) => {
-    const supabase = getSupabaseClient();
+  .handler(async ({ data, context }) => {
+    const supabase = context.supabase;
 
     const { data: asset, error } = await supabase
       .from("assets")
