@@ -77,8 +77,8 @@ export const scanDocumentForAssets = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => InputSchema.parse(input))
   .handler(async ({ data }): Promise<DocumentScanResult> => {
-    if (!data.fileBase64 && !data.text?.trim()) {
-      throw new Error("Nothing to scan — upload a document or paste some text.");
+    if (!data.fileBase64 && !data.fileUrl && !data.text?.trim()) {
+      throw new Error("Nothing to scan — upload a document, paste a link, or paste some text.");
     }
 
     const apiKey = process.env["LOVABLE_API_KEY"];
