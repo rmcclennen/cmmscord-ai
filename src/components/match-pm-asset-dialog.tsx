@@ -171,9 +171,15 @@ export function MatchPmAssetDialog({
     };
   }, [isOpen, pms, assets]);
 
+  // Drop PMs that are already linked (or were just linked in this session)
+  const pendingSmartMatches = useMemo(() => {
+    const linked = new Set(pms.filter((p) => p.asset_id).map((p) => p.id));
+    return allSmartMatches.filter((m) => !resolvedPmIds.has(m.pmId) && !linked.has(m.pmId));
+  }, [allSmartMatches, resolvedPmIds, pms]);
+
   // Filter smart matches
   const filteredSmartMatches = useMemo(() => {
-    return allSmartMatches.filter((m) => {
+    return pendingSmartMatches.filter((m) => {
       if (confidenceFilter !== "all" && m.confidence !== confidenceFilter) return false;
       if (searchFilter.trim()) {
         const q = searchFilter.toLowerCase();
@@ -185,7 +191,8 @@ export function MatchPmAssetDialog({
       }
       return true;
     });
-  }, [allSmartMatches, confidenceFilter, searchFilter]);
+  }, [pendingSmartMatches, confidenceFilter, searchFilter]);
+
 
   const visibleSmartMatches = useMemo(
     () => filteredSmartMatches.slice(0, visibleSmartCount),
