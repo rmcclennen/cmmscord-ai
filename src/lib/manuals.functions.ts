@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
@@ -86,6 +87,7 @@ const ScanPmsResponseSchema = z.object({
  * cut sheets, and parts drawings using Gemini with Google Search Grounding and OEM verified indexes.
  */
 export const searchInternetManuals = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
       .object({
@@ -94,8 +96,8 @@ export const searchInternetManuals = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .handler(async ({ data }) => {
-    const supabase = getSupabaseClient();
+  .handler(async ({ data, context }) => {
+    const supabase = context.supabase;
 
     const { data: asset, error } = await supabase
       .from("assets")
@@ -330,6 +332,7 @@ Respond strictly with valid JSON with this schema:
  * Places a discovered or custom manual directly into the asset's attached manuals.
  */
 export const placeManualInAsset = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
       .object({
@@ -342,8 +345,8 @@ export const placeManualInAsset = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .handler(async ({ data }) => {
-    const supabase = getSupabaseClient();
+  .handler(async ({ data, context }) => {
+    const supabase = context.supabase;
 
     const { data: row, error } = await supabase
       .from("manuals")
@@ -371,6 +374,7 @@ export const placeManualInAsset = createServerFn({ method: "POST" })
  * manufacturer-recommended Preventive Maintenance (PM) schedule tasks.
  */
 export const scanManualForPms = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
       .object({
@@ -382,8 +386,8 @@ export const scanManualForPms = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .handler(async ({ data }) => {
-    const supabase = getSupabaseClient();
+  .handler(async ({ data, context }) => {
+    const supabase = context.supabase;
 
     const { data: asset, error: assetErr } = await supabase
       .from("assets")
@@ -415,19 +419,21 @@ export const scanManualForPms = createServerFn({ method: "POST" })
 
     let scannedPms: ScannedPmTask[] = [];
 
-    const geminiKey = process.env["GEMINI_API_KEY"];
-    if (geminiKey) {
+    const apiKey = process.env["LOVABLE_API_KEY"];
+    if (apiKey) {
       try {
-        const { GoogleGenAI } = await import("@google/genai");
-        const ai = new GoogleGenAI({
-          apiKey: geminiKey,
-          httpOptions: {
-            headers: { "User-Agent": "aistudio-build" },
-          },
+        const [{ generateText, Output, NoObjectGeneratedError }, { createOpenAICompatible }] =
+          await Promise.all([import("ai"), import("@ai-sdk/openai-compatible")]);
+
+        const gateway = createOpenAICompatible({
+          name: "lovable-ai-gateway",
+          supportsStructuredOutputs: true,
+          baseURL: "https://ai.gateway.lovable.dev/v1",
+          headers: { "Lovable-API-Key": apiKey },
         });
 
         const prompt = `You are a master municipal wastewater plant maintenance manager and equipment reliability engineer.
-You are scanning the following official manufacturer Operation and Maintenance (O&M) manual to extract all periodic Preventive Maintenance (PM) tasks for maintenance technicians.
+Extract all periodic Preventive Maintenance (PM) tasks recommended by the manufacturer for this asset.
 
 Asset Name: ${asset.name}
 Equipment Type: ${assetType}
@@ -439,61 +445,96 @@ Volts: ${asset.volts || "N/A"}
 Manual Title: ${docTitle}
 Manual Reference URL: ${docUrl}
 ${data.manualText ? `Manual Text Excerpt:\n"""${data.manualText}"""\n` : ""}
+If an attached manual document is provided, base every task on what that document actually says.
 
-Read through the manual and extract EVERY recurring preventive maintenance task recommended by the manufacturer.
 Cover:
 - Weekly / Monthly inspections (seal leakage, vibration, oil level, abnormal temperature)
-- Lubrication (specific bearing grease type, oil bath change intervals, purge procedures)
-- Mechanical seal and packing maintenance (seal flush fluid, quench chamber inspection)
-- Electrical / Motor testing (Megger insulation resistance check, terminal torque)
+- Lubrication (grease type, oil change intervals, purge procedures)
+- Mechanical seal and packing maintenance
+- Electrical / Motor testing (insulation resistance, terminal torque)
 - Annual / Overhaul checks (impeller clearance, wear ring tolerance, coupling alignment)
 
-Respond strictly with valid JSON with this schema:
-{
-  "manualTitle": "${docTitle}",
-  "pms": [
-    {
-      "task": "Concise, actionable PM title (e.g., 'Inspect Mechanical Seal Quench Fluid & Leakage')",
-      "frequency": "Weekly" | "Monthly" | "Quarterly" | "Semi-Annually" | "Annually",
-      "interval_days": 7 | 30 | 90 | 180 | 365,
-      "priority": "high" | "medium" | "low",
-      "category": "Lubrication" | "Mechanical Seal" | "Electrical / Motor" | "Vibration / Alignment" | "General Inspection",
-      "estimated_hours": 0.5,
-      "instructions": "Detailed step-by-step instructions from the manual, including lubricant specs, tolerances, and procedures.",
-      "safety_notes": "Safety requirements, Lockout/Tagout (LOTO), PPE, or confined space notes."
-    }
-  ]
-}`;
+Set manualTitle to "${docTitle}". Return between 5 and 20 practical tasks.`;
 
-        const response = await ai.models.generateContent({
-          model: "gemini-3.6-flash",
-          contents: prompt,
-          config: {
-            responseMimeType: "application/json",
-          },
-        });
-
-        if (response.text) {
-          const parsed = JSON.parse(response.text);
-          const validated = ScanPmsResponseSchema.safeParse(parsed);
-          if (validated.success && validated.data.pms.length > 0) {
-            scannedPms = validated.data.pms.map((p) => ({
-              id: crypto.randomUUID(),
-              task: p.task,
-              frequency: p.frequency,
-              interval_days: p.interval_days,
-              priority: p.priority,
-              category: p.category,
-              estimated_hours: p.estimated_hours || 1.0,
-              instructions: p.instructions ?? "",
-              safety_notes: p.safety_notes ?? "",
-            }));
+        // Try to actually read the manual file (uploaded files are stored as site-relative paths).
+        const content: Array<Record<string, unknown>> = [{ type: "text", text: prompt }];
+        let fetchUrl = docUrl;
+        if (docUrl.startsWith("/")) {
+          try {
+            const { getRequest } = await import("@tanstack/react-start/server");
+            fetchUrl = new URL(docUrl, new URL(getRequest().url).origin).toString();
+          } catch {
+            fetchUrl = "";
           }
         }
-      } catch (geminiErr) {
+        if (/^https?:\/\//i.test(fetchUrl)) {
+          try {
+            const res = await fetch(fetchUrl, { redirect: "follow" });
+            const contentType = (res.headers.get("content-type") || "").split(";")[0]?.trim() || "";
+            if (res.ok && !/text\/html/i.test(contentType)) {
+              const bytes = new Uint8Array(await res.arrayBuffer());
+              if (bytes.byteLength > 0 && bytes.byteLength <= 18 * 1024 * 1024) {
+                let binary = "";
+                for (let i = 0; i < bytes.length; i += 8192) {
+                  binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+                }
+                const base64 = btoa(binary);
+                if (contentType.startsWith("image/")) {
+                  content.push({ type: "image", image: `data:${contentType};base64,${base64}` });
+                } else {
+                  content.push({
+                    type: "file",
+                    data: base64,
+                    mediaType: contentType || "application/pdf",
+                  });
+                }
+              }
+            }
+          } catch (downloadErr) {
+            console.warn("Manual document could not be downloaded for scanning:", downloadErr);
+          }
+        }
+
+        let parsed: unknown;
+        try {
+          const { output } = await generateText({
+            model: gateway("google/gemini-3.5-flash"),
+            output: Output.object({ schema: ScanPmsResponseSchema }),
+            messages: [
+              {
+                role: "user",
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                content: content as any,
+              },
+            ],
+          });
+          parsed = output;
+        } catch (genErr) {
+          if (NoObjectGeneratedError.isInstance(genErr) && genErr.text) {
+            parsed = JSON.parse(genErr.text);
+          } else {
+            throw genErr;
+          }
+        }
+
+        const validated = ScanPmsResponseSchema.safeParse(parsed);
+        if (validated.success && validated.data.pms.length > 0) {
+          scannedPms = validated.data.pms.map((p) => ({
+            id: crypto.randomUUID(),
+            task: p.task,
+            frequency: p.frequency,
+            interval_days: p.interval_days,
+            priority: p.priority,
+            category: p.category,
+            estimated_hours: p.estimated_hours || 1.0,
+            instructions: p.instructions ?? "",
+            safety_notes: p.safety_notes ?? "",
+          }));
+        }
+      } catch (aiErr) {
         console.warn(
-          "Gemini PM scan attempt failed, using equipment maintenance intelligence fallback:",
-          geminiErr,
+          "AI PM scan attempt failed, using equipment maintenance intelligence fallback:",
+          aiErr,
         );
       }
     }
@@ -514,6 +555,7 @@ Respond strictly with valid JSON with this schema:
  * Adds multiple scanned PM tasks into the asset's active PM schedule table (pm_schedules).
  */
 export const addScannedPmsToSchedule = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
       .object({
@@ -532,8 +574,8 @@ export const addScannedPmsToSchedule = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .handler(async ({ data }) => {
-    const supabase = getSupabaseClient();
+  .handler(async ({ data, context }) => {
+    const supabase = context.supabase;
     const today = new Date();
 
     const rows = data.pms.map((pm) => {
@@ -659,11 +701,12 @@ function generateDefaultOemPms(
  * using live web search, based on whatever identifying info exists (name, tag, serial, type).
  */
 export const identifyAssetBrandModel = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z.object({ assetId: z.string().uuid(), hint: z.string().max(300).optional() }).parse(input),
   )
-  .handler(async ({ data }) => {
-    const supabase = getSupabaseClient();
+  .handler(async ({ data, context }) => {
+    const supabase = context.supabase;
 
     const { data: asset, error } = await supabase
       .from("assets")
