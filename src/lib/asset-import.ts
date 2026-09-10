@@ -24,13 +24,29 @@ export async function parseSpreadsheetFile(
     raw: false,
   });
 
-  // Find the first row that looks like a header (2+ non-empty cells)
+  // Prefer a row containing recognizable asset headings. Title blocks and report
+  // metadata often contain 2+ values before the actual table begins.
+  const headingPattern =
+    /asset|equipment|description|name|tag|model|serial|manufacturer|make|building|location|part/i;
   let headerIdx = matrix.findIndex(
-    (row) => Array.isArray(row) && row.filter((c) => String(c ?? "").trim()).length >= 2,
+    (row) =>
+      Array.isArray(row) &&
+      row.filter((c) => String(c ?? "").trim()).length >= 2 &&
+      row.some((c) => headingPattern.test(String(c ?? "").trim())),
   );
+  if (headerIdx < 0) {
+    headerIdx = matrix.findIndex(
+      (row) => Array.isArray(row) && row.filter((c) => String(c ?? "").trim()).length >= 2,
+    );
+  }
   if (headerIdx < 0) headerIdx = 0;
 
-  const rawHeaders = (matrix[headerIdx] ?? []).map((h, i) => {
+  const headerRow = matrix[headerIdx] ?? [];
+  let lastUsedColumn = -1;
+  headerRow.forEach((value, index) => {
+    if (String(value ?? "").trim()) lastUsedColumn = index;
+  });
+  const rawHeaders = headerRow.slice(0, lastUsedColumn + 1).map((h, i) => {
     const label = String(h ?? "").trim();
     return label || `Column ${i + 1}`;
   });
@@ -45,10 +61,11 @@ export async function parseSpreadsheetFile(
   const rows: Record<string, string>[] = [];
   for (let r = headerIdx + 1; r < matrix.length; r++) {
     const values = matrix[r] ?? [];
-    if (!values.some((v) => String(v ?? "").trim())) continue;
+    const boundedValues = values.slice(0, headers.length);
+    if (!boundedValues.some((v) => String(v ?? "").trim())) continue;
     const row: Record<string, string> = {};
     headers.forEach((h, i) => {
-      row[h] = String(values[i] ?? "").trim();
+      row[h] = String(boundedValues[i] ?? "").trim();
     });
     rows.push(row);
   }
@@ -535,6 +552,21 @@ export function stripShelfLocation(text: string | null | undefined): string {
   return cleaned;
 }
 
+const INVALID_CELL_VALUE = /^(?:#(?:REF|VALUE|NAME|DIV\/0|N\/A|NUM|NULL)!?|undefined|null|nan)$/i;
+const REPEATED_HEADER = /^(?:asset|asset name|equipment|equipment name|description|item name|name)$/i;
+const DATE_ONLY = /^(?:\d{1,2}[/-]){2}\d{2,4}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?$/;
+
+/** Prevent report rows, spreadsheet errors, dates and standalone IDs from becoming assets. */
+export function isPlausibleAssetName(value: string | null | undefined): boolean {
+  const name = String(value ?? "").replace(/\s+/g, " ").trim();
+  if (name.length < 3 || name.length > 240) return false;
+  if (INVALID_CELL_VALUE.test(name) || REPEATED_HEADER.test(name) || DATE_ONLY.test(name)) return false;
+  if (/^(?:total|subtotal|grand total|page \d+|continued)$/i.test(name)) return false;
+  if (/^[\d\s.,$%()+\-/:#]+$/.test(name)) return false;
+  if (/^=/.test(name)) return false;
+  return /[a-z]/i.test(name);
+}
+
 /**
  * Maps raw records to structured Asset objects according to column mapping.
  */
@@ -546,7 +578,7 @@ export function transformRowsToAssets(
     .map((r) => {
       const rawName = (r[mapping.name] || "").trim();
       const name = stripShelfLocation(rawName) || rawName;
-      if (!name) return null;
+      if (!isPlausibleAssetName(name)) return null;
 
       const tag_number = (r[mapping.tag_number] || "").trim() || undefined;
       const rawClass = (r[mapping.class] || "").trim().toUpperCase();
@@ -792,6 +824,17 @@ export async function bulkInsertAssets(
     onProgress?: (progress: number, total: number) => void;
   } = {},
 ): Promise<{ inserted: number; partsLinked: number; pmsCreated: number; skipped: number }> {
+  const validAssets = assets.filter((asset) => isPlausibleAssetName(asset.name));
+  if (validAssets.length === 0) {
+    throw new Error("No readable equipment names were found. Check the Asset Name column mapping.");
+  }
+  if (validAssets.length > 5000) {
+    throw new Error(
+      `Import stopped: ${validAssets.length.toLocaleString()} rows look like assets. Check the Asset Name column mapping or split the file into smaller equipment lists.`,
+    );
+  }
+  assets = validAssets;
+
   if (options.cleanReset) {
     await clearAllAssetsDatabase();
   }
