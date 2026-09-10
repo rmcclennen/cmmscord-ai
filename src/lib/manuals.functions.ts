@@ -415,19 +415,21 @@ export const scanManualForPms = createServerFn({ method: "POST" })
 
     let scannedPms: ScannedPmTask[] = [];
 
-    const geminiKey = process.env["GEMINI_API_KEY"];
-    if (geminiKey) {
+    const apiKey = process.env["LOVABLE_API_KEY"];
+    if (apiKey) {
       try {
-        const { GoogleGenAI } = await import("@google/genai");
-        const ai = new GoogleGenAI({
-          apiKey: geminiKey,
-          httpOptions: {
-            headers: { "User-Agent": "aistudio-build" },
-          },
+        const [{ generateText, Output, NoObjectGeneratedError }, { createOpenAICompatible }] =
+          await Promise.all([import("ai"), import("@ai-sdk/openai-compatible")]);
+
+        const gateway = createOpenAICompatible({
+          name: "lovable-ai-gateway",
+          supportsStructuredOutputs: true,
+          baseURL: "https://ai.gateway.lovable.dev/v1",
+          headers: { "Lovable-API-Key": apiKey },
         });
 
         const prompt = `You are a master municipal wastewater plant maintenance manager and equipment reliability engineer.
-You are scanning the following official manufacturer Operation and Maintenance (O&M) manual to extract all periodic Preventive Maintenance (PM) tasks for maintenance technicians.
+Extract all periodic Preventive Maintenance (PM) tasks recommended by the manufacturer for this asset.
 
 Asset Name: ${asset.name}
 Equipment Type: ${assetType}
@@ -439,61 +441,87 @@ Volts: ${asset.volts || "N/A"}
 Manual Title: ${docTitle}
 Manual Reference URL: ${docUrl}
 ${data.manualText ? `Manual Text Excerpt:\n"""${data.manualText}"""\n` : ""}
+If an attached manual document is provided, base every task on what that document actually says.
 
-Read through the manual and extract EVERY recurring preventive maintenance task recommended by the manufacturer.
 Cover:
 - Weekly / Monthly inspections (seal leakage, vibration, oil level, abnormal temperature)
-- Lubrication (specific bearing grease type, oil bath change intervals, purge procedures)
-- Mechanical seal and packing maintenance (seal flush fluid, quench chamber inspection)
-- Electrical / Motor testing (Megger insulation resistance check, terminal torque)
+- Lubrication (grease type, oil change intervals, purge procedures)
+- Mechanical seal and packing maintenance
+- Electrical / Motor testing (insulation resistance, terminal torque)
 - Annual / Overhaul checks (impeller clearance, wear ring tolerance, coupling alignment)
 
-Respond strictly with valid JSON with this schema:
-{
-  "manualTitle": "${docTitle}",
-  "pms": [
-    {
-      "task": "Concise, actionable PM title (e.g., 'Inspect Mechanical Seal Quench Fluid & Leakage')",
-      "frequency": "Weekly" | "Monthly" | "Quarterly" | "Semi-Annually" | "Annually",
-      "interval_days": 7 | 30 | 90 | 180 | 365,
-      "priority": "high" | "medium" | "low",
-      "category": "Lubrication" | "Mechanical Seal" | "Electrical / Motor" | "Vibration / Alignment" | "General Inspection",
-      "estimated_hours": 0.5,
-      "instructions": "Detailed step-by-step instructions from the manual, including lubricant specs, tolerances, and procedures.",
-      "safety_notes": "Safety requirements, Lockout/Tagout (LOTO), PPE, or confined space notes."
-    }
-  ]
-}`;
+Set manualTitle to "${docTitle}". Return between 5 and 20 practical tasks.`;
 
-        const response = await ai.models.generateContent({
-          model: "gemini-3.6-flash",
-          contents: prompt,
-          config: {
-            responseMimeType: "application/json",
-          },
-        });
-
-        if (response.text) {
-          const parsed = JSON.parse(response.text);
-          const validated = ScanPmsResponseSchema.safeParse(parsed);
-          if (validated.success && validated.data.pms.length > 0) {
-            scannedPms = validated.data.pms.map((p) => ({
-              id: crypto.randomUUID(),
-              task: p.task,
-              frequency: p.frequency,
-              interval_days: p.interval_days,
-              priority: p.priority,
-              category: p.category,
-              estimated_hours: p.estimated_hours || 1.0,
-              instructions: p.instructions ?? "",
-              safety_notes: p.safety_notes ?? "",
-            }));
+        // Try to actually read the manual file when it is a public PDF/image link.
+        const content: Array<Record<string, unknown>> = [{ type: "text", text: prompt }];
+        if (/^https?:\/\//i.test(docUrl)) {
+          try {
+            const res = await fetch(docUrl, { redirect: "follow" });
+            const contentType = (res.headers.get("content-type") || "").split(";")[0]?.trim() || "";
+            if (res.ok && !/text\/html/i.test(contentType)) {
+              const bytes = new Uint8Array(await res.arrayBuffer());
+              if (bytes.byteLength > 0 && bytes.byteLength <= 18 * 1024 * 1024) {
+                let binary = "";
+                for (let i = 0; i < bytes.length; i += 8192) {
+                  binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+                }
+                const base64 = btoa(binary);
+                if (contentType.startsWith("image/")) {
+                  content.push({ type: "image", image: `data:${contentType};base64,${base64}` });
+                } else {
+                  content.push({
+                    type: "file",
+                    data: base64,
+                    mediaType: contentType || "application/pdf",
+                  });
+                }
+              }
+            }
+          } catch (downloadErr) {
+            console.warn("Manual document could not be downloaded for scanning:", downloadErr);
           }
         }
-      } catch (geminiErr) {
+
+        let parsed: unknown;
+        try {
+          const { output } = await generateText({
+            model: gateway("google/gemini-3.5-flash"),
+            output: Output.object({ schema: ScanPmsResponseSchema }),
+            messages: [
+              {
+                role: "user",
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                content: content as any,
+              },
+            ],
+          });
+          parsed = output;
+        } catch (genErr) {
+          if (NoObjectGeneratedError.isInstance(genErr) && genErr.text) {
+            parsed = JSON.parse(genErr.text);
+          } else {
+            throw genErr;
+          }
+        }
+
+        const validated = ScanPmsResponseSchema.safeParse(parsed);
+        if (validated.success && validated.data.pms.length > 0) {
+          scannedPms = validated.data.pms.map((p) => ({
+            id: crypto.randomUUID(),
+            task: p.task,
+            frequency: p.frequency,
+            interval_days: p.interval_days,
+            priority: p.priority,
+            category: p.category,
+            estimated_hours: p.estimated_hours || 1.0,
+            instructions: p.instructions ?? "",
+            safety_notes: p.safety_notes ?? "",
+          }));
+        }
+      } catch (aiErr) {
         console.warn(
-          "Gemini PM scan attempt failed, using equipment maintenance intelligence fallback:",
-          geminiErr,
+          "AI PM scan attempt failed, using equipment maintenance intelligence fallback:",
+          aiErr,
         );
       }
     }
