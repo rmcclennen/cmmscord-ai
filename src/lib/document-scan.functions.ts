@@ -52,6 +52,8 @@ const InputSchema = z.object({
   mediaType: z.string().max(100).optional(),
   /** Base64 (no data: prefix) of a PDF or image document */
   fileBase64: z.string().min(50).optional(),
+  /** Public https link to a PDF or image manual, fetched server-side */
+  fileUrl: z.string().url().max(2000).optional(),
   /** Plain text extracted from a spreadsheet, manual excerpt, or pasted list */
   text: z.string().max(200000).optional(),
   hint: z.string().max(500).optional(),
