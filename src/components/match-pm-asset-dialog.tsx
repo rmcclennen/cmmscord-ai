@@ -288,7 +288,7 @@ export function MatchPmAssetDialog({
   // Link all high confidence matches
   const handleLinkAllHighConfidence = () => {
     const links: Array<{ pmId: string; assetId: string }> = [];
-    for (const match of allSmartMatches) {
+    for (const match of pendingSmartMatches) {
       if (match.confidence === "high") {
         const finalAssetId = assetOverrides[match.pmId] || match.suggestedAssetId;
         links.push({ pmId: match.pmId, assetId: finalAssetId });
@@ -315,7 +315,7 @@ export function MatchPmAssetDialog({
     }
   };
 
-  const highConfidenceCount = allSmartMatches.filter((m) => m.confidence === "high").length;
+  const highConfidenceCount = pendingSmartMatches.filter((m) => m.confidence === "high").length;
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -373,7 +373,7 @@ export function MatchPmAssetDialog({
                 </span>
               ) : (
                 <span className="ml-1.5 font-mono font-bold text-primary">
-                  {allSmartMatches.length}
+                  {pendingSmartMatches.length}
                 </span>
               )}
             </div>
@@ -399,7 +399,7 @@ export function MatchPmAssetDialog({
                   </TabsTrigger>
                 )}
                 <TabsTrigger value="smart-matches" className="gap-1.5 text-xs font-semibold">
-                  <Sparkles className="size-3.5" /> Smart Auto-Matches ({allSmartMatches.length})
+                  <Sparkles className="size-3.5" /> Smart Auto-Matches ({pendingSmartMatches.length})
                 </TabsTrigger>
                 <TabsTrigger value="unlinked-pms" className="gap-1.5 text-xs font-semibold">
                   <HelpCircle className="size-3.5" /> Unassigned PMs ({unlinkedPms.length})
