@@ -177,6 +177,12 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
       }
 
       if (isScannable) {
+        if (file.size > 18 * 1024 * 1024) {
+          toast.error(
+            "That file is over 18 MB. Upload just the parts list or nameplate pages of the manual.",
+          );
+          return;
+        }
         await runAiScan(file);
         return;
       }
