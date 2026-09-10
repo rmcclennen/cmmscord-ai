@@ -405,20 +405,26 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
             >
               <FileSpreadsheet className="size-12 text-primary" aria-hidden="true" />
               <h3 className="mt-3 text-base font-bold text-foreground">
-                Drop your document or spreadsheet here (.csv, .tsv, .txt)
+                Drop a spreadsheet, manual or photo here
               </h3>
               <p className="mt-1 max-w-md text-xs text-muted-foreground">
-                Supports hierarchical lists (Assets with indented/tabbed Parts) or standard CSV
-                equipment tables.
+                Excel (.xlsx, .xls), CSV/TSV/TXT lists, or a manual / cut sheet / nameplate photo
+                (.pdf, .png, .jpg) that we read for equipment, components and parts.
               </p>
+              {isScanning && (
+                <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-primary">
+                  <Sparkles className="size-3.5 animate-pulse" /> Reading {fileName}…
+                </p>
+              )}
 
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".csv,.tsv,.txt"
+                accept=".csv,.tsv,.txt,.xlsx,.xlsm,.xls,.pdf,.png,.jpg,.jpeg,.webp"
                 className="sr-only"
                 onChange={handleFileChange}
               />
+
 
               <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
                 <Button
