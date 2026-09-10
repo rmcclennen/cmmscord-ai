@@ -693,7 +693,31 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
                   onCheckedChange={setAutoGeneratePms}
                 />
               </div>
+
+              <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 p-3.5">
+                <div className="flex items-start gap-3">
+                  <CopyCheck className="mt-0.5 size-4 text-primary" aria-hidden="true" />
+                  <div>
+                    <Label
+                      htmlFor="skip-dupes-toggle"
+                      className="text-xs font-bold text-foreground cursor-pointer"
+                    >
+                      Skip equipment that is already in the system
+                    </Label>
+                    <p className="text-[11px] text-muted-foreground">
+                      Matches on tag number or name so re-uploading a document does not create
+                      duplicates.
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  id="skip-dupes-toggle"
+                  checked={skipDuplicates}
+                  onCheckedChange={setSkipDuplicates}
+                />
+              </div>
             </div>
+
 
             {/* Hierarchical Preview Tree */}
             <div className="rounded-lg border border-border bg-card overflow-hidden">
