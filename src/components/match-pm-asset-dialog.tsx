@@ -134,6 +134,9 @@ export function MatchPmAssetDialog({
   // Compute Smart Batch Matches for all PMs — chunked/async so the dialog never freezes
   const [allSmartMatches, setAllSmartMatches] = useState<PmAssetMatch[]>([]);
   const [matchProgress, setMatchProgress] = useState<{ done: number; total: number } | null>(null);
+  // PMs linked during this session — hidden immediately so they stop reappearing
+  const [resolvedPmIds, setResolvedPmIds] = useState<Set<string>>(new Set());
+
 
   useEffect(() => {
     if (!isOpen || pms.length === 0 || assets.length === 0) {
@@ -146,7 +149,7 @@ export function MatchPmAssetDialog({
     setMatchProgress({ done: 0, total: pms.length });
 
     batchMatchPmsToAssetsAsync(pms, assets, {
-      unlinkedOnly: false,
+      unlinkedOnly: true,
       minConfidence: "low",
       chunkSize: 20,
       shouldCancel: () => cancelled,
@@ -168,9 +171,15 @@ export function MatchPmAssetDialog({
     };
   }, [isOpen, pms, assets]);
 
+  // Drop PMs that are already linked (or were just linked in this session)
+  const pendingSmartMatches = useMemo(() => {
+    const linked = new Set(pms.filter((p) => p.asset_id).map((p) => p.id));
+    return allSmartMatches.filter((m) => !resolvedPmIds.has(m.pmId) && !linked.has(m.pmId));
+  }, [allSmartMatches, resolvedPmIds, pms]);
+
   // Filter smart matches
   const filteredSmartMatches = useMemo(() => {
-    return allSmartMatches.filter((m) => {
+    return pendingSmartMatches.filter((m) => {
       if (confidenceFilter !== "all" && m.confidence !== confidenceFilter) return false;
       if (searchFilter.trim()) {
         const q = searchFilter.toLowerCase();
@@ -182,7 +191,8 @@ export function MatchPmAssetDialog({
       }
       return true;
     });
-  }, [allSmartMatches, confidenceFilter, searchFilter]);
+  }, [pendingSmartMatches, confidenceFilter, searchFilter]);
+
 
   const visibleSmartMatches = useMemo(
     () => filteredSmartMatches.slice(0, visibleSmartCount),
@@ -216,8 +226,9 @@ export function MatchPmAssetDialog({
   // Matches for specific target asset (if in targetAsset mode)
   const targetAssetMatches = useMemo(() => {
     if (!targetAsset || pms.length === 0) return [];
-    return findMatchingPmsForAsset(targetAsset, pms);
-  }, [targetAsset, pms]);
+    return findMatchingPmsForAsset(targetAsset, pms).filter((m) => !resolvedPmIds.has(m.pm.id));
+  }, [targetAsset, pms, resolvedPmIds]);
+
 
   // Mutation to link PMs to Assets
   const linkMutation = useMutation({
@@ -241,9 +252,15 @@ export function MatchPmAssetDialog({
       }
     },
     onSuccess: (_, variables) => {
+      setResolvedPmIds((prev) => {
+        const next = new Set(prev);
+        for (const link of variables) next.add(link.pmId);
+        return next;
+      });
       toast.success(
         `Successfully linked ${variables.length} PM schedule${variables.length > 1 ? "s" : ""} to asset${variables.length > 1 ? "s" : ""}!`,
       );
+
       queryClient.invalidateQueries({ queryKey: ["pms"] });
       queryClient.invalidateQueries({ queryKey: ["all-pms-for-matching"] });
       queryClient.invalidateQueries({ queryKey: ["pm-schedules"] });
@@ -278,7 +295,7 @@ export function MatchPmAssetDialog({
   // Link all high confidence matches
   const handleLinkAllHighConfidence = () => {
     const links: Array<{ pmId: string; assetId: string }> = [];
-    for (const match of allSmartMatches) {
+    for (const match of pendingSmartMatches) {
       if (match.confidence === "high") {
         const finalAssetId = assetOverrides[match.pmId] || match.suggestedAssetId;
         links.push({ pmId: match.pmId, assetId: finalAssetId });
@@ -305,7 +322,7 @@ export function MatchPmAssetDialog({
     }
   };
 
-  const highConfidenceCount = allSmartMatches.filter((m) => m.confidence === "high").length;
+  const highConfidenceCount = pendingSmartMatches.filter((m) => m.confidence === "high").length;
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -363,7 +380,7 @@ export function MatchPmAssetDialog({
                 </span>
               ) : (
                 <span className="ml-1.5 font-mono font-bold text-primary">
-                  {allSmartMatches.length}
+                  {pendingSmartMatches.length}
                 </span>
               )}
             </div>
@@ -389,7 +406,7 @@ export function MatchPmAssetDialog({
                   </TabsTrigger>
                 )}
                 <TabsTrigger value="smart-matches" className="gap-1.5 text-xs font-semibold">
-                  <Sparkles className="size-3.5" /> Smart Auto-Matches ({allSmartMatches.length})
+                  <Sparkles className="size-3.5" /> Smart Auto-Matches ({pendingSmartMatches.length})
                 </TabsTrigger>
                 <TabsTrigger value="unlinked-pms" className="gap-1.5 text-xs font-semibold">
                   <HelpCircle className="size-3.5" /> Unassigned PMs ({unlinkedPms.length})
