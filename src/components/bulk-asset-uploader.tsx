@@ -94,9 +94,14 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
 
   const [cleanReset, setCleanReset] = useState<boolean>(false);
   const [autoGeneratePms, setAutoGeneratePms] = useState<boolean>(true);
+  const [skipDuplicates, setSkipDuplicates] = useState<boolean>(true);
   const [parsedAssets, setParsedAssets] = useState<ParsedAssetRow[]>([]);
+  const [excludedAssets, setExcludedAssets] = useState<Set<number>>(new Set());
+  const [excludedParts, setExcludedParts] = useState<Set<string>>(new Set());
   const [isImporting, setIsImporting] = useState<boolean>(false);
+  const [isScanning, setIsScanning] = useState<boolean>(false);
   const [isWiping, setIsWiping] = useState<boolean>(false);
+  const [scanSummary, setScanSummary] = useState<string>("");
   const [progress, setProgress] = useState<{ current: number; total: number }>({
     current: 0,
     total: 0,
@@ -105,7 +110,10 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
     inserted: number;
     partsLinked: number;
     pmsCreated: number;
+    skipped: number;
   } | null>(null);
+
+  const scanFn = useServerFn(scanDocumentForAssets);
 
   const resetState = () => {
     setStep(1);
@@ -115,40 +123,108 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
     setHeaders([]);
     setRawRows([]);
     setParsedAssets([]);
+    setExcludedAssets(new Set());
+    setExcludedParts(new Set());
     setCleanReset(false);
     setIsImporting(false);
+    setIsScanning(false);
     setIsWiping(false);
+    setScanSummary("");
     setProgress({ current: 0, total: 0 });
     setResultSummary(null);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    setFileName(file.name);
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = String(event.target?.result || "");
-      setRawText(text);
-      processFileText(text);
-    };
-    reader.readAsText(file);
+    if (file) void ingestFile(file);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
-    if (!file) return;
-    setFileName(file.name);
+    if (file) void ingestFile(file);
+  };
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = String(event.target?.result || "");
+  const ingestFile = async (file: File) => {
+    setFileName(file.name);
+    setExcludedAssets(new Set());
+    setExcludedParts(new Set());
+    setScanSummary("");
+
+    const lower = file.name.toLowerCase();
+    const isExcel = /\.(xlsx|xlsm|xls)$/.test(lower);
+    const isScannable = /\.(pdf|png|jpg|jpeg|webp|docx)$/.test(lower);
+
+    try {
+      if (isExcel) {
+        const parsed = await parseSpreadsheetFile(file);
+        if (parsed.rows.length === 0) {
+          toast.error("That workbook had no readable rows on its first sheet.");
+          return;
+        }
+        setIsHierarchical(false);
+        setHeaders(parsed.headers);
+        setRawRows(parsed.rows);
+        setMapping(autoDetectColumns(parsed.headers));
+        setStep(2);
+        toast.success(
+          `Read ${parsed.rows.length} rows and ${parsed.headers.length} columns from ${file.name}.`,
+        );
+        return;
+      }
+
+      if (isScannable) {
+        await runAiScan(file);
+        return;
+      }
+
+      const text = await file.text();
       setRawText(text);
       processFileText(text);
-    };
-    reader.readAsText(file);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not read that file.");
+    }
+  };
+
+  const runAiScan = async (file?: File, text?: string) => {
+    setIsScanning(true);
+    try {
+      const payload: {
+        fileName?: string;
+        mediaType?: string;
+        fileBase64?: string;
+        text?: string;
+      } = {};
+      if (file) {
+        payload.fileName = file.name;
+        payload.mediaType = file.type || "application/pdf";
+        payload.fileBase64 = await fileToBase64(file);
+      }
+      if (text?.trim()) payload.text = text.trim();
+
+      const result = await scanFn({ data: payload });
+      const assets = scanResultToAssets(result);
+      if (assets.length === 0) {
+        toast.error("No equipment, components or parts were found in that document.");
+        return;
+      }
+      setIsHierarchical(true);
+      setHeaders([]);
+      setRawRows([]);
+      setParsedAssets(assets);
+      setExcludedAssets(new Set());
+      setExcludedParts(new Set());
+      setScanSummary(result.document_summary || "");
+      setStep(3);
+      const partCount = assets.reduce((acc, a) => acc + (a.parts?.length || 0), 0);
+      toast.success(
+        `Found ${assets.length} equipment/component records and ${partCount} parts. Pick what to keep.`,
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Document scan failed.");
+    } finally {
+      setIsScanning(false);
+    }
   };
 
   const processFileText = (text: string) => {
@@ -164,8 +240,9 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
       setRawRows(parsed.rows);
 
       if (parsed.isHierarchical && parsed.hierarchicalAssets.length > 0) {
-        // Direct hierarchical asset-parts structure detected!
         setParsedAssets(parsed.hierarchicalAssets);
+        setExcludedAssets(new Set());
+        setExcludedParts(new Set());
         setStep(3);
         const totalParts = parsed.hierarchicalAssets.reduce(
           (acc, a) => acc + (a.parts?.length || 0),
@@ -175,7 +252,6 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
           `Detected tabbed hierarchy: ${parsed.hierarchicalAssets.length} Assets with ${totalParts} nested Parts!`,
         );
       } else {
-        // Standard tabular format
         const autoMap = autoDetectColumns(parsed.headers);
         setMapping(autoMap);
         setStep(2);
@@ -197,8 +273,39 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
       return;
     }
     setParsedAssets(assets);
+    setExcludedAssets(new Set());
+    setExcludedParts(new Set());
     setStep(3);
   };
+
+  const toggleAsset = (idx: number) => {
+    setExcludedAssets((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  };
+
+  const togglePart = (key: string) => {
+    setExcludedParts((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const selectedAssets: ParsedAssetRow[] = parsedAssets
+    .map((asset, idx) => ({ asset, idx }))
+    .filter(({ idx }) => !excludedAssets.has(idx))
+    .map(({ asset, idx }) => ({
+      ...asset,
+      parts: (asset.parts ?? []).filter((_, pIdx) => !excludedParts.has(`${idx}:${pIdx}`)),
+    }));
+
+  const selectedPartsCount = selectedAssets.reduce((acc, a) => acc + (a.parts?.length || 0), 0);
+
 
   const executeWipeDatabase = async () => {
     if (
