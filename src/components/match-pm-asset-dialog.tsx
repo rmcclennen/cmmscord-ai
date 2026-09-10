@@ -134,6 +134,9 @@ export function MatchPmAssetDialog({
   // Compute Smart Batch Matches for all PMs — chunked/async so the dialog never freezes
   const [allSmartMatches, setAllSmartMatches] = useState<PmAssetMatch[]>([]);
   const [matchProgress, setMatchProgress] = useState<{ done: number; total: number } | null>(null);
+  // PMs linked during this session — hidden immediately so they stop reappearing
+  const [resolvedPmIds, setResolvedPmIds] = useState<Set<string>>(new Set());
+
 
   useEffect(() => {
     if (!isOpen || pms.length === 0 || assets.length === 0) {
