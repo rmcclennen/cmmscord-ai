@@ -149,7 +149,7 @@ export function MatchPmAssetDialog({
     setMatchProgress({ done: 0, total: pms.length });
 
     batchMatchPmsToAssetsAsync(pms, assets, {
-      unlinkedOnly: false,
+      unlinkedOnly: true,
       minConfidence: "low",
       chunkSize: 20,
       shouldCancel: () => cancelled,
