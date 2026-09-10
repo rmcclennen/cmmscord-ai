@@ -53,6 +53,7 @@ import {
   Package,
   Sparkles,
   CopyCheck,
+  Link2,
 } from "lucide-react";
 
 
@@ -100,6 +101,7 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
   const [excludedParts, setExcludedParts] = useState<Set<string>>(new Set());
   const [isImporting, setIsImporting] = useState<boolean>(false);
   const [isScanning, setIsScanning] = useState<boolean>(false);
+  const [manualUrl, setManualUrl] = useState<string>("");
   const [isWiping, setIsWiping] = useState<boolean>(false);
   const [scanSummary, setScanSummary] = useState<string>("");
   const [progress, setProgress] = useState<{ current: number; total: number }>({
@@ -128,6 +130,7 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
     setCleanReset(false);
     setIsImporting(false);
     setIsScanning(false);
+    setManualUrl("");
     setIsWiping(false);
     setScanSummary("");
     setProgress({ current: 0, total: 0 });
@@ -174,6 +177,12 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
       }
 
       if (isScannable) {
+        if (file.size > 18 * 1024 * 1024) {
+          toast.error(
+            "That file is over 18 MB. Upload just the parts list or nameplate pages of the manual.",
+          );
+          return;
+        }
         await runAiScan(file);
         return;
       }
@@ -186,19 +195,25 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
     }
   };
 
-  const runAiScan = async (file?: File, text?: string) => {
+  const runAiScan = async (file?: File, text?: string, url?: string) => {
     setIsScanning(true);
     try {
       const payload: {
         fileName?: string;
         mediaType?: string;
         fileBase64?: string;
+        fileUrl?: string;
         text?: string;
       } = {};
       if (file) {
         payload.fileName = file.name;
         payload.mediaType = file.type || "application/pdf";
         payload.fileBase64 = await fileToBase64(file);
+      }
+      if (url?.trim()) {
+        payload.fileUrl = url.trim();
+        payload.fileName = url.trim().split("/").pop() || "manual.pdf";
+        setFileName(payload.fileName);
       }
       if (text?.trim()) payload.text = text.trim();
 
@@ -452,6 +467,35 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
                 >
                   <Download className="size-4" />
                   Download Standard CSV
+                </Button>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-border bg-card p-4">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <Link2 className="size-3.5 text-primary" /> Or Paste a Manual Link (PDF found
+                online)
+              </h4>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Paste the direct link to a PDF manual or cut sheet and we&apos;ll read the equipment,
+                components and parts out of it.
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <input
+                  type="url"
+                  value={manualUrl}
+                  onChange={(e) => setManualUrl(e.target.value)}
+                  placeholder="https://manufacturer.com/manuals/pump-om-manual.pdf"
+                  className="min-w-56 flex-1 rounded-md border border-input bg-background px-3 py-2 text-xs text-foreground focus-visible:ring-2 focus-visible:ring-primary"
+                />
+                <Button
+                  size="sm"
+                  disabled={isScanning || !manualUrl.trim()}
+                  onClick={() => void runAiScan(undefined, undefined, manualUrl)}
+                  className="font-bold"
+                >
+                  <Sparkles className="mr-1 size-3.5" />
+                  {isScanning ? "Reading…" : "Scan PDF Link"}
                 </Button>
               </div>
             </div>

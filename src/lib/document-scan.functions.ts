@@ -52,6 +52,8 @@ const InputSchema = z.object({
   mediaType: z.string().max(100).optional(),
   /** Base64 (no data: prefix) of a PDF or image document */
   fileBase64: z.string().min(50).optional(),
+  /** Public https link to a PDF or image manual, fetched server-side */
+  fileUrl: z.string().url().max(2000).optional(),
   /** Plain text extracted from a spreadsheet, manual excerpt, or pasted list */
   text: z.string().max(200000).optional(),
   hint: z.string().max(500).optional(),
@@ -75,8 +77,8 @@ export const scanDocumentForAssets = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => InputSchema.parse(input))
   .handler(async ({ data }): Promise<DocumentScanResult> => {
-    if (!data.fileBase64 && !data.text?.trim()) {
-      throw new Error("Nothing to scan — upload a document or paste some text.");
+    if (!data.fileBase64 && !data.fileUrl && !data.text?.trim()) {
+      throw new Error("Nothing to scan — upload a document, paste a link, or paste some text.");
     }
 
     const apiKey = process.env["LOVABLE_API_KEY"];
@@ -96,14 +98,49 @@ export const scanDocumentForAssets = createServerFn({ method: "POST" })
       data.hint ? `\n\nOperator note: ${data.hint}` : ""
     }`;
 
-    const mediaType = data.mediaType || "application/pdf";
+    let mediaType = data.mediaType || "application/pdf";
+    let fileBase64 = data.fileBase64;
+
+    if (!fileBase64 && data.fileUrl) {
+      let res: Response;
+      try {
+        res = await fetch(data.fileUrl, { redirect: "follow" });
+      } catch {
+        throw new Error("Could not download that link — check the address and try again.");
+      }
+      if (!res.ok) {
+        throw new Error(
+          `That link could not be downloaded (${res.status}). Some sites block downloads — save the file and upload it instead.`,
+        );
+      }
+      const contentType = res.headers.get("content-type") || "";
+      if (/text\/html/i.test(contentType)) {
+        throw new Error(
+          "That link is a web page, not a manual file. Use the direct link to the PDF.",
+        );
+      }
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      if (bytes.byteLength === 0) throw new Error("That link returned an empty file.");
+      if (bytes.byteLength > 18 * 1024 * 1024) {
+        throw new Error(
+          "That manual is larger than 18 MB. Upload just the parts list or nameplate pages instead.",
+        );
+      }
+      mediaType = contentType.split(";")[0]?.trim() || "application/pdf";
+      let binary = "";
+      for (let i = 0; i < bytes.length; i += 8192) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+      }
+      fileBase64 = btoa(binary);
+    }
+
     const content: Array<Record<string, unknown>> = [{ type: "text", text: header }];
 
-    if (data.fileBase64) {
+    if (fileBase64) {
       if (mediaType.startsWith("image/")) {
-        content.push({ type: "image", image: `data:${mediaType};base64,${data.fileBase64}` });
+        content.push({ type: "image", image: `data:${mediaType};base64,${fileBase64}` });
       } else {
-        content.push({ type: "file", data: data.fileBase64, mediaType });
+        content.push({ type: "file", data: fileBase64, mediaType });
       }
     }
     if (data.text?.trim()) {
