@@ -130,6 +130,7 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
     setCleanReset(false);
     setIsImporting(false);
     setIsScanning(false);
+    setManualUrl("");
     setIsWiping(false);
     setScanSummary("");
     setProgress({ current: 0, total: 0 });
