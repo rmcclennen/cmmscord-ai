@@ -23,6 +23,9 @@ import {
   KNOWN_FIELDS,
   autoDetectColumns,
   parseDocumentText,
+  parseSpreadsheetFile,
+  fileToBase64,
+  scanResultToAssets,
   transformRowsToAssets,
   downloadSampleAssetCsv,
   downloadSampleHierarchicalDoc,
@@ -31,13 +34,15 @@ import {
   type ColumnMapping,
   type ParsedAssetRow,
 } from "@/lib/asset-import";
+import { useServerFn } from "@tanstack/react-start";
+import { scanDocumentForAssets } from "@/lib/document-scan.functions";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import {
   UploadCloud,
   FileSpreadsheet,
   Download,
   CheckCircle2,
-  AlertTriangle,
   ArrowRight,
   ArrowLeft,
   Boxes,
@@ -46,7 +51,10 @@ import {
   FileText,
   Trash2,
   Package,
+  Sparkles,
+  CopyCheck,
 } from "lucide-react";
+
 
 interface BulkAssetUploaderProps {
   open: boolean;
