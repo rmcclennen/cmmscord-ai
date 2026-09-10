@@ -329,17 +329,22 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
   };
 
   const executeImport = async () => {
-    if (parsedAssets.length === 0) return;
+    if (selectedAssets.length === 0) {
+      toast.error("Select at least one piece of equipment to import.");
+      return;
+    }
     setIsImporting(true);
     setStep(4);
-    setProgress({ current: 0, total: parsedAssets.length });
+    setProgress({ current: 0, total: selectedAssets.length });
 
     try {
-      const res = await bulkInsertAssets(parsedAssets, {
+      const res = await bulkInsertAssets(selectedAssets, {
         cleanReset,
         generatePmSchedules: autoGeneratePms,
+        skipDuplicates,
         onProgress: (curr, tot) => setProgress({ current: curr, total: tot }),
       });
+
 
       setResultSummary(res);
       queryClient.invalidateQueries({ queryKey: ["assets-all"] });
