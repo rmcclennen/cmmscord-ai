@@ -452,11 +452,20 @@ Cover:
 
 Set manualTitle to "${docTitle}". Return between 5 and 20 practical tasks.`;
 
-        // Try to actually read the manual file when it is a public PDF/image link.
+        // Try to actually read the manual file (uploaded files are stored as site-relative paths).
         const content: Array<Record<string, unknown>> = [{ type: "text", text: prompt }];
-        if (/^https?:\/\//i.test(docUrl)) {
+        let fetchUrl = docUrl;
+        if (docUrl.startsWith("/")) {
           try {
-            const res = await fetch(docUrl, { redirect: "follow" });
+            const { getRequest } = await import("@tanstack/react-start/server");
+            fetchUrl = new URL(docUrl, new URL(getRequest().url).origin).toString();
+          } catch {
+            fetchUrl = "";
+          }
+        }
+        if (/^https?:\/\//i.test(fetchUrl)) {
+          try {
+            const res = await fetch(fetchUrl, { redirect: "follow" });
             const contentType = (res.headers.get("content-type") || "").split(";")[0]?.trim() || "";
             if (res.ok && !/text\/html/i.test(contentType)) {
               const bytes = new Uint8Array(await res.arrayBuffer());
