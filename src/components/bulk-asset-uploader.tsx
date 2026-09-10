@@ -905,6 +905,12 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
                     <p className="text-xl font-bold text-foreground">{resultSummary.pmsCreated}</p>
                   </div>
                 </div>
+                {resultSummary.skipped > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Skipped {resultSummary.skipped} records that were already in the system.
+                  </p>
+                )}
+
 
                 <div className="pt-4">
                   <Button
