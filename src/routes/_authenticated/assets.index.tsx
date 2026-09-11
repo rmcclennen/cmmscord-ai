@@ -38,6 +38,7 @@ import { CreatePmScheduleDialog } from "@/components/create-pm-schedule-dialog";
 import { MatchPmAssetDialog } from "@/components/match-pm-asset-dialog";
 import { PartsLookupDialog } from "@/components/parts-lookup-dialog";
 import { SystemBadge, getSystemIcon, getSystemColor } from "@/components/system-badge";
+import { QrLabelDialog, type QrLabelAsset } from "@/components/qr-label-dialog";
 import { getManufacturerPortalInfo } from "@/lib/manufacturer-links";
 import {
   AlertOctagon,
@@ -57,6 +58,7 @@ import {
   List,
   Package,
   Plus,
+  QrCode,
   Search,
   Sparkles,
   Tag,
@@ -97,6 +99,35 @@ interface LinkedPart {
   unit?: string | null;
   where_to_buy?: string | null;
   critical?: boolean | null;
+}
+
+function PrintAllQrLabelsButton() {
+  const { data } = useQuery({
+    queryKey: ["qr-label-assets"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("assets")
+        .select("id, name, tag_number, building, location_name")
+        .order("name")
+        .limit(200);
+      if (error) throw error;
+      return data as QrLabelAsset[];
+    },
+  });
+  return (
+    <QrLabelDialog
+      assets={data ?? []}
+      title="Print equipment QR labels"
+      trigger={
+        <Button
+          variant="outline"
+          className="flex items-center gap-2 font-semibold border-primary/40 text-primary hover:bg-primary/10"
+        >
+          <QrCode className="size-4" /> Print QR labels
+        </Button>
+      }
+    />
+  );
 }
 
 function AssetsPage() {
@@ -494,6 +525,7 @@ function AssetsPage() {
           >
             <UploadCloud className="size-4" /> Upload Document / Replace Assets
           </Button>
+          <PrintAllQrLabelsButton />
           <Button asChild variant="outline">
             <Link to="/assets/capture">
               <Camera className="size-4" /> Add by photo

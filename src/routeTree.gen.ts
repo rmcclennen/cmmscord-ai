@@ -23,6 +23,7 @@ import { Route as AuthenticatedManualsRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedPartRequestsRouteImport } from './routes/_authenticated/part-requests'
 import { Route as AuthenticatedPmDueRouteImport } from './routes/_authenticated/pm-due'
 import { Route as AuthenticatedPmScheduleRouteImport } from './routes/_authenticated/pm-schedule'
+import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedTeamRouteImport } from './routes/_authenticated/team'
 import { Route as AuthenticatedWorkOrdersRouteImport } from './routes/_authenticated/work-orders'
@@ -101,6 +102,11 @@ const AuthenticatedPmScheduleRoute = AuthenticatedPmScheduleRouteImport.update({
   path: '/pm-schedule',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -149,6 +155,7 @@ export interface FileRoutesByFullPath {
   '/part-requests': typeof AuthenticatedPartRequestsRoute
   '/pm-due': typeof AuthenticatedPmDueRoute
   '/pm-schedule': typeof AuthenticatedPmScheduleRoute
+  '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/team': typeof AuthenticatedTeamRoute
   '/work-orders': typeof AuthenticatedWorkOrdersRoute
@@ -170,6 +177,7 @@ export interface FileRoutesByTo {
   '/part-requests': typeof AuthenticatedPartRequestsRoute
   '/pm-due': typeof AuthenticatedPmDueRoute
   '/pm-schedule': typeof AuthenticatedPmScheduleRoute
+  '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/team': typeof AuthenticatedTeamRoute
   '/work-orders': typeof AuthenticatedWorkOrdersRoute
@@ -193,6 +201,7 @@ export interface FileRoutesById {
   '/_authenticated/part-requests': typeof AuthenticatedPartRequestsRoute
   '/_authenticated/pm-due': typeof AuthenticatedPmDueRoute
   '/_authenticated/pm-schedule': typeof AuthenticatedPmScheduleRoute
+  '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/team': typeof AuthenticatedTeamRoute
   '/_authenticated/work-orders': typeof AuthenticatedWorkOrdersRoute
@@ -216,6 +225,7 @@ export interface FileRouteTypes {
     | '/part-requests'
     | '/pm-due'
     | '/pm-schedule'
+    | '/reports'
     | '/settings'
     | '/team'
     | '/work-orders'
@@ -237,6 +247,7 @@ export interface FileRouteTypes {
     | '/part-requests'
     | '/pm-due'
     | '/pm-schedule'
+    | '/reports'
     | '/settings'
     | '/team'
     | '/work-orders'
@@ -259,6 +270,7 @@ export interface FileRouteTypes {
     | '/_authenticated/part-requests'
     | '/_authenticated/pm-due'
     | '/_authenticated/pm-schedule'
+    | '/_authenticated/reports'
     | '/_authenticated/settings'
     | '/_authenticated/team'
     | '/_authenticated/work-orders'
@@ -375,6 +387,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPmScheduleRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/reports': {
+      id: '/_authenticated/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof AuthenticatedReportsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/settings': {
       id: '/_authenticated/settings'
       path: '/settings'
@@ -430,6 +449,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPartRequestsRoute: typeof AuthenticatedPartRequestsRoute
   AuthenticatedPmDueRoute: typeof AuthenticatedPmDueRoute
   AuthenticatedPmScheduleRoute: typeof AuthenticatedPmScheduleRoute
+  AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedTeamRoute: typeof AuthenticatedTeamRoute
   AuthenticatedWorkOrdersRoute: typeof AuthenticatedWorkOrdersRoute
@@ -448,6 +468,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPartRequestsRoute: AuthenticatedPartRequestsRoute,
   AuthenticatedPmDueRoute: AuthenticatedPmDueRoute,
   AuthenticatedPmScheduleRoute: AuthenticatedPmScheduleRoute,
+  AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedTeamRoute: AuthenticatedTeamRoute,
   AuthenticatedWorkOrdersRoute: AuthenticatedWorkOrdersRoute,

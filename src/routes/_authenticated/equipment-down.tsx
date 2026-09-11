@@ -47,6 +47,7 @@ import {
 } from "lucide-react";
 import { ReportDownAssetDialog } from "@/components/report-down-asset-dialog";
 import { RepairCostDialog } from "@/components/repair-cost-dialog";
+import { RfqDialog } from "@/components/rfq-dialog";
 import { PartOrderUpdateDialog } from "@/components/part-order-update-dialog";
 import { WorkOrderDialog } from "@/components/work-order-dialog";
 import type { PartRequestRow } from "@/lib/part-requests";
@@ -869,6 +870,20 @@ function EquipmentDownPage() {
                           Update Repair Cost
                         </Button>
                       }
+                    />
+
+                    <RfqDialog
+                      asset={asset}
+                      workOrder={
+                        workOrders[0]
+                          ? {
+                              id: workOrders[0].id,
+                              wo_number: workOrders[0].wo_number,
+                              title: workOrders[0].title,
+                            }
+                          : null
+                      }
+                      quotedCost={assetPartsQuoted || null}
                     />
 
                     <WorkOrderDialog

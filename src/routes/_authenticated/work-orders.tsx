@@ -15,6 +15,7 @@ import {
 import { WorkOrderDialog } from "@/components/work-order-dialog";
 import { DeleteRequestDialog } from "@/components/delete-request-dialog";
 import { PartsLookupDialog } from "@/components/parts-lookup-dialog";
+import { RfqDialog } from "@/components/rfq-dialog";
 import { prettyLabel, WO_STATUSES } from "@/lib/cmms";
 import { useTeamMembers } from "@/hooks/use-team-members";
 import { memberLabel, notifyUser } from "@/lib/notify";
@@ -78,7 +79,7 @@ function WorkOrdersPage() {
     queryFn: async () => {
       let query = supabase
         .from("work_orders")
-        .select("*, assets(id, name, manufacturer, manufacturer_url)")
+        .select("*, assets(id, name, manufacturer, manufacturer_url, serial_number, model)")
         .order("created_at", { ascending: false })
         .limit(100);
       if (search.trim()) query = query.ilike("title", `%${search.trim()}%`);
@@ -247,6 +248,25 @@ function WorkOrdersPage() {
                 ))}
               </SelectContent>
             </Select>
+            <RfqDialog
+              asset={
+                wo.assets
+                  ? {
+                      id: wo.assets.id,
+                      name: wo.assets.name,
+                      serial_number: wo.assets.serial_number,
+                      manufacturer: wo.assets.manufacturer,
+                      model: wo.assets.model,
+                    }
+                  : null
+              }
+              workOrder={{
+                id: wo.id,
+                wo_number: wo.wo_number,
+                title: wo.title,
+                description: wo.description,
+              }}
+            />
             <PartsLookupDialog
               workOrder={{
                 id: wo.id,
