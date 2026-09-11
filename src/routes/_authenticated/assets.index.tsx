@@ -38,6 +38,7 @@ import { CreatePmScheduleDialog } from "@/components/create-pm-schedule-dialog";
 import { MatchPmAssetDialog } from "@/components/match-pm-asset-dialog";
 import { PartsLookupDialog } from "@/components/parts-lookup-dialog";
 import { SystemBadge, getSystemIcon, getSystemColor } from "@/components/system-badge";
+import { QrLabelDialog, type QrLabelAsset } from "@/components/qr-label-dialog";
 import { getManufacturerPortalInfo } from "@/lib/manufacturer-links";
 import {
   AlertOctagon,
@@ -57,6 +58,7 @@ import {
   List,
   Package,
   Plus,
+  QrCode,
   Search,
   Sparkles,
   Tag,
