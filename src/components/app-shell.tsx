@@ -12,6 +12,7 @@ import { openMorningPrintDialog } from "@/lib/auto-morning-print";
 import {
   AlertTriangle,
   AlertOctagon,
+  BarChart3,
   Boxes,
   CalendarClock,
   ClipboardList,
@@ -37,6 +38,7 @@ const NAV = [
   { to: "/work-orders", label: "Work Orders", icon: ClipboardList },
   { to: "/inventory", label: "Inventory", icon: Boxes },
   { to: "/part-requests", label: "Parts Requests", icon: ShoppingCart },
+  { to: "/reports", label: "Reports", icon: BarChart3 },
   { to: "/manuals", label: "Manuals", icon: FileText },
   { to: "/approvals", label: "Approvals", icon: ShieldCheck },
   { to: "/team", label: "Team", icon: Users },
