@@ -228,6 +228,7 @@ export function RfqDialog({ asset, workOrder, quotedCost, trigger }: Props) {
       open={open}
       onOpenChange={(v) => {
         setOpen(v);
+        if (v && !seeded) seed();
         if (!v) setSeeded(false);
       }}
     >
@@ -254,9 +255,6 @@ export function RfqDialog({ asset, workOrder, quotedCost, trigger }: Props) {
               id="rfq-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              onFocus={() => {
-                if (!seeded) seed();
-              }}
             />
           </div>
           {editField("Equipment", "EQUIPMENT", equipment, setEquipment, "rfq-equipment")}
@@ -293,9 +291,6 @@ export function RfqDialog({ asset, workOrder, quotedCost, trigger }: Props) {
               onChange={(e) => {
                 setSeeded(true);
                 setBody(e.target.value);
-              }}
-              onFocus={() => {
-                if (!seeded) seed();
               }}
             />
           </div>
