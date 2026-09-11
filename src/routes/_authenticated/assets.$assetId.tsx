@@ -96,6 +96,7 @@ import {
   PackageSearch,
   Pencil,
   Plus,
+  QrCode,
   Search,
   Send,
   ShieldCheck,

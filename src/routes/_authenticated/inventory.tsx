@@ -392,7 +392,55 @@ function InventoryPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+      </div>
+
+      {lowCount > 0 && !lowOnly && (
+        <div className="panel space-y-3 border-amber-500/40 p-4">
+          <p className="label-caps flex items-center gap-2 text-amber-600 dark:text-amber-400">
+            <TriangleAlert className="size-3.5" /> Reorder suggestions ({lowCount})
+          </p>
+          <div className="divide-y divide-border">
+            {(parts.data ?? []).filter(isLowStock).map((part) => {
+              const suggested = Math.max(1, (part.min_qty ?? 0) * 2 - part.qty_on_hand);
+              const est = part.unit_cost != null ? suggested * part.unit_cost : null;
+              return (
+                <div key={part.id} className="flex flex-wrap items-center gap-3 py-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium">{part.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {part.part_number ? `P/N ${part.part_number} · ` : ""}
+                      {part.qty_on_hand} {part.unit} on hand · min {part.min_qty}
+                      {part.where_to_buy ? ` · buy at ${part.where_to_buy}` : ""}
+                    </p>
+                  </div>
+                  <Badge variant="destructive">
+                    Suggest {suggested} {part.unit}
+                  </Badge>
+                  <span className="w-20 text-right font-mono text-xs">
+                    {est != null ? `≈ $${est.toFixed(2)}` : "—"}
+                  </span>
+                  <SendPartsDialog
+                    initialPart={{
+                      name: part.name,
+                      part_number: part.part_number,
+                      manufacturer: part.manufacturer,
+                      qty: suggested,
+                      where_to_buy: part.where_to_buy,
+                      unit_cost: part.unit_cost,
+                    }}
+                    trigger={
+                      <Button size="sm" variant="outline" className="h-7 gap-1 text-xs">
+                        <Send className="size-3 text-primary" /> Requisition
+                      </Button>
+                    }
+                  />
+                </div>
+              );
+            })}
+          </div>
         </div>
+      )}
+
         <Button variant={lowOnly ? "default" : "outline"} onClick={() => setLowOnly((v) => !v)}>
           <TriangleAlert className="size-4" /> Low stock ({lowCount})
         </Button>
