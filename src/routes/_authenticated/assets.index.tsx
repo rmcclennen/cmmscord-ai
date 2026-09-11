@@ -101,6 +101,35 @@ interface LinkedPart {
   critical?: boolean | null;
 }
 
+function PrintAllQrLabelsButton() {
+  const { data } = useQuery({
+    queryKey: ["qr-label-assets"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("assets")
+        .select("id, name, tag_number, building, location_name")
+        .order("name")
+        .limit(200);
+      if (error) throw error;
+      return data as QrLabelAsset[];
+    },
+  });
+  return (
+    <QrLabelDialog
+      assets={data ?? []}
+      title="Print equipment QR labels"
+      trigger={
+        <Button
+          variant="outline"
+          className="flex items-center gap-2 font-semibold border-primary/40 text-primary hover:bg-primary/10"
+        >
+          <QrCode className="size-4" /> Print QR labels
+        </Button>
+      }
+    />
+  );
+}
+
 function AssetsPage() {
   const [search, setSearch] = useState("");
   const [cls, setCls] = useState("all");
@@ -496,6 +525,7 @@ function AssetsPage() {
           >
             <UploadCloud className="size-4" /> Upload Document / Replace Assets
           </Button>
+          <PrintAllQrLabelsButton />
           <Button asChild variant="outline">
             <Link to="/assets/capture">
               <Camera className="size-4" /> Add by photo
