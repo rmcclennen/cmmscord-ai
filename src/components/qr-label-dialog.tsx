@@ -80,7 +80,7 @@ export function useQrCodes(assets: QrLabelAsset[], enabled: boolean) {
     const origin = window.location.origin;
     (async () => {
       const next: { [id: string]: string } = {};
-      for (const a of assets.slice(0, 60)) {
+      for (const a of assets.slice(0, 200)) {
         try {
           const url = await QRCode.toDataURL(`${origin}/assets/${a.id}`, {
             margin: 1,
