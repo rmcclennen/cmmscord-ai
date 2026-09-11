@@ -169,7 +169,7 @@ export function RfqDialog({ asset, workOrder, quotedCost, trigger }: Props) {
       queryClient.invalidateQueries({ queryKey: ["part-requests"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       setOpen(false);
-etSeeded(false);
+      setSeeded(false);
     },
     onError: (e: Error) => toast.error(e.message),
   });
