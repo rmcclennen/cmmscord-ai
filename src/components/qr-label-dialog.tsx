@@ -70,8 +70,7 @@ export function printQrLabels(assets: QrLabelAsset[]) {
 }
 
 /** Cache of generated QR data URLs so print and preview share them. */
-const qrCache = React.createRef<{ [id: string]: string }>().current ?? ({} as { [id: string]: string });
-const store: { [id: string]: string } = qrCache;
+const store: { [id: string]: string } = {};
 
 export function useQrCodes(assets: QrLabelAsset[], enabled: boolean) {
   const [urls, setUrls] = useState<{ [id: string]: string }>({});
