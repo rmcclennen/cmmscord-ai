@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WorkOrderDialog } from "@/components/work-order-dialog";
 import { DeleteRequestDialog } from "@/components/delete-request-dialog";
 import { EditAssetPartsDialog } from "@/components/edit-asset-parts-dialog";
+import { AddAssetPartDialog } from "@/components/add-asset-part-dialog";
 import { RelabelAssetDialog } from "@/components/relabel-asset-dialog";
 import { CreatePmScheduleDialog } from "@/components/create-pm-schedule-dialog";
 import { EditPmScheduleDialog } from "@/components/edit-pm-schedule-dialog";
@@ -720,8 +721,9 @@ function AssetDetail() {
       }));
     }
 
-    return defaultIntelligence?.parts ?? [];
-  }, [info.data?.parts, linkedPartsQuery.data, defaultIntelligence]);
+    return [];
+  }, [info.data?.parts, linkedPartsQuery.data]);
+
 
   const sources: Source[] = useMemo(() => {
     const raw = info.data?.sources as Source[] | null;
@@ -2493,6 +2495,16 @@ function AssetDetail() {
               </div>
 
               <div className="flex items-center gap-2">
+                <AddAssetPartDialog
+                  assetId={a.id}
+                  assetName={a.name}
+                  manufacturer={a.manufacturer}
+                  trigger={
+                    <Button size="sm" className="gap-1 text-xs font-medium">
+                      <Plus className="size-3.5" /> Add part for this equipment
+                    </Button>
+                  }
+                />
                 <EditAssetPartsDialog
                   assetId={a.id}
                   assetName={a.name}
