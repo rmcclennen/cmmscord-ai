@@ -933,6 +933,7 @@ function AssetDetail() {
                 </Button>
               }
             />
+          </div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <SystemBadge system={resolvedSystem} size="md" />
 
