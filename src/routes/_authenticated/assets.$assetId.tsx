@@ -919,8 +919,8 @@ function AssetDetail() {
                   id: a.id,
                   name: a.name,
                   tag_number: a.tag_number,
-                  building: currentAssetData.building,
-                  location_name: currentAssetData.location_name,
+                  building: currentAssetData?.building,
+                  location_name: currentAssetData?.location_name,
                 },
               ]}
               trigger={

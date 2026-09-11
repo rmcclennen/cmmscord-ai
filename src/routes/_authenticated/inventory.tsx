@@ -215,9 +215,10 @@ function MovementDialog({ part }: { part: PartWithLinks }) {
     },
     onSuccess: () => {
       toast.success("Stock updated");
-      if (kind === "issue" && part.qty_on_hand - qty <= part.min_qty) {
+      const moved = Number(qty) || 0;
+      if (kind === "issue" && part.qty_on_hand - moved <= part.min_qty) {
         toast.warning(
-          `${part.name} is now at or below its minimum (${Math.max(part.qty_on_hand - qty, 0)} left, min ${part.min_qty}) — reorder soon.`,
+          `${part.name} is now at or below its minimum (${Math.max(part.qty_on_hand - moved, 0)} left, min ${part.min_qty}) — reorder soon.`,
         );
       }
       queryClient.invalidateQueries({ queryKey: ["parts"] });

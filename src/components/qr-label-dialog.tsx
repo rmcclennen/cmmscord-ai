@@ -46,7 +46,7 @@ export function printQrLabels(assets: QrLabelAsset[]) {
     return;
   }
   const cards = assets.map(
-    (a) => labelHtml(a, qrCache.current[a.id] ?? "", `${origin}/assets/${a.id}`),
+    (a) => labelHtml(a, store[a.id] ?? "", `${origin}/assets/${a.id}`),
   );
   win.document.write(`<!doctype html><html><head><title>Asset QR Labels</title>
   <style>
