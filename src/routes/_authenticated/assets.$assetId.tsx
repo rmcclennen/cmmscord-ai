@@ -14,6 +14,7 @@ import { DeleteRequestDialog } from "@/components/delete-request-dialog";
 import { EditAssetPartsDialog } from "@/components/edit-asset-parts-dialog";
 import { AddAssetPartDialog } from "@/components/add-asset-part-dialog";
 import { RelabelAssetDialog } from "@/components/relabel-asset-dialog";
+import { QrLabelDialog } from "@/components/qr-label-dialog";
 import { CreatePmScheduleDialog } from "@/components/create-pm-schedule-dialog";
 import { EditPmScheduleDialog } from "@/components/edit-pm-schedule-dialog";
 import { MatchPmAssetDialog } from "@/components/match-pm-asset-dialog";
@@ -911,7 +912,27 @@ function AssetDetail() {
                 </Button>
               }
             />
-          </div>
+            <QrLabelDialog
+              assets={[
+                {
+                  id: a.id,
+                  name: a.name,
+                  tag_number: a.tag_number,
+                  building: currentAssetData.building,
+                  location_name: currentAssetData.location_name,
+                },
+              ]}
+              trigger={
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="size-7 p-0 text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                  title="Print a QR label for this equipment"
+                >
+                  <QrCode className="size-3.5" />
+                </Button>
+              }
+            />
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <SystemBadge system={resolvedSystem} size="md" />
 
