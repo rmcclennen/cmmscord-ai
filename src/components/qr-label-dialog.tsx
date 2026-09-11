@@ -16,9 +16,9 @@ import { Printer, QrCode } from "lucide-react";
 export type QrLabelAsset = {
   id: string;
   name: string;
-  tag_number?: string | null;
-  location_name?: string | null;
-  building?: string | null;
+  tag_number?: string | null | undefined;
+  location_name?: string | null | undefined;
+  building?: string | null | undefined;
 };
 
 function labelHtml(asset: QrLabelAsset, qrDataUrl: string, scanUrl: string) {
