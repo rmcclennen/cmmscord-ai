@@ -361,26 +361,17 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
         </div>
       </div>
 
-      {/* Top Header: Manufacturer Verified Links & Model Lookup */}
+      {/* Top Header: Google manual search */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-border/70 pb-4">
-
         <div>
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-              <Globe className="size-4 text-primary" /> Manufacturer Website &amp; Technical Manuals
+              <Globe className="size-4 text-primary" /> Google Search for Technical Manuals
             </h3>
-            {portalInfo.hasDirectPortal && (
-              <Badge
-                variant="outline"
-                className="text-[10px] font-semibold text-primary border-primary/30 bg-primary/5"
-              >
-                OEM Verified: {portalInfo.domain}
-              </Badge>
-            )}
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Direct portal and live internet search for{" "}
-            <strong className="text-foreground">{portalInfo.name}</strong>{" "}
+            Searches Google for{" "}
+            <strong className="text-foreground">{mfg || asset.name}</strong>{" "}
             {model && (
               <>
                 · Model: <span className="font-mono font-semibold text-primary">{model}</span>
@@ -389,7 +380,6 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
           </p>
         </div>
 
-        {/* Quick Verified Direct Buttons */}
         <div className="flex flex-wrap items-center gap-2 shrink-0">
           <Button
             size="sm"
@@ -398,23 +388,13 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
             className="gap-1.5 text-xs font-semibold shadow-xs"
           >
             <a
-              href={portalInfo.companySearchUrl || portalInfo.modelUrl}
+              href={googleUrl([mfg, model, "O&M manual pdf"].filter(Boolean).join(" "))}
               target="_blank"
               rel="noopener noreferrer"
-              title={`Search ${portalInfo.name} official website for ${model || "equipment"}`}
+              title="Search Google for this equipment's manual"
             >
               <Search className="size-3.5" />
-              {model
-                ? `Search ${portalInfo.name} for "${model}"`
-                : `Search ${portalInfo.name} Website`}
-              <ExternalLink className="size-3 opacity-70" />
-            </a>
-          </Button>
-
-          <Button size="sm" variant="outline" asChild className="gap-1.5 text-xs font-semibold">
-            <a href={portalInfo.website} target="_blank" rel="noopener noreferrer">
-              <Globe className="size-3.5 text-primary" />
-              Official Site
+              Google the manual
               <ExternalLink className="size-3 opacity-70" />
             </a>
           </Button>
@@ -424,8 +404,8 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
             variant="outline"
             onClick={() =>
               triggerScanOnManual(
-                `${portalInfo.name} ${model} O&M Manual`,
-                portalInfo.companySearchUrl || portalInfo.modelUrl,
+                `${mfg || asset.name} ${model} O&M Manual`,
+                googleUrl([mfg, model, "O&M manual pdf"].filter(Boolean).join(" ")),
               )
             }
             className="gap-1.5 text-xs font-semibold border-amber-500/40 hover:bg-amber-500/10 text-amber-600 dark:text-amber-400"
@@ -446,49 +426,18 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
         </div>
       </div>
 
-      {/* 1. Dedicated Direct Manufacturer Website Search Bar */}
+      {/* 1. Google search bar */}
       <div className="rounded-lg border border-primary/25 bg-primary/5 p-4 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Globe className="size-4 text-primary" />
-            <span className="text-xs font-bold text-foreground">
-              Search {portalInfo.name}&apos;s Official Website Directly
-            </span>
+            <span className="text-xs font-bold text-foreground">Search Google directly</span>
             <Badge variant="outline" className="text-[10px] font-mono px-1.5 py-0 bg-background/60">
-              {portalInfo.domain}
+              google.com
             </Badge>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              asChild
-              className="h-7 text-xs gap-1 font-medium bg-background"
-            >
-              <a href={portalInfo.website} target="_blank" rel="noopener noreferrer">
-                <Globe className="size-3 text-primary" />
-                {portalInfo.name} Homepage
-                <ExternalLink className="size-2.5 opacity-60" />
-              </a>
-            </Button>
-            {portalInfo.directDocsUrl && portalInfo.directDocsUrl !== portalInfo.website && (
-              <Button
-                size="sm"
-                variant="outline"
-                asChild
-                className="h-7 text-xs gap-1 font-medium bg-background"
-              >
-                <a href={portalInfo.directDocsUrl} target="_blank" rel="noopener noreferrer">
-                  <BookOpen className="size-3 text-primary" />
-                  Documentation Library
-                  <ExternalLink className="size-2.5 opacity-60" />
-                </a>
-              </Button>
-            )}
           </div>
         </div>
 
-        {/* Live on-site search form for the company's website */}
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -501,7 +450,7 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
             <Input
               value={companySearchQuery}
               onChange={(e) => setCompanySearchQuery(e.target.value)}
-              placeholder={`Search ${portalInfo.name}'s website for model, serial, cut sheet, or manual...`}
+              placeholder="Search Google for model, serial, cut sheet, or manual…"
               className="pl-9 h-9 text-xs bg-background"
             />
           </div>
@@ -511,80 +460,39 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
             className="gap-1.5 shrink-0 text-xs font-semibold shadow-xs"
           >
             <Search className="size-3.5" />
-            Search {portalInfo.name} Website
+            Search Google
             <ExternalLink className="size-3 opacity-70" />
           </Button>
         </form>
 
-        {/* Quick 1-Click Search Buttons on Company's Website */}
         <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground pt-0.5">
-          <span className="font-medium text-foreground text-[11px]">
-            Instant {portalInfo.name} searches:
-          </span>
-          {model && (
+          <span className="font-medium text-foreground text-[11px]">Instant Google searches:</span>
+          {[
+            { label: "Manual PDF", terms: "O&M manual pdf", icon: BookOpen },
+            { label: "Parts Breakdown", terms: "parts list manual pdf", icon: FileText },
+            { label: "Wiring Diagram", terms: "wiring diagram pdf", icon: FileCode2 },
+            { label: "Troubleshooting / Specs", terms: "troubleshooting specifications", icon: null },
+          ].map(({ label, terms, icon: Icon }) => (
             <Button
+              key={label}
               variant="outline"
               size="sm"
-              className="h-6 text-[11px] px-2.5 py-0 bg-background font-mono gap-1"
+              className="h-6 text-[11px] px-2.5 py-0 bg-background gap-1"
               asChild
             >
               <a
-                href={portalInfo.getCompanySearchUrl(model)}
+                href={googleUrl([mfg, model, terms].filter(Boolean).join(" "))}
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <Search className="size-2.5" /> Model {model}
+                {Icon && <Icon className="size-2.5" />} {label}
                 <ExternalLink className="size-2.5 opacity-50" />
               </a>
             </Button>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-6 text-[11px] px-2.5 py-0 bg-background gap-1"
-            asChild
-          >
-            <a
-              href={portalInfo.getCompanySearchUrl(`${model ? `${model} ` : ""}manual`)}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <BookOpen className="size-2.5" /> {model ? `${model} Manuals` : "Manuals & O&M"}
-              <ExternalLink className="size-2.5 opacity-50" />
-            </a>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-6 text-[11px] px-2.5 py-0 bg-background gap-1"
-            asChild
-          >
-            <a
-              href={portalInfo.getCompanySearchUrl(`${model ? `${model} ` : ""}parts`)}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <FileText className="size-2.5" /> Parts Breakdown
-              <ExternalLink className="size-2.5 opacity-50" />
-            </a>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-6 text-[11px] px-2.5 py-0 bg-background gap-1"
-            asChild
-          >
-            <a
-              href={portalInfo.getCompanySearchUrl(`${model ? `${model} ` : ""}troubleshooting`)}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Troubleshooting / Specs
-              <ExternalLink className="size-2.5 opacity-50" />
-            </a>
-          </Button>
+          ))}
         </div>
       </div>
+
 
       {/* Live Internet Manual Search Bar */}
       <div className="space-y-2.5">
