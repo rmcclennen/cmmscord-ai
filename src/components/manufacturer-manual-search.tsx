@@ -147,14 +147,19 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
     `Discovered from ${portalInfo.name} documentation for ${asset.name}.`,
   );
 
-  // Company Website Live Search State
-  const [companySearchQuery, setCompanySearchQuery] = useState(model || asset.name || "");
+  // Google Search State
+  const [companySearchQuery, setCompanySearchQuery] = useState(
+    [mfg, model, "manual pdf"].filter(Boolean).join(" ") || asset.name,
+  );
+
+  const googleUrl = (terms: string) =>
+    `https://www.google.com/search?q=${encodeURIComponent(terms.trim() || asset.name)}`;
 
   const handleCompanySearch = (term?: string) => {
     const q = term !== undefined ? term : companySearchQuery;
-    const url = portalInfo.getCompanySearchUrl(q);
-    window.open(url, "_blank", "noopener,noreferrer");
+    window.open(googleUrl(q), "_blank", "noopener,noreferrer");
   };
+
 
   // Scan Manual PMs Dialog State
   const [scanDialogOpen, setScanDialogOpen] = useState(false);
