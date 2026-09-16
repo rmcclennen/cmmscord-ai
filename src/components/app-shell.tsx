@@ -41,11 +41,14 @@ import {
 import type { ReactNode } from "react";
 
 const PRIMARY_NAV = [
-  { to: "/pm-schedule", label: "PM Schedule", icon: CalendarClock },
-  { to: "/pm-due", label: "Due & Overdue", icon: AlertTriangle },
   { to: "/equipment-down", label: "Equipment Down", icon: AlertOctagon },
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/work-orders", label: "Work Orders", icon: ClipboardList },
+] as const;
+
+const PM_NAV = [
+  { to: "/pm-schedule", label: "PM Schedule", description: "All preventive maintenance schedules", icon: CalendarClock },
+  { to: "/pm-due", label: "Due & Overdue", description: "PMs due today, overdue, and this week", icon: AlertTriangle },
 ] as const;
 
 const ASSET_NAV = [
