@@ -105,6 +105,50 @@ export function AppShell({ children }: { children: ReactNode }) {
             aria-label="Main Navigation"
             className="hidden items-center gap-1 lg:flex"
           >
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className={`h-8 gap-1.5 px-2.5 text-xs font-semibold ${
+                    PM_NAV.some((item) => pathname.startsWith(item.to))
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                      : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+                  }`}
+                >
+                  <CalendarClock className="size-3.5" aria-hidden="true" />
+                  PM Schedule
+                  <ChevronDown className="size-3 opacity-60" aria-hidden="true" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="start"
+                className="w-72 border-sidebar-border bg-sidebar text-sidebar-foreground shadow-xl"
+              >
+                {PM_NAV.map((item) => (
+                  <DropdownMenuItem key={item.to} asChild className="cursor-pointer px-3 py-2.5 focus:bg-sidebar-accent focus:text-sidebar-accent-foreground">
+                    <Link to={item.to} className="flex items-start gap-3">
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-sidebar-accent">
+                        <item.icon className="size-4 text-sidebar-primary" aria-hidden="true" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold">{item.label}</span>
+                        <span className="block text-[11px] text-sidebar-foreground/55">{item.description}</span>
+                      </span>
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator className="bg-sidebar-border" />
+                <DropdownMenuItem
+                  onSelect={() => openMorningPrintDialog()}
+                  className="cursor-pointer px-3 py-2.5 font-semibold text-sidebar-primary focus:bg-sidebar-accent focus:text-sidebar-primary"
+                >
+                  <Printer className="size-4" aria-hidden="true" />
+                  Morning Print
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             {PRIMARY_NAV.map((item) => {
               const active = pathname.startsWith(item.to);
               return (
