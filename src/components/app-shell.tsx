@@ -4,6 +4,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useSessionUser } from "@/hooks/use-session-user";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { NotificationBell } from "@/components/notification-bell";
 import { BulkAssetUploader } from "@/components/bulk-asset-uploader";
 import { CompanyOnboardingDialog } from "@/components/company-onboarding-dialog";
@@ -25,21 +33,30 @@ import {
   LayoutDashboard,
   UploadCloud,
   Building2,
+  ChevronDown,
+  MoreHorizontal,
+  PackageSearch,
   Printer,
 } from "lucide-react";
 import type { ReactNode } from "react";
 
-const NAV = [
+const PRIMARY_NAV = [
   { to: "/pm-schedule", label: "PM Schedule", icon: CalendarClock },
   { to: "/pm-due", label: "Due & Overdue", icon: AlertTriangle },
   { to: "/equipment-down", label: "Equipment Down", icon: AlertOctagon },
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/assets", label: "Assets", icon: Boxes },
   { to: "/work-orders", label: "Work Orders", icon: ClipboardList },
-  { to: "/inventory", label: "Inventory", icon: Boxes },
+] as const;
+
+const ASSET_NAV = [
+  { to: "/assets", label: "Asset Registry", description: "View and manage equipment", icon: Boxes },
+  { to: "/inventory", label: "Parts Inventory", description: "Stock and reorder parts", icon: PackageSearch },
   { to: "/part-requests", label: "Parts Requests", icon: ShoppingCart },
-  { to: "/reports", label: "Reports", icon: BarChart3 },
   { to: "/manuals", label: "Manuals", icon: FileText },
+] as const;
+
+const MORE_NAV = [
+  { to: "/reports", label: "Reports", icon: BarChart3 },
   { to: "/approvals", label: "Approvals", icon: ShieldCheck },
   { to: "/team", label: "Team", icon: Users },
   { to: "/company", label: "Company", icon: Building2 },
@@ -85,7 +102,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             aria-label="Main Navigation"
             className="hidden items-center gap-1 lg:flex"
           >
-            {NAV.map((item) => {
+            {PRIMARY_NAV.map((item) => {
               const active = pathname.startsWith(item.to);
               return (
                 <Link
@@ -102,21 +119,86 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </Link>
               );
             })}
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className={`h-8 gap-1.5 px-2.5 text-xs font-semibold ${
+                    ASSET_NAV.some((item) => pathname.startsWith(item.to))
+                      ? "border border-sidebar-border bg-sidebar-accent text-sidebar-primary"
+                      : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+                  }`}
+                >
+                  <Boxes className="size-3.5" aria-hidden="true" />
+                  Assets
+                  <ChevronDown className="size-3 opacity-60" aria-hidden="true" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="start"
+                className="w-72 border-sidebar-border bg-sidebar text-sidebar-foreground shadow-xl"
+              >
+                <DropdownMenuLabel className="px-3 py-2 text-[10px] font-bold uppercase text-sidebar-foreground/50">
+                  Asset management
+                </DropdownMenuLabel>
+                {ASSET_NAV.map((item) => (
+                  <DropdownMenuItem key={item.to} asChild className="cursor-pointer px-3 py-2.5 focus:bg-sidebar-accent focus:text-sidebar-accent-foreground">
+                    <Link to={item.to} className="flex items-start gap-3">
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-sidebar-accent">
+                        <item.icon className="size-4 text-sidebar-primary" aria-hidden="true" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold">{item.label}</span>
+                        <span className="block text-[11px] text-sidebar-foreground/55">
+                          {"description" in item ? item.description : item.label === "Parts Requests" ? "Request, bid, and order parts" : "Equipment documents and manuals"}
+                        </span>
+                      </span>
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator className="bg-sidebar-border" />
+                <DropdownMenuItem
+                  onSelect={() => setImportOpen(true)}
+                  className="cursor-pointer px-3 py-2.5 font-semibold text-sidebar-primary focus:bg-sidebar-accent focus:text-sidebar-primary"
+                >
+                  <UploadCloud className="size-4" aria-hidden="true" />
+                  Bulk Import Assets & Manuals
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className={`h-8 gap-1.5 px-2.5 text-xs font-semibold ${
+                    MORE_NAV.some((item) => pathname.startsWith(item.to))
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                      : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+                  }`}
+                >
+                  <MoreHorizontal className="size-3.5" aria-hidden="true" />
+                  More
+                  <ChevronDown className="size-3 opacity-60" aria-hidden="true" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-52 border-sidebar-border bg-sidebar text-sidebar-foreground">
+                {MORE_NAV.map((item) => (
+                  <DropdownMenuItem key={item.to} asChild className="cursor-pointer focus:bg-sidebar-accent focus:text-sidebar-accent-foreground">
+                    <Link to={item.to}>
+                      <item.icon className="size-4 text-sidebar-primary" aria-hidden="true" />
+                      {item.label}
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </nav>
 
           <div className="ml-auto flex items-center gap-2">
-            {/* Quick Bulk Asset Importer Trigger */}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setImportOpen(true)}
-              className="hidden sm:inline-flex items-center gap-1.5 border-sidebar-border bg-sidebar-accent/40 text-sidebar-foreground text-xs font-bold hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              aria-label="Upload and bulk import company assets"
-            >
-              <UploadCloud className="size-3.5 text-sidebar-primary" aria-hidden="true" />
-              <span>Bulk Import</span>
-            </Button>
-
             {/* Daily Morning Print Dispatch Trigger */}
             <Button
               size="sm"
@@ -166,7 +248,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           aria-label="Mobile Navigation"
           className="flex items-center gap-1 overflow-x-auto border-t border-sidebar-border px-3 py-1.5 lg:hidden"
         >
-          {NAV.map((item) => (
+          {PRIMARY_NAV.map((item) => (
             <Link
               key={item.to}
               to={item.to}
@@ -179,13 +261,45 @@ export function AppShell({ children }: { children: ReactNode }) {
               {item.label}
             </Link>
           ))}
-          <button
-            type="button"
-            onClick={() => setImportOpen(true)}
-            className="rounded-md bg-sidebar-accent/50 px-2.5 py-1 text-xs font-bold text-sidebar-primary whitespace-nowrap hover:bg-sidebar-accent"
-          >
-            + Bulk Import
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="ghost" className="h-7 shrink-0 gap-1 px-2.5 text-xs font-bold text-sidebar-primary">
+                Assets <ChevronDown className="size-3" aria-hidden="true" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-64">
+              {ASSET_NAV.map((item) => (
+                <DropdownMenuItem key={item.to} asChild>
+                  <Link to={item.to}>
+                    <item.icon className="size-4" aria-hidden="true" />
+                    {item.label}
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => setImportOpen(true)}>
+                <UploadCloud className="size-4" aria-hidden="true" />
+                Bulk Import
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="ghost" className="h-7 shrink-0 gap-1 px-2.5 text-xs font-bold text-sidebar-foreground/75">
+                More <ChevronDown className="size-3" aria-hidden="true" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48">
+              {MORE_NAV.map((item) => (
+                <DropdownMenuItem key={item.to} asChild>
+                  <Link to={item.to}>
+                    <item.icon className="size-4" aria-hidden="true" />
+                    {item.label}
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </nav>
       </header>
 
