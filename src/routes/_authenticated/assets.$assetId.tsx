@@ -1426,101 +1426,23 @@ function AssetDetail() {
             )}
           </div>
 
-          {/* AI Search & Research Manuals Section inside Manuals Tab */}
-          <div className="panel p-4 bg-muted/20 border-primary/30">
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-              <div>
-                <p className="label-caps text-primary flex items-center gap-1.5">
-                  <Sparkles className="size-4" /> Discovered Manufacturer O&amp;M Manuals
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Look up official OEM manuals, parts breakdowns, and cut sheets for {a.name} (
-                  {a.manufacturer || "Manufacturer"} {a.model ? `Model ${a.model}` : ""}) and attach
-                  them with 1 click.
-                </p>
-              </div>
-              <Button
-                size="sm"
-                variant="secondary"
-                className="gap-1.5 text-xs font-semibold"
-                disabled={lookup.isPending}
-                onClick={() => lookup.mutate()}
-              >
-                <Sparkles className="size-3.5 text-primary" />
-                {lookup.isPending ? "Searching OEM Data…" : "Research & Discover Manuals"}
-              </Button>
+          {/* Google manual search shortcut */}
+          <div className="panel p-4 bg-muted/20 border-primary/30 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="label-caps text-primary flex items-center gap-1.5">
+                <Search className="size-4" /> Find a manual
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Opens a Google search for {a.manufacturer || a.make || "this equipment"}{" "}
+                {a.model ? `model ${a.model}` : ""} manuals, then add the link you find above.
+              </p>
             </div>
-
-            {sources.length > 0 ? (
-              <div className="space-y-2 mt-3">
-                {sources.map((s, idx) => {
-                  const attached = isManualAttached(s.title, s.url);
-                  return (
-                    <div
-                      key={idx}
-                      className="p-3 rounded-md bg-background border border-border/80 flex flex-wrap items-center justify-between gap-3 text-xs"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <a
-                          href={s.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="font-semibold text-primary hover:underline inline-flex items-center gap-1.5 text-sm"
-                        >
-                          <BookOpen className="size-4 text-blue-500 shrink-0" />
-                          {s.title}
-                          <ExternalLink className="size-3 text-muted-foreground" />
-                        </a>
-                        <p className="text-[11px] text-muted-foreground mt-0.5 truncate font-mono">
-                          {s.url}
-                        </p>
-                      </div>
-                      <div>
-                        {attached ? (
-                          <Badge
-                            variant="secondary"
-                            className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 font-semibold py-1 px-2.5"
-                          >
-                            <CheckCircle2 className="size-3.5 mr-1 text-emerald-600 dark:text-emerald-400" />
-                            Attached
-                          </Badge>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="default"
-                            className="h-8 gap-1.5 text-xs font-semibold"
-                            disabled={attachManualMutation.isPending}
-                            onClick={() =>
-                              attachManualMutation.mutate({
-                                title: s.title,
-                                url: s.url,
-                                manufacturer: a.manufacturer || "",
-                                notes: `Attached directly from manufacturer research for ${a.name}.`,
-                              })
-                            }
-                          >
-                            <Upload className="size-3.5" />
-                            Upload / Attach to Asset
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="p-4 rounded-md border border-dashed border-border text-center text-xs text-muted-foreground space-y-2">
-                <p>No manufacturer research entries cached yet for this asset.</p>
-                <p>
-                  Click{" "}
-                  <strong className="text-foreground">"Research &amp; Discover Manuals"</strong>{" "}
-                  above to find official O&amp;M manuals for {a.manufacturer || "this manufacturer"}
-                  .
-                </p>
-              </div>
-            )}
+            <Button size="sm" variant="secondary" className="gap-1.5 text-xs font-semibold" onClick={openGoogleManualSearch}>
+              <Search className="size-3.5 text-primary" /> Scan for manual
+            </Button>
           </div>
         </TabsContent>
+
 
         <TabsContent value="specs" className="mt-4 space-y-4">
           {/* Active PM Program Overview Banner */}
