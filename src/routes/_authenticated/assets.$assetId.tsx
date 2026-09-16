@@ -760,7 +760,15 @@ function AssetDetail() {
     a.manufacturer_url,
     a.name,
   );
+  const googleManualUrl = `https://www.google.com/search?q=${encodeURIComponent(
+    [a.manufacturer || a.make || "", a.model || "", a.name, "O&M manual pdf"]
+      .filter(Boolean)
+      .join(" "),
+  )}`;
+  const openGoogleManualSearch = () =>
+    window.open(googleManualUrl, "_blank", "noopener,noreferrer");
   const consumables = getManufacturerConsumables(a);
+
   const specs: [string, string | null][] = [
     ["Class", classLabel(a.class)],
     ["Type", a.type],
