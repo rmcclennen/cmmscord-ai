@@ -403,16 +403,19 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
             size="sm"
             variant="outline"
             onClick={() =>
-              triggerScanOnManual(
-                `${mfg || asset.name} ${model} O&M Manual`,
+              window.open(
                 googleUrl([mfg, model, "O&M manual pdf"].filter(Boolean).join(" ")),
+                "_blank",
+                "noopener,noreferrer",
               )
             }
             className="gap-1.5 text-xs font-semibold border-amber-500/40 hover:bg-amber-500/10 text-amber-600 dark:text-amber-400"
+            title="Open a Google search for this equipment's manual"
           >
-            <Zap className="size-3.5 text-amber-500" />
-            Scan Manual for PMs
+            <Search className="size-3.5 text-amber-500" />
+            Scan for manual
           </Button>
+
 
           <Button
             size="sm"
