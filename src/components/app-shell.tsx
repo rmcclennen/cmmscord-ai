@@ -246,19 +246,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           </nav>
 
           <div className="ml-auto flex items-center gap-2">
-            {/* Daily Morning Print Dispatch Trigger */}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => openMorningPrintDialog()}
-              className="hidden md:inline-flex items-center gap-1.5 border-sidebar-border bg-sidebar-accent/40 text-sidebar-foreground text-xs font-bold hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              aria-label="Morning Maintenance Print Dispatch"
-              title="Daily Morning Print Dispatch for PMs and Work Orders"
-            >
-              <Printer className="size-3.5 text-primary" aria-hidden="true" />
-              <span>Morning Print</span>
-            </Button>
-
             {/* Company Purchase / Plan Trigger */}
             <Button
               size="sm"
