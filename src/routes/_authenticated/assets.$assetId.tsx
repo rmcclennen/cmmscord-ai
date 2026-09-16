@@ -1406,8 +1406,9 @@ function AssetDetail() {
               {(manuals.data ?? []).length === 0 && (
                 <li className="py-6 text-center text-xs text-muted-foreground">
                   <FileText className="size-8 mx-auto text-muted-foreground/40 mb-2" />
-                  No manuals attached yet. You can upload a file, add a web link, or attach
-                  discovered manufacturer manuals below.
+                  No manuals attached yet. Upload a file, add a web link, or use "Scan for manual"
+                  to search Google for this equipment.
+
                 </li>
               )}
             </ul>
