@@ -1302,17 +1302,22 @@ function AssetDetail() {
                   variant="outline"
                   size="sm"
                   className="gap-1.5 font-semibold text-xs border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
-                  onClick={() => {
-                    setSelectedManualForScan({
-                      title:
-                        `${a.manufacturer || a.make || "Equipment"} ${a.model || ""} O&M Manual`.trim(),
-                      url: mfgPortalInfo.modelUrl,
-                    });
-                    setScanManualDialogOpen(true);
-                  }}
+                  onClick={() =>
+                    window.open(
+                      `https://www.google.com/search?q=${encodeURIComponent(
+                        [a.manufacturer || a.make || "", a.model || "", a.name, "O&M manual pdf"]
+                          .filter(Boolean)
+                          .join(" "),
+                      )}`,
+                      "_blank",
+                      "noopener,noreferrer",
+                    )
+                  }
+                  title="Open a Google search for this equipment's manual"
                 >
-                  <Zap className="size-3.5 text-amber-500" /> Scan Manual for PMs
+                  <Search className="size-3.5 text-amber-500" /> Scan for manual
                 </Button>
+
                 <ManualDialog
                   assetId={a.id}
                   lockAsset
