@@ -282,6 +282,28 @@ export function AppShell({ children }: { children: ReactNode }) {
           aria-label="Mobile Navigation"
           className="flex items-center gap-1 overflow-x-auto border-t border-sidebar-border px-3 py-1.5 lg:hidden"
         >
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="ghost" className="h-7 shrink-0 gap-1 px-2.5 text-xs font-bold text-sidebar-primary">
+                PM Schedule <ChevronDown className="size-3" aria-hidden="true" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-64">
+              {PM_NAV.map((item) => (
+                <DropdownMenuItem key={item.to} asChild>
+                  <Link to={item.to}>
+                    <item.icon className="size-4" aria-hidden="true" />
+                    {item.label}
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => openMorningPrintDialog()}>
+                <Printer className="size-4" aria-hidden="true" />
+                Morning Print
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           {PRIMARY_NAV.map((item) => (
             <Link
               key={item.to}
