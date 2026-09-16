@@ -1059,24 +1059,18 @@ function AssetDetail() {
               </>
             )}
 
-            {/* Scan for PMs AI generator button */}
+            {/* Google manual search button */}
             <Button
               size="sm"
               variant="outline"
-              onClick={() => {
-                setSelectedManualForScan({
-                  title:
-                    `${a.manufacturer || a.make || "Equipment"} ${a.model || ""} O&M Manual`.trim(),
-                  url: mfgPortalInfo.modelUrl,
-                });
-                setScanManualDialogOpen(true);
-              }}
+              onClick={openGoogleManualSearch}
               className="h-6 text-xs gap-1 border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
-              title="Scan manual & extract PM schedules with AI"
+              title="Open a Google search for this equipment's manual"
             >
-              <Zap className="size-3 text-amber-500" />
-              Scan for PMs
+              <Search className="size-3 text-amber-500" />
+              Scan for manual
             </Button>
+
 
             {/* AI Maintenance / PMs Research button */}
             <Button
