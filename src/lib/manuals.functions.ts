@@ -854,7 +854,7 @@ export const downloadManualFromLink = createServerFn({ method: "POST" })
         headers: { "User-Agent": "Mozilla/5.0 (CMMSCord manual fetcher)", Accept: "application/pdf,*/*" },
       });
       if (!res.ok) throw new Error(`site returned ${res.status}`);
-      const type = (res.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+      const type = (res.headers.get("content-type") || "").split(";")[0]?.trim().toLowerCase() ?? "";
       if (type.includes("text/html")) throw new Error("link is a web page, not a file");
       const buf = await res.arrayBuffer();
       if (buf.byteLength > 50 * 1024 * 1024) throw new Error("file is larger than 50 MB");
