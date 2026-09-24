@@ -3,14 +3,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { getManufacturerPortalInfo } from "@/lib/manufacturer-links";
-import {
-  searchInternetManuals,
-  placeManualInAsset,
-  identifyAssetBrandModel,
-  type DiscoveredManual,
-} from "@/lib/manuals.functions";
+import { identifyAssetBrandModel } from "@/lib/manuals.functions";
 
-import { ScanManualDialog } from "@/components/scan-manual-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,16 +15,12 @@ import {
   ExternalLink,
   FileText,
   Globe,
-  Plus,
   Search,
   CheckCircle2,
   BookmarkPlus,
   FileCode2,
-  Zap,
   Loader2,
   Sparkles,
-  Download,
-  Layers,
 } from "lucide-react";
 
 interface ManufacturerManualSearchProps {
@@ -49,8 +39,6 @@ interface ManufacturerManualSearchProps {
 
 export function ManufacturerManualSearch({ asset, className = "" }: ManufacturerManualSearchProps) {
   const queryClient = useQueryClient();
-  const searchInternetFn = useServerFn(searchInternetManuals);
-  const placeManualFn = useServerFn(placeManualInAsset);
   const identifyFn = useServerFn(identifyAssetBrandModel);
 
   const storedMfg = asset.manufacturer || asset.make || "";
@@ -92,9 +80,6 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
       setIdentity(data);
       setIdentitySaved(false);
       if (data.brand) {
-        const q = [data.brand, data.model, "O&M manual PDF"].filter(Boolean).join(" ");
-        setSearchQuery(q);
-        searchMutation.mutate(q);
         toast.success(
           `Identified ${data.brand}${data.model ? ` · Model ${data.model}` : ""} (${data.confidence} confidence)`,
         );
@@ -127,15 +112,6 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
     onError: (err: Error) => toast.error(err.message || "Could not save to asset"),
   });
 
-  const defaultSearch = [mfg, model, "O&M manual PDF"].filter(Boolean).join(" ");
-  const [searchQuery, setSearchQuery] = useState(defaultSearch);
-
-
-  // Internet Search Results State
-  const [searchResults, setSearchResults] = useState<DiscoveredManual[]>([]);
-  const [hasSearched, setHasSearched] = useState(false);
-  const [placedManualUrls, setPlacedManualUrls] = useState<Set<string>>(new Set());
-
   // Attach Form State
   const [attachOpen, setAttachOpen] = useState(false);
   const [manualTitle, setManualTitle] = useState(
@@ -144,7 +120,7 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
   const [manualUrl, setManualUrl] = useState("");
   const [manualKind, setManualKind] = useState("manual");
   const [manualNotes, setManualNotes] = useState(
-    `Discovered from ${portalInfo.name} documentation for ${asset.name}.`,
+    `Saved from a Google manual search for ${asset.name}.`,
   );
 
   // Google Search State
@@ -161,85 +137,12 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
   };
 
 
-  // Scan Manual PMs Dialog State
-  const [scanDialogOpen, setScanDialogOpen] = useState(false);
-  const [scanTargetManual, setScanTargetManual] = useState<{
-    title: string;
-    url: string;
-  }>({
-    title: `${portalInfo.name} ${model} O&M Manual`,
-    url: portalInfo.modelUrl,
-  });
-
-  const triggerScanOnManual = (title: string, url: string) => {
-    setScanTargetManual({ title, url });
-    setScanDialogOpen(true);
-  };
-
-  // Internet Manual Search Mutation
-  const searchMutation = useMutation({
-    mutationFn: async (customQuery?: string) => {
-      const q = customQuery !== undefined ? customQuery : searchQuery;
-      return await searchInternetFn({
-        data: {
-          assetId: asset.id,
-          query: q.trim() || undefined,
-        },
-      });
-    },
-    onSuccess: (data) => {
-      setSearchResults(data.results);
-      setHasSearched(true);
-      toast.success(
-        data.results.length === 1
-          ? "Found 1 manual on the internet!"
-          : `Found ${data.results.length} manuals & technical documents online!`,
-      );
-    },
-    onError: (err: Error) => {
-      toast.error(err.message || "Failed to search internet for manuals");
-    },
-  });
-
-  // Auto-search on initial load once so technician sees results immediately
-  useEffect(() => {
-    if (!hasSearched && (mfg || model || asset.name)) {
-      searchMutation.mutate(defaultSearch);
-    }
-  }, [asset.id]);
-
   // Auto-identify the real brand/model when the record is missing one
   useEffect(() => {
     if (!identity && !identifyMutation.isPending && (!storedMfg || !storedModel)) {
       identifyMutation.mutate();
     }
   }, [asset.id]);
-
-
-  // Place in Manuals Mutation (One-Click)
-  const placeManual = useMutation({
-    mutationFn: async (manual: { title: string; url: string; kind: string; snippet?: string }) => {
-      return await placeManualFn({
-        data: {
-          assetId: asset.id,
-          title: manual.title,
-          fileUrl: manual.url,
-          kind: manual.kind,
-          manufacturer: mfg || portalInfo.name,
-          notes: manual.snippet || `Online manual discovered for ${asset.name}.`,
-        },
-      });
-    },
-    onSuccess: (_, variables) => {
-      toast.success(`Placed "${variables.title}" in Asset Manuals!`);
-      setPlacedManualUrls((prev) => new Set(prev).add(variables.url));
-      queryClient.invalidateQueries({ queryKey: ["asset-manuals", asset.id] });
-      queryClient.invalidateQueries({ queryKey: ["manuals"] });
-    },
-    onError: (err: Error) => {
-      toast.error(err.message || "Failed to place manual");
-    },
-  });
 
   // Custom Manual Attach Mutation
   const attachManual = useMutation({
