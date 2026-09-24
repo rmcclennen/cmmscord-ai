@@ -131,7 +131,6 @@ export const Route = createFileRoute("/_authenticated/assets/$assetId")({
 
 type Interval = { task: string; frequency: string; notes?: string };
 type Part = { name: string; part_number?: string | undefined; notes?: string | undefined };
-type Source = { title: string; url: string };
 
 const PART_STATUS_BADGE: Record<string, { label: string; className: string }> = {
   requested: {
@@ -327,41 +326,6 @@ function AssetDetail() {
     },
   });
 
-  const attachManualMutation = useMutation({
-    mutationFn: async ({
-      title,
-      url,
-      manufacturer,
-      notes,
-    }: {
-      title: string;
-      url: string;
-      manufacturer?: string;
-      notes?: string;
-    }) => {
-      const { data: userData } = await supabase.auth.getUser();
-      const { error } = await supabase.from("manuals").insert({
-        title: title.trim(),
-        file_url: url.trim(),
-        kind: "link",
-        asset_id: assetId,
-        manufacturer: (manufacturer || asset.data?.manufacturer || "").trim() || null,
-        notes: notes || `Attached from manufacturer research for ${asset.data?.name || "asset"}.`,
-        added_by: userData.user?.id ?? null,
-      });
-      if (error) throw error;
-    },
-    onSuccess: (_, variables) => {
-      toast.success(
-        `Attached "${variables.title}" to ${asset.data?.name || "asset"} under Manuals tab!`,
-      );
-      queryClient.invalidateQueries({ queryKey: ["asset-manuals", assetId] });
-      queryClient.invalidateQueries({ queryKey: ["manuals"] });
-      queryClient.invalidateQueries({ queryKey: ["manuals-all"] });
-    },
-    onError: (err: Error) => toast.error(`Failed to attach manual: ${err.message}`),
-  });
-
   const deleteManualMutation = useMutation({
     mutationFn: async (manualId: string) => {
       const { error } = await supabase.from("manuals").delete().eq("id", manualId);
@@ -375,14 +339,6 @@ function AssetDetail() {
     },
     onError: (err: Error) => toast.error(err.message),
   });
-
-  const isManualAttached = (title: string, url: string) => {
-    return (manuals.data ?? []).some(
-      (m) =>
-        m.file_url?.toLowerCase().trim() === url.toLowerCase().trim() ||
-        m.title?.toLowerCase().trim() === title.toLowerCase().trim(),
-    );
-  };
 
   const info = useQuery({
     queryKey: ["asset-info", assetId],
@@ -726,12 +682,6 @@ function AssetDetail() {
     return [];
   }, [info.data?.parts, linkedPartsQuery.data]);
 
-
-  const sources: Source[] = useMemo(() => {
-    const raw = info.data?.sources as Source[] | null;
-    if (Array.isArray(raw) && raw.length > 0) return raw;
-    return defaultIntelligence?.sources ?? [];
-  }, [info.data?.sources, defaultIntelligence]);
 
   const dbPartMatch = useMemo(() => {
     const map = new Map<
@@ -2996,82 +2946,6 @@ function AssetDetail() {
                 )}
               </div>
 
-              {sources.length > 0 && (
-                <div className="panel p-4 border-l-4 border-l-blue-500">
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-2.5">
-                    <div>
-                      <p className="label-caps text-foreground flex items-center gap-1.5">
-                        <BookOpen className="size-4 text-blue-500" /> Discovered Manufacturer
-                        Sources &amp; Manuals
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Official manufacturer documentation and O&amp;M manuals found during
-                        research. Attach any document to this asset's Manuals tab with 1 click.
-                      </p>
-                    </div>
-                  </div>
-                  <ul className="mt-3 divide-y divide-border/60">
-                    {sources.map((s, idx) => {
-                      const attached = isManualAttached(s.title, s.url);
-                      return (
-                        <li
-                          key={idx}
-                          className="py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <a
-                              href={s.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="font-semibold text-primary hover:underline inline-flex items-center gap-1.5 text-sm"
-                            >
-                              <FileText className="size-4 text-blue-500 shrink-0" />
-                              {s.title}
-                              <ExternalLink className="size-3 text-muted-foreground" />
-                            </a>
-                            <p className="text-[11px] text-muted-foreground mt-0.5 truncate font-mono">
-                              {s.url}
-                            </p>
-                          </div>
-                          <div className="shrink-0">
-                            {attached ? (
-                              <Badge
-                                variant="secondary"
-                                className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 font-semibold py-1 px-2.5"
-                              >
-                                <CheckCircle2 className="size-3.5 mr-1 text-emerald-600 dark:text-emerald-400" />
-                                Attached to Manuals
-                              </Badge>
-                            ) : (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-8 gap-1.5 text-xs font-semibold text-primary border-primary/40 hover:bg-primary/10"
-                                disabled={attachManualMutation.isPending}
-                                onClick={() =>
-                                  attachManualMutation.mutate({
-                                    title: s.title,
-                                    url: s.url,
-                                    manufacturer: a.manufacturer || "",
-                                    notes: `Attached directly from manufacturer research for ${a.name}.`,
-                                  })
-                                }
-                              >
-                                <Upload className="size-3.5" />
-                                Upload / Attach to Asset
-                              </Button>
-                            )}
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                  <p className="mt-3 text-xs text-muted-foreground italic">
-                    AI-assisted research — verify against the manufacturer manual before performing
-                    work.
-                  </p>
-                </div>
-              )}
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">

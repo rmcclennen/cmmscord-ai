@@ -3,14 +3,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { getManufacturerPortalInfo } from "@/lib/manufacturer-links";
-import {
-  searchInternetManuals,
-  placeManualInAsset,
-  identifyAssetBrandModel,
-  type DiscoveredManual,
-} from "@/lib/manuals.functions";
+import { identifyAssetBrandModel } from "@/lib/manuals.functions";
 
-import { ScanManualDialog } from "@/components/scan-manual-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,16 +15,12 @@ import {
   ExternalLink,
   FileText,
   Globe,
-  Plus,
   Search,
   CheckCircle2,
   BookmarkPlus,
   FileCode2,
-  Zap,
   Loader2,
   Sparkles,
-  Download,
-  Layers,
 } from "lucide-react";
 
 interface ManufacturerManualSearchProps {
@@ -49,8 +39,6 @@ interface ManufacturerManualSearchProps {
 
 export function ManufacturerManualSearch({ asset, className = "" }: ManufacturerManualSearchProps) {
   const queryClient = useQueryClient();
-  const searchInternetFn = useServerFn(searchInternetManuals);
-  const placeManualFn = useServerFn(placeManualInAsset);
   const identifyFn = useServerFn(identifyAssetBrandModel);
 
   const storedMfg = asset.manufacturer || asset.make || "";
@@ -92,9 +80,6 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
       setIdentity(data);
       setIdentitySaved(false);
       if (data.brand) {
-        const q = [data.brand, data.model, "O&M manual PDF"].filter(Boolean).join(" ");
-        setSearchQuery(q);
-        searchMutation.mutate(q);
         toast.success(
           `Identified ${data.brand}${data.model ? ` · Model ${data.model}` : ""} (${data.confidence} confidence)`,
         );
@@ -127,15 +112,6 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
     onError: (err: Error) => toast.error(err.message || "Could not save to asset"),
   });
 
-  const defaultSearch = [mfg, model, "O&M manual PDF"].filter(Boolean).join(" ");
-  const [searchQuery, setSearchQuery] = useState(defaultSearch);
-
-
-  // Internet Search Results State
-  const [searchResults, setSearchResults] = useState<DiscoveredManual[]>([]);
-  const [hasSearched, setHasSearched] = useState(false);
-  const [placedManualUrls, setPlacedManualUrls] = useState<Set<string>>(new Set());
-
   // Attach Form State
   const [attachOpen, setAttachOpen] = useState(false);
   const [manualTitle, setManualTitle] = useState(
@@ -144,7 +120,7 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
   const [manualUrl, setManualUrl] = useState("");
   const [manualKind, setManualKind] = useState("manual");
   const [manualNotes, setManualNotes] = useState(
-    `Discovered from ${portalInfo.name} documentation for ${asset.name}.`,
+    `Saved from a Google manual search for ${asset.name}.`,
   );
 
   // Google Search State
@@ -161,85 +137,12 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
   };
 
 
-  // Scan Manual PMs Dialog State
-  const [scanDialogOpen, setScanDialogOpen] = useState(false);
-  const [scanTargetManual, setScanTargetManual] = useState<{
-    title: string;
-    url: string;
-  }>({
-    title: `${portalInfo.name} ${model} O&M Manual`,
-    url: portalInfo.modelUrl,
-  });
-
-  const triggerScanOnManual = (title: string, url: string) => {
-    setScanTargetManual({ title, url });
-    setScanDialogOpen(true);
-  };
-
-  // Internet Manual Search Mutation
-  const searchMutation = useMutation({
-    mutationFn: async (customQuery?: string) => {
-      const q = customQuery !== undefined ? customQuery : searchQuery;
-      return await searchInternetFn({
-        data: {
-          assetId: asset.id,
-          query: q.trim() || undefined,
-        },
-      });
-    },
-    onSuccess: (data) => {
-      setSearchResults(data.results);
-      setHasSearched(true);
-      toast.success(
-        data.results.length === 1
-          ? "Found 1 manual on the internet!"
-          : `Found ${data.results.length} manuals & technical documents online!`,
-      );
-    },
-    onError: (err: Error) => {
-      toast.error(err.message || "Failed to search internet for manuals");
-    },
-  });
-
-  // Auto-search on initial load once so technician sees results immediately
-  useEffect(() => {
-    if (!hasSearched && (mfg || model || asset.name)) {
-      searchMutation.mutate(defaultSearch);
-    }
-  }, [asset.id]);
-
   // Auto-identify the real brand/model when the record is missing one
   useEffect(() => {
     if (!identity && !identifyMutation.isPending && (!storedMfg || !storedModel)) {
       identifyMutation.mutate();
     }
   }, [asset.id]);
-
-
-  // Place in Manuals Mutation (One-Click)
-  const placeManual = useMutation({
-    mutationFn: async (manual: { title: string; url: string; kind: string; snippet?: string }) => {
-      return await placeManualFn({
-        data: {
-          assetId: asset.id,
-          title: manual.title,
-          fileUrl: manual.url,
-          kind: manual.kind,
-          manufacturer: mfg || portalInfo.name,
-          notes: manual.snippet || `Online manual discovered for ${asset.name}.`,
-        },
-      });
-    },
-    onSuccess: (_, variables) => {
-      toast.success(`Placed "${variables.title}" in Asset Manuals!`);
-      setPlacedManualUrls((prev) => new Set(prev).add(variables.url));
-      queryClient.invalidateQueries({ queryKey: ["asset-manuals", asset.id] });
-      queryClient.invalidateQueries({ queryKey: ["manuals"] });
-    },
-    onError: (err: Error) => {
-      toast.error(err.message || "Failed to place manual");
-    },
-  });
 
   // Custom Manual Attach Mutation
   const attachManual = useMutation({
@@ -497,212 +400,6 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
       </div>
 
 
-      {/* Live Internet Manual Search Bar */}
-      <div className="space-y-2.5">
-        <div className="flex items-center justify-between">
-          <Label
-            htmlFor="internet-manual-search"
-            className="text-xs font-bold text-foreground flex items-center gap-1.5"
-          >
-            <Sparkles className="size-3.5 text-primary" /> Search Internet for Equipment Manuals
-            (Live Web &amp; OEM)
-          </Label>
-          <span className="text-[11px] text-muted-foreground">
-            Search live internet &amp; 1-click place in asset manuals
-          </span>
-        </div>
-
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input
-              id="internet-manual-search"
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search equipment manuals, cut sheets, or wiring diagrams on the internet…"
-              className="pl-9 text-xs h-9 bg-background"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") searchMutation.mutate(searchQuery);
-              }}
-            />
-          </div>
-
-          <Button
-            size="sm"
-            onClick={() => searchMutation.mutate(searchQuery)}
-            disabled={searchMutation.isPending}
-            className="h-9 gap-1.5 text-xs font-semibold shrink-0"
-          >
-            {searchMutation.isPending ? (
-              <>
-                <Loader2 className="size-3.5 animate-spin" /> Searching Internet…
-              </>
-            ) : (
-              <>
-                <Search className="size-3.5" /> Search Internet
-              </>
-            )}
-          </Button>
-        </div>
-
-        {/* Quick Search Term Chips */}
-        <div className="flex flex-wrap items-center gap-1.5 text-xs">
-          <span className="text-[11px] text-muted-foreground font-medium mr-1">
-            Quick searches:
-          </span>
-          {[
-            "O&M Manual PDF",
-            "Installation & Maintenance Guide",
-            "Parts Breakdown List & Diagram",
-            "Wiring & Electrical Schematic",
-            "Mechanical Seal Replacement Manual",
-            "Troubleshooting & Clearances",
-          ].map((tag) => (
-            <button
-              key={tag}
-              type="button"
-              onClick={() => {
-                const q = [mfg, model, tag].filter(Boolean).join(" ");
-                setSearchQuery(q);
-                searchMutation.mutate(q);
-              }}
-              className="rounded-md border border-border/80 bg-background/80 px-2 py-0.5 text-[11px] text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors font-mono"
-            >
-              + {tag}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Internet Search Results Grid */}
-      {searchMutation.isPending && (
-        <div className="rounded-lg border border-border/80 bg-muted/20 p-8 text-center space-y-2">
-          <Loader2 className="size-6 text-primary animate-spin mx-auto" />
-          <p className="text-xs font-medium text-foreground">
-            Searching internet and manufacturer portals for {portalInfo.name} {model} manuals…
-          </p>
-        </div>
-      )}
-
-      {!searchMutation.isPending && hasSearched && searchResults.length === 0 && (
-        <div className="rounded-lg border border-border/80 bg-muted/20 p-6 text-center space-y-2">
-          <p className="text-xs text-muted-foreground">
-            No direct manuals found for "{searchQuery}". Try using the official OEM link above or
-            search by model number.
-          </p>
-          <Button size="sm" variant="outline" asChild className="text-xs h-8 gap-1.5">
-            <a href={portalInfo.googleManualPdfUrl} target="_blank" rel="noreferrer">
-              <ExternalLink className="size-3" /> Search Google for PDF Manuals
-            </a>
-          </Button>
-        </div>
-      )}
-
-      {!searchMutation.isPending && searchResults.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between pb-1 border-b border-border/60">
-            <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-              <BookOpen className="size-3.5 text-primary" /> Discovered Online Manuals (
-              {searchResults.length})
-            </span>
-            <span className="text-[11px] text-muted-foreground">
-              Click "Place in Manuals" to save to asset
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {searchResults.map((item) => {
-              const isPlaced = placedManualUrls.has(item.url);
-
-              return (
-                <div
-                  key={item.id}
-                  className="rounded-lg border border-border/80 bg-card p-3.5 flex flex-col justify-between space-y-3 hover:border-primary/40 transition-colors shadow-2xs"
-                >
-                  <div className="space-y-1.5">
-                    <div className="flex items-start justify-between gap-2">
-                      <h4 className="text-xs font-bold text-foreground line-clamp-2 leading-snug">
-                        {item.title}
-                      </h4>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] font-mono px-1.5 py-0 uppercase"
-                        >
-                          {item.kind.replace("_", " ")}
-                        </Badge>
-                        <Badge variant="secondary" className="text-[10px] font-mono px-1.5 py-0">
-                          {item.file_type}
-                        </Badge>
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-muted-foreground line-clamp-2">{item.snippet}</p>
-
-                    <div className="text-[11px] text-muted-foreground font-mono truncate">
-                      Source: {item.source_domain}
-                    </div>
-                  </div>
-
-                  {/* Actions for this manual */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/60">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      asChild
-                      className="h-7 text-xs px-2 gap-1 text-muted-foreground hover:text-foreground"
-                    >
-                      <a href={item.url} target="_blank" rel="noreferrer">
-                        <ExternalLink className="size-3" /> View / Download
-                      </a>
-                    </Button>
-
-                    <div className="flex items-center gap-1.5">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => triggerScanOnManual(item.title, item.url)}
-                        className="h-7 text-xs px-2 gap-1 border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
-                        title="Scan this manual for PM schedules"
-                      >
-                        <Zap className="size-3 text-amber-500" />
-                        Scan for PMs
-                      </Button>
-
-                      <Button
-                        size="sm"
-                        variant={isPlaced ? "secondary" : "default"}
-                        onClick={() =>
-                          placeManual.mutate({
-                            title: item.title,
-                            url: item.url,
-                            kind: item.kind,
-                            snippet: item.snippet,
-                          })
-                        }
-                        disabled={placeManual.isPending || isPlaced}
-                        className="h-7 text-xs px-2.5 gap-1 font-semibold"
-                      >
-                        {isPlaced ? (
-                          <>
-                            <CheckCircle2 className="size-3 text-emerald-500" /> Placed
-                          </>
-                        ) : (
-                          <>
-                            <Plus className="size-3" /> Place in Manuals
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       {/* Expandable Manual Attach Form */}
       {attachOpen && (
         <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
@@ -785,15 +482,6 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
         </div>
       )}
 
-      {/* AI Scan Manual for PMs Dialog */}
-      <ScanManualDialog
-        open={scanDialogOpen}
-        onOpenChange={setScanDialogOpen}
-        assetId={asset.id}
-        assetName={asset.name}
-        manualTitle={scanTargetManual.title}
-        manualUrl={scanTargetManual.url}
-      />
     </div>
   );
 }
