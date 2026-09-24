@@ -474,7 +474,7 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
               className="h-8 gap-1.5 text-xs font-semibold"
             >
               <CheckCircle2 className="size-3.5" />
-              {attachManual.isPending ? "Attaching…" : "Save & Attach Manual"}
+              {attachManual.isPending ? "Downloading…" : "Download to Manuals"}
             </Button>
           </div>
         </div>
