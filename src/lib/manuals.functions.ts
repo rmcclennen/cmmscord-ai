@@ -821,3 +821,79 @@ Respond strictly with JSON:
       source: "directory" as const,
     };
   });
+
+/**
+ * Downloads a manual from a pasted link and stores the file in the Manuals
+ * library. Falls back to saving the link itself if the download fails.
+ */
+export const downloadManualFromLink = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        assetId: z.string().uuid(),
+        title: z.string().min(1).max(300),
+        url: z.string().url().max(2000),
+        kind: z.string().max(50).default("manual"),
+        manufacturer: z.string().max(200).optional(),
+        notes: z.string().max(2000).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const url = new URL(data.url);
+    if (!["http:", "https:"].includes(url.protocol)) throw new Error("Only web links are supported.");
+
+    let fileUrl = data.url;
+    let downloaded = false;
+    let reason = "";
+    try {
+      const res = await fetch(data.url, {
+        redirect: "follow",
+        headers: { "User-Agent": "Mozilla/5.0 (CMMSCord manual fetcher)", Accept: "application/pdf,*/*" },
+      });
+      if (!res.ok) throw new Error(`site returned ${res.status}`);
+      const type = (res.headers.get("content-type") || "").split(";")[0]?.trim().toLowerCase() ?? "";
+      if (type.includes("text/html")) throw new Error("link is a web page, not a file");
+      const buf = await res.arrayBuffer();
+      if (buf.byteLength > 50 * 1024 * 1024) throw new Error("file is larger than 50 MB");
+      if (buf.byteLength < 200) throw new Error("file was empty");
+      const extFromType: Record<string, string> = {
+        "application/pdf": "pdf", "image/jpeg": "jpg", "image/png": "png",
+        "application/msword": "doc",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+      };
+      const urlExt = url.pathname.split(".").pop()?.toLowerCase();
+      const ext = extFromType[type] || (urlExt && urlExt.length <= 5 ? urlExt : "pdf");
+      const safe = data.title.replace(/[^a-z0-9]+/gi, "-").slice(0, 60).replace(/^-|-$/g, "") || "manual";
+      const path = `${data.assetId}/${Date.now()}-${safe}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("manual-files")
+        .upload(path, buf, { contentType: type || "application/pdf", upsert: false });
+      if (upErr) throw new Error(upErr.message);
+      const { data: signed, error: sErr } = await supabase.storage
+        .from("manual-files")
+        .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
+      if (sErr || !signed) throw new Error(sErr?.message || "could not create file link");
+      fileUrl = signed.signedUrl;
+      downloaded = true;
+    } catch (e) {
+      reason = e instanceof Error ? e.message : String(e);
+      console.error("Manual download failed:", reason);
+    }
+
+    const notes = [data.notes?.trim(), downloaded ? `Downloaded from ${data.url}` : null]
+      .filter(Boolean).join("\n") || null;
+    const { error } = await supabase.from("manuals").insert({
+      asset_id: data.assetId,
+      title: data.title.trim(),
+      file_url: fileUrl,
+      kind: data.kind,
+      manufacturer: data.manufacturer?.trim() || null,
+      notes,
+      added_by: userId,
+    });
+    if (error) throw new Error(`Could not save manual: ${error.message}`);
+    return { downloaded, reason };
+  });

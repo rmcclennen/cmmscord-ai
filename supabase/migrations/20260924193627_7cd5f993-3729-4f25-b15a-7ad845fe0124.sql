@@ -1,0 +1,2 @@
+CREATE POLICY "manual files read" ON storage.objects FOR SELECT USING (bucket_id = 'manual-files');
+CREATE POLICY "manual files upload" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'manual-files');

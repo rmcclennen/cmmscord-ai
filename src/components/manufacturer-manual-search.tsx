@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { getManufacturerPortalInfo } from "@/lib/manufacturer-links";
-import { identifyAssetBrandModel } from "@/lib/manuals.functions";
+import { identifyAssetBrandModel, downloadManualFromLink } from "@/lib/manuals.functions";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +40,7 @@ interface ManufacturerManualSearchProps {
 export function ManufacturerManualSearch({ asset, className = "" }: ManufacturerManualSearchProps) {
   const queryClient = useQueryClient();
   const identifyFn = useServerFn(identifyAssetBrandModel);
+  const downloadFn = useServerFn(downloadManualFromLink);
 
   const storedMfg = asset.manufacturer || asset.make || "";
   const storedModel = asset.model || "";
@@ -149,23 +150,20 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
     mutationFn: async () => {
       if (!manualUrl.trim()) throw new Error("Please enter a valid manual URL or link.");
       if (!manualTitle.trim()) throw new Error("Please enter a manual title.");
-
-      const { data: authData } = await supabase.auth.getUser();
-
-      const { error } = await supabase.from("manuals").insert({
-        asset_id: asset.id,
-        title: manualTitle.trim(),
-        file_url: manualUrl.trim(),
-        kind: manualKind,
-        manufacturer: mfg || portalInfo.name,
-        notes: manualNotes.trim() || null,
-        added_by: authData?.user?.id ?? null,
+      return await downloadFn({
+        data: {
+          assetId: asset.id,
+          title: manualTitle.trim(),
+          url: manualUrl.trim(),
+          kind: manualKind,
+          manufacturer: mfg || portalInfo.name,
+          notes: manualNotes.trim() || undefined,
+        },
       });
-
-      if (error) throw error;
     },
-    onSuccess: () => {
-      toast.success(`Attached "${manualTitle}" to asset!`);
+    onSuccess: (res) => {
+      if (res.downloaded) toast.success(`Downloaded "${manualTitle}" into Manuals.`);
+      else toast.warning(`Saved the link only — couldn't download the file (${res.reason}).`);
       queryClient.invalidateQueries({ queryKey: ["asset-manuals", asset.id] });
       queryClient.invalidateQueries({ queryKey: ["manuals"] });
       setManualUrl("");
@@ -476,7 +474,7 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
               className="h-8 gap-1.5 text-xs font-semibold"
             >
               <CheckCircle2 className="size-3.5" />
-              {attachManual.isPending ? "Attaching…" : "Save & Attach Manual"}
+              {attachManual.isPending ? "Downloading…" : "Download to Manuals"}
             </Button>
           </div>
         </div>
