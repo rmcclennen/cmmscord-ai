@@ -130,6 +130,8 @@ export function buildingOf(
   location?: string | null,
   override?: string | null,
 ) {
+  const allText = `${assetName ?? ""} ${title ?? ""} ${location ?? ""} ${override ?? ""}`;
+  if (/\bRF\b|renewable fuels?/i.test(allText)) return "Renewable Fuels";
   if (override && override.trim()) return override.trim();
   const text = `${assetName ?? ""} ${title ?? ""}`;
   for (const [name, re] of BUILDING_RULES) if (re.test(text)) return name;
