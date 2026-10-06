@@ -682,7 +682,6 @@ function AssetDetail() {
     return [];
   }, [info.data?.parts, linkedPartsQuery.data]);
 
-
   const dbPartMatch = useMemo(() => {
     const map = new Map<
       string,
@@ -1021,7 +1020,6 @@ function AssetDetail() {
               Scan for manual
             </Button>
 
-
             {/* AI Maintenance / PMs Research button */}
             <Button
               size="sm"
@@ -1358,7 +1356,6 @@ function AssetDetail() {
                   <FileText className="size-8 mx-auto text-muted-foreground/40 mb-2" />
                   No manuals attached yet. Upload a file, add a web link, or use "Scan for manual"
                   to search Google for this equipment.
-
                 </li>
               )}
             </ul>
@@ -1388,12 +1385,16 @@ function AssetDetail() {
                 {a.model ? `model ${a.model}` : ""} manuals, then add the link you find above.
               </p>
             </div>
-            <Button size="sm" variant="secondary" className="gap-1.5 text-xs font-semibold" onClick={openGoogleManualSearch}>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="gap-1.5 text-xs font-semibold"
+              onClick={openGoogleManualSearch}
+            >
               <Search className="size-3.5 text-primary" /> Scan for manual
             </Button>
           </div>
         </TabsContent>
-
 
         <TabsContent value="specs" className="mt-4 space-y-4">
           {/* Active PM Program Overview Banner */}
@@ -2945,7 +2946,6 @@ function AssetDetail() {
                   </div>
                 )}
               </div>
-
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">

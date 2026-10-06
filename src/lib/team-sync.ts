@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
-import { isSiouxCityUser, type AppRole } from "./roles";
+import type { AppRole } from "./roles";
 import type { TeamMember } from "./notify";
 
 export type PlantMember = {
@@ -13,17 +13,10 @@ export type PlantMember = {
 };
 
 export function formatNameFromEmail(email?: string | null): string {
-  if (!email) return "Sioux City Plant Operations Tech";
+  if (!email) return "Plant Operations Tech";
   const userPart = email.split("@")[0] || "";
   const lowerEmail = email.toLowerCase();
 
-  if (
-    lowerEmail.includes("sioux") ||
-    lowerEmail.includes("rmcclennen") ||
-    userPart.toLowerCase().includes("rmcclennen")
-  ) {
-    return "R. McClennen (Sioux City Plant Operations)";
-  }
   if (lowerEmail.includes("demo")) {
     return "Plant Operations Lead (Demo)";
   }
@@ -169,12 +162,11 @@ export function markCrewIdRemoved(memberId: string) {
 }
 
 /**
- * Ensures the signed-in user's profile and roles exist in the database and local session.
+ * Ensures the signed-in user's profile and team directory rows exist.
+ * Roles are never assigned from the browser: they come from the database trigger
+ * (new accounts start as read-only "viewer") and are changed by admins/managers.
  */
-export async function ensureUserSynced(
-  user: User,
-  roleHint?: AppRole | string | null,
-): Promise<void> {
+export async function ensureUserSynced(user: User): Promise<void> {
   if (!user || !user.id) return;
 
   try {
@@ -213,37 +205,6 @@ export async function ensureUserSynced(
         full_name: rawFullName,
         updated_at: new Date().toISOString(),
       });
-    }
-
-    // 3. Check / insert default roles if none exist, or ensure Sioux City has full roles
-    const { data: existingRoles } = await supabase
-      .from("user_roles")
-      .select("id, role")
-      .eq("user_id", user.id);
-
-    const isSiouxCity = isSiouxCityUser(user);
-
-    if (isSiouxCity) {
-      const requiredRoles: AppRole[] = ["admin", "manager", "supervisor"];
-      const existingSet = new Set((existingRoles ?? []).map((r) => r.role));
-      const missing = requiredRoles.filter((r) => !existingSet.has(r));
-      if (missing.length > 0) {
-        await supabase.from("user_roles").upsert(
-          missing.map((role) => ({ user_id: user.id, role })),
-          { onConflict: "user_id,role" },
-        );
-      }
-    } else if (!existingRoles || existingRoles.length === 0) {
-      const assignedRole: AppRole = (roleHint as AppRole) || "admin";
-      await supabase
-        .from("user_roles")
-        .upsert(
-          [
-            { user_id: user.id, role: assignedRole },
-            ...(assignedRole === "admin" ? [{ user_id: user.id, role: "manager" as AppRole }] : []),
-          ],
-          { onConflict: "user_id,role" },
-        );
     }
   } catch (err) {
     console.warn("Non-fatal: ensureUserSynced error:", err);

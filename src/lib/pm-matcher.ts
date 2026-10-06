@@ -77,11 +77,7 @@ interface AssetMatchIndex {
 const assetCache = new WeakMap<MatchableAsset, PreparedAsset>();
 const pmCache = new WeakMap<MatchablePm, PreparedPm>();
 
-function addIndexToken(
-  index: Map<string, MatchableAsset[]>,
-  token: string,
-  asset: MatchableAsset,
-) {
+function addIndexToken(index: Map<string, MatchableAsset[]>, token: string, asset: MatchableAsset) {
   if (token.length < 2) return;
   const existing = index.get(token);
   if (existing) existing.push(asset);
@@ -178,7 +174,6 @@ export function scorePmAgainstAsset(
     tagRegex,
     tokens: preparedTokens,
   } = prepareAsset(asset);
-
 
   // 1. Exact Tag Match (Highest confidence)
   if (tagRegex) {

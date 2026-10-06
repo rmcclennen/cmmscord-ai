@@ -103,7 +103,7 @@ const TARGET_SECTORS = [
 
 function OverviewPage() {
   const [showCompanyDialog, setShowCompanyDialog] = useState(false);
-const [showBulkUpload, setShowBulkUpload] = useState(false);
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
 
   return (
     <div className="min-h-screen bg-background text-foreground">

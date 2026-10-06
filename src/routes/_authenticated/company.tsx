@@ -134,8 +134,8 @@ function CompanyWorkspacePage() {
           <div>
             <h1 className="text-2xl font-black tracking-tight">Company Workspace</h1>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              {companyName} — {plants.length} plant{plants.length === 1 ? "" : "s"}, {buildings.length}{" "}
-              building{buildings.length === 1 ? "" : "s"} mapped
+              {companyName} — {plants.length} plant{plants.length === 1 ? "" : "s"},{" "}
+              {buildings.length} building{buildings.length === 1 ? "" : "s"} mapped
             </p>
           </div>
         </div>
@@ -276,10 +276,7 @@ function CompanyWorkspacePage() {
                       <span className="text-[10px] text-muted-foreground">(default)</span>
                     )}
                   </div>
-                  <Select
-                    value={current?.id ?? ""}
-                    onValueChange={(v) => assignBuilding(b, v)}
-                  >
+                  <Select value={current?.id ?? ""} onValueChange={(v) => assignBuilding(b, v)}>
                     <SelectTrigger className="h-8 w-44 text-xs">
                       <SelectValue placeholder="Assign plant" />
                     </SelectTrigger>

@@ -1314,7 +1314,11 @@ function AssetWithNestedPartsRow({
             />
             <RelabelAssetDialog
               assetId={a.id}
-              initialAsset={{ ...a, criticality: a.criticality ?? "", status: a.status ?? "active" }}
+              initialAsset={{
+                ...a,
+                criticality: a.criticality ?? "",
+                status: a.status ?? "active",
+              }}
               trigger={
                 <Button
                   size="sm"
@@ -1465,9 +1469,7 @@ function AssetWithNestedPartsRow({
                                 variant="ghost"
                                 className="h-6 px-2 text-[11px] font-medium text-primary hover:bg-primary/10"
                               >
-                                <Link to="/inventory">
-                                  View Part
-                                </Link>
+                                <Link to="/inventory">View Part</Link>
                               </Button>
                             </TableCell>
                           </TableRow>

@@ -277,9 +277,7 @@ function ReportsPage() {
               <p className="text-2xl font-bold">{model.openWos}</p>
               <p className="text-xs text-muted-foreground">
                 {model.unassignedSpend > 0 && (
-                  <>
-                    {usd(model.unassignedSpend)} of costs not tied to an asset
-                  </>
+                  <>{usd(model.unassignedSpend)} of costs not tied to an asset</>
                 )}
                 {model.unassignedSpend === 0 && "All costs tied to equipment"}
               </p>

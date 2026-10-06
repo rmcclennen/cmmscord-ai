@@ -245,7 +245,10 @@ export function AddAssetPartDialog({ assetId, assetName, manufacturer, trigger }
               />
             </div>
             <DialogFooter>
-              <Button disabled={!name.trim() || createNew.isPending} onClick={() => createNew.mutate()}>
+              <Button
+                disabled={!name.trim() || createNew.isPending}
+                onClick={() => createNew.mutate()}
+              >
                 {createNew.isPending ? "Saving…" : "Create and add"}
               </Button>
             </DialogFooter>

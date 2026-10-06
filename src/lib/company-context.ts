@@ -1,6 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
-import { isSiouxCityUser } from "./roles";
 
 export interface CompanyInfo {
   id: string;
@@ -48,10 +47,6 @@ export function getActiveCompany(user?: User | null): CompanyInfo {
     if (metaCompany) {
       const slug = metaCompany.toLowerCase().replace(/[^a-z0-9]+/g, "_");
       return { id: slug, name: metaCompany };
-    }
-
-    if (isSiouxCityUser(user)) {
-      return DEFAULT_COMPANY;
     }
   }
 

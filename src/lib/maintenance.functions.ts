@@ -1,23 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
-import { createClient } from "@supabase/supabase-js";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
-import type { Database } from "@/integrations/supabase/types";
 import type { Json } from "@/integrations/supabase/types";
 import {
   generateComprehensiveMaintenanceData,
   type MaintenanceLookupData,
 } from "./maintenance-intelligence";
-
-const DEFAULT_SUPABASE_URL = "https://wylqoosdanaltciwrwht.supabase.co";
-const DEFAULT_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_hOeYd2G3LdsYfOyy4ajovA_vYM4o6mz";
-
-function getSupabaseClient() {
-  const envUrl = process.env["SUPABASE_URL"] || process.env["VITE_SUPABASE_URL"];
-  const envKey = process.env["SUPABASE_PUBLISHABLE_KEY"] || process.env["VITE_SUPABASE_PUBLISHABLE_KEY"];
-  const url = envUrl && envUrl.startsWith("http") ? envUrl : DEFAULT_SUPABASE_URL;
-  const key = envKey && envKey.length > 20 ? envKey : DEFAULT_SUPABASE_PUBLISHABLE_KEY;
-  return createClient<Database>(url, key);
-}
 
 const ResearchSchema = z.object({
   summary: z.string(),
@@ -39,6 +27,7 @@ const ResearchSchema = z.object({
 });
 
 export const researchAssetMaintenance = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
       .object({
@@ -47,8 +36,8 @@ export const researchAssetMaintenance = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .handler(async ({ data }) => {
-    const supabase = getSupabaseClient();
+  .handler(async ({ data, context }) => {
+    const supabase = context.supabase;
 
     const { data: asset, error } = await supabase
       .from("assets")
@@ -183,6 +172,7 @@ Always include specific manufacturer O&M manuals or technical documentation entr
   });
 
 export const updateAssetMaintenanceParts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
       .object({
@@ -200,8 +190,8 @@ export const updateAssetMaintenanceParts = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .handler(async ({ data }) => {
-    const supabase = getSupabaseClient();
+  .handler(async ({ data, context }) => {
+    const supabase = context.supabase;
 
     const { data: existing } = await supabase
       .from("asset_maintenance_info")

@@ -347,7 +347,9 @@ export function SendPartsDialog({
               <PartsLookupDialog
                 asset={
                   selectedAssetId !== "none"
-                    ? (assetsQuery.data ?? []).find((a) => a.id === selectedAssetId) || initialAsset || null
+                    ? (assetsQuery.data ?? []).find((a) => a.id === selectedAssetId) ||
+                      initialAsset ||
+                      null
                     : initialAsset || null
                 }
                 assetId={selectedAssetId !== "none" ? selectedAssetId : initialAsset?.id}

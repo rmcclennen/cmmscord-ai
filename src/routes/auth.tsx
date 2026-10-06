@@ -62,18 +62,18 @@ function AuthPage() {
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange(async (_e, session) => {
       if (session?.user) {
-        await ensureUserSynced(session.user, invitedRole).catch(() => {});
+        await ensureUserSynced(session.user).catch(() => {});
         window.location.replace("/pm-schedule");
       }
     });
     return () => sub.subscription.unsubscribe();
-  }, [invitedRole]);
+  }, []);
 
   async function signIn() {
     setBusy(true);
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (data?.user) {
-      await ensureUserSynced(data.user, invitedRole).catch(() => {});
+      await ensureUserSynced(data.user).catch(() => {});
     }
     setBusy(false);
     if (error) toast.error(error.message);
@@ -87,7 +87,7 @@ function AuthPage() {
       options: { emailRedirectTo: window.location.origin, data: { full_name: fullName } },
     });
     if (data?.user) {
-      await ensureUserSynced(data.user, invitedRole).catch(() => {});
+      await ensureUserSynced(data.user).catch(() => {});
     }
     setBusy(false);
     if (error) {

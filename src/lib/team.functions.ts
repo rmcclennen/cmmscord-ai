@@ -112,6 +112,13 @@ export const addTeamMember = createServerFn({ method: "POST" })
         .upsert(roleRows, { onConflict: "user_id,role" });
       if (roleError) {
         console.warn("Role insert warning:", roleError.message);
+      } else if (!data.roles.includes("viewer")) {
+        // New accounts start as read-only "viewer"; drop that default once a real role is assigned.
+        await supabaseAdmin
+          .from("user_roles")
+          .delete()
+          .eq("user_id", memberId)
+          .eq("role", "viewer");
       }
     }
 
