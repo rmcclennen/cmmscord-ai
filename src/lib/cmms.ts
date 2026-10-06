@@ -97,32 +97,34 @@ const BUILDING_RULES: Array<[string, RegExp]> = [
     /fire extinguish|extinguisher|eye ?wash|safety shower|\bscba\b|\baed\b|gas detect|fall protection|first aid|fire alarm|sprinkler|confined space|lockout/i,
   ],
   ["Headworks", /headworks|bar screen|washing compactor|grit|vortex|septic receiving|vac truck/i],
-  [
-    "Solids Handling",
-    /centrifuge|rotary drum thickener|\brdt\b|dewater|sludge cake|silo|schwing|polymer/i,
-  ],
-  ["Digester Complex", /digester|gas |boiler|\bp4\b|methane/i],
+  ["East Digester", /east digester|digester east|\beast dig\b/i],
+  ["West Digester", /west digester|digester west|\bwest dig\b/i],
   ["Primary Clarifiers", /primary clarifier|primary sludge|scum/i],
-  ["Aeration", /aeration|blower|mixer|\bras\b|\bwas\b|diffuser/i],
   ["Final Clarifiers", /final clarifier/i],
-  ["Disinfection / UV", /disinfection|\buv\b|trojan|chlorine|contact basin|hypo/i],
-  ["Pump Houses", /pump house|wet well|lift station|effluent pump/i],
-  [
-    "Administration",
-    /administration|admin building|lab |laboratory|office|maintenance shop|garage/i,
-  ],
-  [
-    "Plant Utilities",
-    /air compressor|air dryer|hvac|make up air|generator|water system|plant water/i,
-  ],
+  ["Blower Building", /blower building|blower room|\bblower\b/i],
+  ["Final Lift", /final lift|final pump|\bras\b|return activated sludge/i],
+  ["Aeration Basins 1–6", /aeration basin|aeration|diffuser/i],
+  ["UV Building", /uv building|disinfection|\buv\b|trojan|chlorine|contact basin|hypo/i],
+  ["Non-Potable Building", /non[- ]?pot(?:able)?|plant water/i],
+  ["Admin", /administration|admin building|\badmin\b|lab |laboratory|office/i],
+  ["RDT Building", /rdt building|rotary drum thickener|\brdt\b|dewater|sludge cake|silo|schwing|polymer/i],
   ["Renewable Fuels", /\bRF\b|renewable fuel/i],
 ];
 
 /** Ordered list of building/area names used for tabs and filters. */
 export const BUILDING_NAMES = BUILDING_RULES.map(([name]) => name);
 
-/** Every selectable building/area, including the catch-all buckets. */
-export const ALL_BUILDING_OPTIONS = [...BUILDING_NAMES, "Lift Stations", "Other / Unassigned"];
+/** Every selectable building/area, including the catch-all bucket. */
+export const ALL_BUILDING_OPTIONS = [...BUILDING_NAMES, "Other / Unassigned"];
+
+const BUILDING_ALIASES: Record<string, string> = {
+  "solids handling": "RDT Building",
+  "digester complex": "Other / Unassigned",
+  aeration: "Aeration Basins 1–6",
+  "disinfection / uv": "UV Building",
+  administration: "Admin",
+  "plant utilities": "Non-Potable Building",
+};
 
 export function buildingOf(
   assetName?: string | null,
@@ -132,10 +134,12 @@ export function buildingOf(
 ) {
   const allText = `${assetName ?? ""} ${title ?? ""} ${location ?? ""} ${override ?? ""}`;
   if (/\bRF\b|renewable fuels?/i.test(allText)) return "Renewable Fuels";
-  if (override && override.trim()) return override.trim();
-  const text = `${assetName ?? ""} ${title ?? ""}`;
+  if (override && override.trim()) {
+    const savedBuilding = override.trim();
+    return BUILDING_ALIASES[savedBuilding.toLowerCase()] ?? savedBuilding;
+  }
+  const text = `${assetName ?? ""} ${title ?? ""} ${location ?? ""}`;
   for (const [name, re] of BUILDING_RULES) if (re.test(text)) return name;
-  if (location && /lift/i.test(location)) return "Lift Stations";
   return "Other / Unassigned";
 }
 

@@ -337,7 +337,7 @@ function AssetsPage() {
 
   const buildingTabs = useMemo(
     () =>
-      [...BUILDING_NAMES, "Lift Stations", "Other / Unassigned"].filter(
+      [...BUILDING_NAMES, "Other / Unassigned"].filter(
         (b) => (buildingCounts.get(b) ?? 0) > 0,
       ),
     [buildingCounts],
