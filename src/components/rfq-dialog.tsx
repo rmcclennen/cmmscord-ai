@@ -89,10 +89,7 @@ export function RfqDialog({ asset, workOrder, quotedCost, trigger }: Props) {
   const seed = () => {
     const mfrModelDefault = [asset?.manufacturer, asset?.model].filter(Boolean).join(" ");
     const workDefault =
-      workOrder?.description?.trim() ||
-      asset?.notes?.trim() ||
-      workOrder?.title?.trim() ||
-      "";
+      workOrder?.description?.trim() || asset?.notes?.trim() || workOrder?.title?.trim() || "";
     const t = `RFQ: ${workOrder?.title || `Repair parts for ${asset?.name ?? "equipment"}`}`;
     setTitle(t);
     setEquipment(asset?.name ?? "");
@@ -147,11 +144,7 @@ export function RfqDialog({ asset, workOrder, quotedCost, trigger }: Props) {
       const assetId = asset?.id ?? null;
       const woId = workOrder?.id ?? null;
       if (assetId) {
-        const { data } = await supabase
-          .from("assets")
-          .select("id")
-          .eq("id", assetId)
-          .maybeSingle();
+        const { data } = await supabase.from("assets").select("id").eq("id", assetId).maybeSingle();
         if (!data) throw new Error("This equipment was removed — reload the page.");
       }
       await createPartRequest({
@@ -251,11 +244,7 @@ export function RfqDialog({ asset, workOrder, quotedCost, trigger }: Props) {
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1 sm:col-span-2">
             <Label htmlFor="rfq-title">RFQ subject *</Label>
-            <Input
-              id="rfq-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
+            <Input id="rfq-title" value={title} onChange={(e) => setTitle(e.target.value)} />
           </div>
           {editField("Equipment", "EQUIPMENT", equipment, setEquipment, "rfq-equipment")}
           {editField("Serial number", "SERIAL NUMBER", serial, setSerial, "rfq-serial")}

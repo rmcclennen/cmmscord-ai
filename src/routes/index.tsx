@@ -106,48 +106,6 @@ function ExistingUsersPortalMain() {
     if (result.error) toast.error("Google sign-in failed. Please try again.");
   }
 
-  async function handleQuickDemoAccess(demoEmail: string, roleHint = "admin") {
-    setBusy(true);
-    setEmail(demoEmail);
-    setPassword("DemoPassword123!");
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: demoEmail,
-      password: "DemoPassword123!",
-    });
-
-    if (error) {
-      // Try signing up if demo account doesn't exist yet
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email: demoEmail,
-        password: "DemoPassword123!",
-        options: {
-          data: {
-            full_name:
-              demoEmail.includes("sioux") || demoEmail.includes("rmcclennen")
-                ? "R. McClennen (Sioux City Plant Operations)"
-                : "Plant Maintenance Supervisor",
-          },
-        },
-      });
-
-      if (signUpError) {
-        toast.error(`Quick access error: ${signUpError.message}`);
-        setBusy(false);
-        return;
-      }
-      if (signUpData.user) {
-        await ensureUserSynced(signUpData.user, roleHint).catch(() => {});
-        toast.success("Demo access activated! Redirecting...");
-        window.location.replace("/pm-schedule");
-      }
-    } else if (data.user) {
-      await ensureUserSynced(data.user, roleHint).catch(() => {});
-      toast.success("Signed in successfully! Redirecting...");
-      window.location.replace("/pm-schedule");
-    }
-    setBusy(false);
-  }
-
   async function handlePasswordReset(e: React.FormEvent) {
     e.preventDefault();
     if (!resetEmail) {
@@ -350,12 +308,9 @@ function ExistingUsersPortalMain() {
               </div>
 
               <Tabs value={tab} onValueChange={setTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-4">
+                <TabsList className="grid w-full grid-cols-1 mb-4">
                   <TabsTrigger value="signin" className="text-xs font-bold">
                     Direct Login
-                  </TabsTrigger>
-                  <TabsTrigger value="quick" className="text-xs font-bold">
-                    Quick Access
                   </TabsTrigger>
                 </TabsList>
 
@@ -446,73 +401,6 @@ function ExistingUsersPortalMain() {
                     </svg>
                     Continue with Google OAuth
                   </Button>
-                </TabsContent>
-
-                {/* Quick Access for Plant Staff */}
-                <TabsContent value="quick" className="space-y-3">
-                  <p className="text-xs text-muted-foreground">
-                    Instant 1-click test access for verified plant staff &amp; certified operators:
-                  </p>
-
-                  <div className="space-y-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleQuickDemoAccess("rmcclennensiouxcity@gmail.com", "admin")
-                      }
-                      disabled={busy}
-                      className="w-full text-left p-3 rounded-lg border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors flex items-center justify-between group"
-                    >
-                      <div>
-                        <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 dark:text-emerald-300">
-                          <Sparkles className="size-3.5 text-emerald-600 dark:text-emerald-400" />
-                          Sioux City Plant Operations
-                        </div>
-                        <p className="text-[11px] text-muted-foreground">
-                          rmcclennensiouxcity@gmail.com
-                        </p>
-                      </div>
-                      <Badge className="bg-emerald-600 text-white text-[10px]">Full Access</Badge>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleQuickDemoAccess("demo-supervisor@plant.gov", "manager")}
-                      disabled={busy}
-                      className="w-full text-left p-3 rounded-lg border border-border bg-muted/40 hover:bg-muted/80 transition-colors flex items-center justify-between group"
-                    >
-                      <div>
-                        <div className="flex items-center gap-1.5 text-xs font-bold">
-                          <ShieldCheck className="size-3.5 text-primary" />
-                          Plant Maintenance Supervisor
-                        </div>
-                        <p className="text-[11px] text-muted-foreground">
-                          demo-supervisor@plant.gov
-                        </p>
-                      </div>
-                      <Badge variant="outline" className="text-[10px]">
-                        Manager
-                      </Badge>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleQuickDemoAccess("demo-tech@plant.gov", "operator")}
-                      disabled={busy}
-                      className="w-full text-left p-3 rounded-lg border border-border bg-muted/40 hover:bg-muted/80 transition-colors flex items-center justify-between group"
-                    >
-                      <div>
-                        <div className="flex items-center gap-1.5 text-xs font-bold">
-                          <Wrench className="size-3.5 text-blue-500" />
-                          Shift Technician / Operator
-                        </div>
-                        <p className="text-[11px] text-muted-foreground">demo-tech@plant.gov</p>
-                      </div>
-                      <Badge variant="outline" className="text-[10px]">
-                        Technician
-                      </Badge>
-                    </button>
-                  </div>
                 </TabsContent>
 
                 {/* Password Reset Tab */}

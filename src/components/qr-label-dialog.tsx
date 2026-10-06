@@ -22,9 +22,7 @@ export type QrLabelAsset = {
 };
 
 function labelHtml(asset: QrLabelAsset, qrDataUrl: string, scanUrl: string) {
-  const sub = [asset.tag_number, asset.building, asset.location_name]
-    .filter(Boolean)
-    .join(" · ");
+  const sub = [asset.tag_number, asset.building, asset.location_name].filter(Boolean).join(" · ");
   return `
   <div class="label">
     <div class="info">
@@ -45,9 +43,7 @@ export function printQrLabels(assets: QrLabelAsset[]) {
     toast.error("Allow pop-ups to print labels.");
     return;
   }
-  const cards = assets.map(
-    (a) => labelHtml(a, store[a.id] ?? "", `${origin}/assets/${a.id}`),
-  );
+  const cards = assets.map((a) => labelHtml(a, store[a.id] ?? "", `${origin}/assets/${a.id}`));
   win.document.write(`<!doctype html><html><head><title>Asset QR Labels</title>
   <style>
     * { box-sizing: border-box; }
@@ -139,10 +135,7 @@ export function QrLabelDialog({ assets, title, trigger }: Props) {
         </DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
           {assets.slice(0, 8).map((a) => (
-            <div
-              key={a.id}
-              className="flex items-center gap-3 rounded-lg border border-border p-3"
-            >
+            <div key={a.id} className="flex items-center gap-3 rounded-lg border border-border p-3">
               <div className="flex-1 overflow-hidden">
                 <p className="label-caps text-[9px]">AssetCareConnect</p>
                 <p className="truncate text-sm font-bold">{a.name}</p>
@@ -162,7 +155,8 @@ export function QrLabelDialog({ assets, title, trigger }: Props) {
           ))}
         </div>
         <Button onClick={print} disabled={Object.keys(urls).length === 0}>
-          <Printer className="size-4" /> Print {assets.length > 1 ? `${assets.length} labels` : "label"}
+          <Printer className="size-4" /> Print{" "}
+          {assets.length > 1 ? `${assets.length} labels` : "label"}
         </Button>
       </DialogContent>
     </Dialog>

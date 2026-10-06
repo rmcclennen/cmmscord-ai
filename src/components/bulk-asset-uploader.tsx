@@ -56,7 +56,6 @@ import {
   Link2,
 } from "lucide-react";
 
-
 interface BulkAssetUploaderProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -333,7 +332,6 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
 
   const selectedPartsCount = selectedAssets.reduce((acc, a) => acc + (a.parts?.length || 0), 0);
 
-
   const executeWipeDatabase = async () => {
     if (
       !confirm(
@@ -371,7 +369,6 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
         skipDuplicates,
         onProgress: (curr, tot) => setProgress({ current: curr, total: tot }),
       });
-
 
       setResultSummary(res);
       queryClient.invalidateQueries({ queryKey: ["assets-all"] });
@@ -452,7 +449,6 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
                 onChange={handleFileChange}
               />
 
-
               <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
                 <Button
                   type="button"
@@ -489,8 +485,8 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
                 online)
               </h4>
               <p className="text-[11px] text-muted-foreground mt-1">
-                Paste the direct link to a PDF manual or cut sheet and we&apos;ll read the equipment,
-                components and parts out of it.
+                Paste the direct link to a PDF manual or cut sheet and we&apos;ll read the
+                equipment, components and parts out of it.
               </p>
               <div className="mt-2 flex flex-wrap gap-2">
                 <input
@@ -546,7 +542,6 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
                 </div>
               )}
             </div>
-
 
             {/* Database Clear Utility */}
             <div className="flex items-center justify-between rounded-lg border border-destructive/30 bg-destructive/5 p-3">
@@ -657,8 +652,7 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
                 <ArrowLeft className="mr-1.5 size-3.5" /> Back
               </Button>
               <Button size="sm" onClick={proceedToPreview} className="font-bold">
-                Review Cleaned Assets{" "}
-                <ArrowRight className="ml-1.5 size-3.5" />
+                Review Cleaned Assets <ArrowRight className="ml-1.5 size-3.5" />
               </Button>
             </div>
           </div>
@@ -701,7 +695,6 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
                 </p>
               </div>
             </div>
-
 
             {/* Ingestion Options: Clean Replace & Auto PM */}
             <div className="space-y-3">
@@ -774,7 +767,6 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
               </div>
             </div>
 
-
             {/* Selectable preview */}
             <div className="rounded-lg border border-border bg-card overflow-hidden">
               <div className="bg-muted px-4 py-2 text-xs font-bold text-foreground flex flex-wrap items-center justify-between gap-2">
@@ -813,7 +805,9 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
                     <div
                       key={idx}
                       className={`rounded-lg border p-3 ${
-                        assetIncluded ? "border-border bg-background/70" : "border-dashed opacity-60"
+                        assetIncluded
+                          ? "border-border bg-background/70"
+                          : "border-dashed opacity-60"
                       }`}
                     >
                       <div className="flex items-center justify-between gap-2">
@@ -875,7 +869,9 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
                                   </div>
                                   <div className="flex shrink-0 items-center gap-2 text-[11px] text-muted-foreground font-mono">
                                     {p.part_number && <span>#{p.part_number}</span>}
-                                    {p.qty_on_hand !== undefined && <span>Qty: {p.qty_on_hand}</span>}
+                                    {p.qty_on_hand !== undefined && (
+                                      <span>Qty: {p.qty_on_hand}</span>
+                                    )}
                                     {p.unit_cost !== undefined && <span>${p.unit_cost}</span>}
                                   </div>
                                 </div>
@@ -908,7 +904,6 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
                 {selectedPartsCount} parts
               </Button>
             </div>
-
           </div>
         )}
 
@@ -966,7 +961,6 @@ export function BulkAssetUploader({ open, onOpenChange, onSuccess }: BulkAssetUp
                     Skipped {resultSummary.skipped} records that were already in the system.
                   </p>
                 )}
-
 
                 <div className="pt-4">
                   <Button

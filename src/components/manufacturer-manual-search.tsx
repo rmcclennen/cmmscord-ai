@@ -85,7 +85,9 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
           `Identified ${data.brand}${data.model ? ` · Model ${data.model}` : ""} (${data.confidence} confidence)`,
         );
       } else {
-        toast.warning("Could not confirm the brand — add a hint like a nameplate word or part number.");
+        toast.warning(
+          "Could not confirm the brand — add a hint like a nameplate word or part number.",
+        );
       }
     },
     onError: (err: Error) => toast.error(err.message || "Brand identification failed"),
@@ -136,7 +138,6 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
     const q = term !== undefined ? term : companySearchQuery;
     window.open(googleUrl(q), "_blank", "noopener,noreferrer");
   };
-
 
   // Auto-identify the real brand/model when the record is missing one
   useEffect(() => {
@@ -271,8 +272,7 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
             </h3>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Searches Google for{" "}
-            <strong className="text-foreground">{mfg || asset.name}</strong>{" "}
+            Searches Google for <strong className="text-foreground">{mfg || asset.name}</strong>{" "}
             {model && (
               <>
                 · Model: <span className="font-mono font-semibold text-primary">{model}</span>
@@ -316,7 +316,6 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
             <Search className="size-3.5 text-amber-500" />
             Scan for manual
           </Button>
-
 
           <Button
             size="sm"
@@ -375,7 +374,11 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
             { label: "Manual PDF", terms: "O&M manual pdf", icon: BookOpen },
             { label: "Parts Breakdown", terms: "parts list manual pdf", icon: FileText },
             { label: "Wiring Diagram", terms: "wiring diagram pdf", icon: FileCode2 },
-            { label: "Troubleshooting / Specs", terms: "troubleshooting specifications", icon: null },
+            {
+              label: "Troubleshooting / Specs",
+              terms: "troubleshooting specifications",
+              icon: null,
+            },
           ].map(({ label, terms, icon: Icon }) => (
             <Button
               key={label}
@@ -396,7 +399,6 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
           ))}
         </div>
       </div>
-
 
       {/* Expandable Manual Attach Form */}
       {attachOpen && (
@@ -479,7 +481,6 @@ export function ManufacturerManualSearch({ asset, className = "" }: Manufacturer
           </div>
         </div>
       )}
-
     </div>
   );
 }

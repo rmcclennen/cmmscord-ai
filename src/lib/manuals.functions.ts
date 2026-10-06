@@ -1,21 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
 import { getManufacturerPortalInfo } from "./manufacturer-links";
-
-const DEFAULT_SUPABASE_URL = "https://wylqoosdanaltciwrwht.supabase.co";
-const DEFAULT_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_hOeYd2G3LdsYfOyy4ajovA_vYM4o6mz";
-
-function getSupabaseClient() {
-  const envUrl = process.env["SUPABASE_URL"] || process.env["VITE_SUPABASE_URL"];
-  const envKey =
-    process.env["SUPABASE_PUBLISHABLE_KEY"] || process.env["VITE_SUPABASE_PUBLISHABLE_KEY"];
-  const url = envUrl && envUrl.startsWith("http") ? envUrl : DEFAULT_SUPABASE_URL;
-  const key = envKey && envKey.length > 20 ? envKey : DEFAULT_SUPABASE_PUBLISHABLE_KEY;
-  return createClient<Database>(url, key);
-}
 
 export interface DiscoveredManual {
   id: string;
@@ -843,7 +830,8 @@ export const downloadManualFromLink = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const url = new URL(data.url);
-    if (!["http:", "https:"].includes(url.protocol)) throw new Error("Only web links are supported.");
+    if (!["http:", "https:"].includes(url.protocol))
+      throw new Error("Only web links are supported.");
 
     let fileUrl = data.url;
     let downloaded = false;
@@ -851,22 +839,32 @@ export const downloadManualFromLink = createServerFn({ method: "POST" })
     try {
       const res = await fetch(data.url, {
         redirect: "follow",
-        headers: { "User-Agent": "Mozilla/5.0 (CMMSCord manual fetcher)", Accept: "application/pdf,*/*" },
+        headers: {
+          "User-Agent": "Mozilla/5.0 (CMMSCord manual fetcher)",
+          Accept: "application/pdf,*/*",
+        },
       });
       if (!res.ok) throw new Error(`site returned ${res.status}`);
-      const type = (res.headers.get("content-type") || "").split(";")[0]?.trim().toLowerCase() ?? "";
+      const type =
+        (res.headers.get("content-type") || "").split(";")[0]?.trim().toLowerCase() ?? "";
       if (type.includes("text/html")) throw new Error("link is a web page, not a file");
       const buf = await res.arrayBuffer();
       if (buf.byteLength > 50 * 1024 * 1024) throw new Error("file is larger than 50 MB");
       if (buf.byteLength < 200) throw new Error("file was empty");
       const extFromType: Record<string, string> = {
-        "application/pdf": "pdf", "image/jpeg": "jpg", "image/png": "png",
+        "application/pdf": "pdf",
+        "image/jpeg": "jpg",
+        "image/png": "png",
         "application/msword": "doc",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
       };
       const urlExt = url.pathname.split(".").pop()?.toLowerCase();
       const ext = extFromType[type] || (urlExt && urlExt.length <= 5 ? urlExt : "pdf");
-      const safe = data.title.replace(/[^a-z0-9]+/gi, "-").slice(0, 60).replace(/^-|-$/g, "") || "manual";
+      const safe =
+        data.title
+          .replace(/[^a-z0-9]+/gi, "-")
+          .slice(0, 60)
+          .replace(/^-|-$/g, "") || "manual";
       const path = `${data.assetId}/${Date.now()}-${safe}.${ext}`;
       const { error: upErr } = await supabase.storage
         .from("manual-files")
@@ -883,8 +881,10 @@ export const downloadManualFromLink = createServerFn({ method: "POST" })
       console.error("Manual download failed:", reason);
     }
 
-    const notes = [data.notes?.trim(), downloaded ? `Downloaded from ${data.url}` : null]
-      .filter(Boolean).join("\n") || null;
+    const notes =
+      [data.notes?.trim(), downloaded ? `Downloaded from ${data.url}` : null]
+        .filter(Boolean)
+        .join("\n") || null;
     const { error } = await supabase.from("manuals").insert({
       asset_id: data.assetId,
       title: data.title.trim(),

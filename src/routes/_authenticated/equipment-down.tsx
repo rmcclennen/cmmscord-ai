@@ -241,7 +241,16 @@ function EquipmentDownPage() {
 
       return true;
     });
-  }, [downEquipment, search, statusFilter, partsFilter, criticalityFilter, buildingFilter]);
+  }, [
+    downEquipment,
+    search,
+    statusFilter,
+    partsFilter,
+    criticalityFilter,
+    buildingFilter,
+    plantFilter,
+    plants,
+  ]);
 
   // Aggregate Metrics
   const metrics = useMemo(() => {

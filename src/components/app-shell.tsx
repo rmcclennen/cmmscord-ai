@@ -47,13 +47,28 @@ const PRIMARY_NAV = [
 ] as const;
 
 const PM_NAV = [
-  { to: "/pm-schedule", label: "PM Schedule", description: "All preventive maintenance schedules", icon: CalendarClock },
-  { to: "/pm-due", label: "Due & Overdue", description: "PMs due today, overdue, and this week", icon: AlertTriangle },
+  {
+    to: "/pm-schedule",
+    label: "PM Schedule",
+    description: "All preventive maintenance schedules",
+    icon: CalendarClock,
+  },
+  {
+    to: "/pm-due",
+    label: "Due & Overdue",
+    description: "PMs due today, overdue, and this week",
+    icon: AlertTriangle,
+  },
 ] as const;
 
 const ASSET_NAV = [
   { to: "/assets", label: "Asset Registry", description: "View and manage equipment", icon: Boxes },
-  { to: "/inventory", label: "Parts Inventory", description: "Stock and reorder parts", icon: PackageSearch },
+  {
+    to: "/inventory",
+    label: "Parts Inventory",
+    description: "Stock and reorder parts",
+    icon: PackageSearch,
+  },
   { to: "/part-requests", label: "Parts Requests", icon: ShoppingCart },
   { to: "/manuals", label: "Manuals", icon: FileText },
 ] as const;
@@ -126,14 +141,20 @@ export function AppShell({ children }: { children: ReactNode }) {
                 className="w-72 border-sidebar-border bg-sidebar text-sidebar-foreground shadow-xl"
               >
                 {PM_NAV.map((item) => (
-                  <DropdownMenuItem key={item.to} asChild className="cursor-pointer px-3 py-2.5 focus:bg-sidebar-accent focus:text-sidebar-accent-foreground">
+                  <DropdownMenuItem
+                    key={item.to}
+                    asChild
+                    className="cursor-pointer px-3 py-2.5 focus:bg-sidebar-accent focus:text-sidebar-accent-foreground"
+                  >
                     <Link to={item.to} className="flex items-start gap-3">
                       <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-sidebar-accent">
                         <item.icon className="size-4 text-sidebar-primary" aria-hidden="true" />
                       </span>
                       <span className="min-w-0">
                         <span className="block text-sm font-semibold">{item.label}</span>
-                        <span className="block text-[11px] text-sidebar-foreground/55">{item.description}</span>
+                        <span className="block text-[11px] text-sidebar-foreground/55">
+                          {item.description}
+                        </span>
                       </span>
                     </Link>
                   </DropdownMenuItem>
@@ -191,7 +212,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                   Asset management
                 </DropdownMenuLabel>
                 {ASSET_NAV.map((item) => (
-                  <DropdownMenuItem key={item.to} asChild className="cursor-pointer px-3 py-2.5 focus:bg-sidebar-accent focus:text-sidebar-accent-foreground">
+                  <DropdownMenuItem
+                    key={item.to}
+                    asChild
+                    className="cursor-pointer px-3 py-2.5 focus:bg-sidebar-accent focus:text-sidebar-accent-foreground"
+                  >
                     <Link to={item.to} className="flex items-start gap-3">
                       <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-sidebar-accent">
                         <item.icon className="size-4 text-sidebar-primary" aria-hidden="true" />
@@ -199,7 +224,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                       <span className="min-w-0">
                         <span className="block text-sm font-semibold">{item.label}</span>
                         <span className="block text-[11px] text-sidebar-foreground/55">
-                          {"description" in item ? item.description : item.label === "Parts Requests" ? "Request, bid, and order parts" : "Equipment documents and manuals"}
+                          {"description" in item
+                            ? item.description
+                            : item.label === "Parts Requests"
+                              ? "Request, bid, and order parts"
+                              : "Equipment documents and manuals"}
                         </span>
                       </span>
                     </Link>
@@ -232,9 +261,16 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <ChevronDown className="size-3 opacity-60" aria-hidden="true" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-52 border-sidebar-border bg-sidebar text-sidebar-foreground">
+              <DropdownMenuContent
+                align="start"
+                className="w-52 border-sidebar-border bg-sidebar text-sidebar-foreground"
+              >
                 {MORE_NAV.map((item) => (
-                  <DropdownMenuItem key={item.to} asChild className="cursor-pointer focus:bg-sidebar-accent focus:text-sidebar-accent-foreground">
+                  <DropdownMenuItem
+                    key={item.to}
+                    asChild
+                    className="cursor-pointer focus:bg-sidebar-accent focus:text-sidebar-accent-foreground"
+                  >
                     <Link to={item.to}>
                       <item.icon className="size-4 text-sidebar-primary" aria-hidden="true" />
                       {item.label}
@@ -284,7 +320,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         >
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="ghost" className="h-7 shrink-0 gap-1 px-2.5 text-xs font-bold text-sidebar-primary">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 shrink-0 gap-1 px-2.5 text-xs font-bold text-sidebar-primary"
+              >
                 PM Schedule <ChevronDown className="size-3" aria-hidden="true" />
               </Button>
             </DropdownMenuTrigger>
@@ -319,7 +359,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           ))}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="ghost" className="h-7 shrink-0 gap-1 px-2.5 text-xs font-bold text-sidebar-primary">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 shrink-0 gap-1 px-2.5 text-xs font-bold text-sidebar-primary"
+              >
                 Assets <ChevronDown className="size-3" aria-hidden="true" />
               </Button>
             </DropdownMenuTrigger>
@@ -341,7 +385,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           </DropdownMenu>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="ghost" className="h-7 shrink-0 gap-1 px-2.5 text-xs font-bold text-sidebar-foreground/75">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 shrink-0 gap-1 px-2.5 text-xs font-bold text-sidebar-foreground/75"
+              >
                 More <ChevronDown className="size-3" aria-hidden="true" />
               </Button>
             </DropdownMenuTrigger>

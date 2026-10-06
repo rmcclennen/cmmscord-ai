@@ -170,7 +170,6 @@ export function scanResultToAssets(result: DocumentScanResult): ParsedAssetRow[]
   return assets;
 }
 
-
 export interface ParsedPartRow {
   name: string;
   part_number?: undefined | string;
@@ -558,14 +557,18 @@ export function stripShelfLocation(text: string | null | undefined): string {
 }
 
 const INVALID_CELL_VALUE = /^(?:#(?:REF|VALUE|NAME|DIV\/0|N\/A|NUM|NULL)!?|undefined|null|nan)$/i;
-const REPEATED_HEADER = /^(?:asset|asset name|equipment|equipment name|description|item name|name)$/i;
+const REPEATED_HEADER =
+  /^(?:asset|asset name|equipment|equipment name|description|item name|name)$/i;
 const DATE_ONLY = /^(?:\d{1,2}[/-]){2}\d{2,4}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?$/;
 
 /** Prevent report rows, spreadsheet errors, dates and standalone IDs from becoming assets. */
 export function isPlausibleAssetName(value: string | null | undefined): boolean {
-  const name = String(value ?? "").replace(/\s+/g, " ").trim();
+  const name = String(value ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
   if (name.length < 3 || name.length > 240) return false;
-  if (INVALID_CELL_VALUE.test(name) || REPEATED_HEADER.test(name) || DATE_ONLY.test(name)) return false;
+  if (INVALID_CELL_VALUE.test(name) || REPEATED_HEADER.test(name) || DATE_ONLY.test(name))
+    return false;
   if (/^(?:total|subtotal|grand total|page \d+|continued)$/i.test(name)) return false;
   if (/^[\d\s.,$%()+\-/:#]+$/.test(name)) return false;
   if (/^=/.test(name)) return false;
@@ -873,8 +876,6 @@ export async function bulkInsertAssets(
   let totalInserted = 0;
   let totalPartsLinked = 0;
   let totalPms = 0;
-
-
 
   for (let i = 0; i < assets.length; i += BATCH_SIZE) {
     const batch = assets.slice(i, i + BATCH_SIZE);

@@ -137,7 +137,6 @@ export function MatchPmAssetDialog({
   // PMs linked during this session — hidden immediately so they stop reappearing
   const [resolvedPmIds, setResolvedPmIds] = useState<Set<string>>(new Set());
 
-
   useEffect(() => {
     if (!isOpen || pms.length === 0 || assets.length === 0) {
       setAllSmartMatches([]);
@@ -193,7 +192,6 @@ export function MatchPmAssetDialog({
     });
   }, [pendingSmartMatches, confidenceFilter, searchFilter]);
 
-
   const visibleSmartMatches = useMemo(
     () => filteredSmartMatches.slice(0, visibleSmartCount),
     [filteredSmartMatches, visibleSmartCount],
@@ -228,7 +226,6 @@ export function MatchPmAssetDialog({
     if (!targetAsset || pms.length === 0) return [];
     return findMatchingPmsForAsset(targetAsset, pms).filter((m) => !resolvedPmIds.has(m.pm.id));
   }, [targetAsset, pms, resolvedPmIds]);
-
 
   // Mutation to link PMs to Assets
   const linkMutation = useMutation({
@@ -406,7 +403,8 @@ export function MatchPmAssetDialog({
                   </TabsTrigger>
                 )}
                 <TabsTrigger value="smart-matches" className="gap-1.5 text-xs font-semibold">
-                  <Sparkles className="size-3.5" /> Smart Auto-Matches ({pendingSmartMatches.length})
+                  <Sparkles className="size-3.5" /> Smart Auto-Matches ({pendingSmartMatches.length}
+                  )
                 </TabsTrigger>
                 <TabsTrigger value="unlinked-pms" className="gap-1.5 text-xs font-semibold">
                   <HelpCircle className="size-3.5" /> Unassigned PMs ({unlinkedPms.length})

@@ -75,7 +75,9 @@ export function saveWorkspace(ws: CompanyWorkspace): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(ws));
-    window.dispatchEvent(new CustomEvent<CompanyWorkspace>(WORKSPACE_CHANGED_EVENT, { detail: ws }));
+    window.dispatchEvent(
+      new CustomEvent<CompanyWorkspace>(WORKSPACE_CHANGED_EVENT, { detail: ws }),
+    );
   } catch {
     /* storage unavailable */
   }
@@ -89,9 +91,7 @@ export function plantForBuilding(
   if (plants.length === 0) return undefined;
   const key = (building || "").trim().toLowerCase();
   if (key) {
-    const match = plants.find((p) =>
-      p.buildings.some((b) => b.trim().toLowerCase() === key),
-    );
+    const match = plants.find((p) => p.buildings.some((b) => b.trim().toLowerCase() === key));
     if (match) return match;
   }
   return plants[0];

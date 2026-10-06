@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { generateComprehensiveMaintenanceData, type AssetData } from "./maintenance-intelligence";
 
@@ -28,6 +29,7 @@ function cleanJsonString(raw: string): string {
 }
 
 export const lookupAssetParts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
       .object({
@@ -40,15 +42,14 @@ export const lookupAssetParts = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .handler(async ({ data }): Promise<PartsLookupResult> => {
+  .handler(async ({ data, context }): Promise<PartsLookupResult> => {
     let assetName = data.equipmentName || "Plant Equipment";
     let assetMfr = data.manufacturer || "OEM";
     let assetModel = data.model || "";
     let assetRecord: Record<string, unknown> | null = null;
 
     if (data.assetId) {
-      const { supabaseAdmin: supabase } = await import("@/integrations/supabase/client.server");
-      const { data: asset, error } = await supabase
+      const { data: asset, error } = await context.supabase
         .from("assets")
         .select("*")
         .eq("id", data.assetId)
