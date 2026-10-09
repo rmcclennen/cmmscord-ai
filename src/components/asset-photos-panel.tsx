@@ -65,9 +65,13 @@ export function AssetPhotosPanel({ assetId }: { assetId: string }) {
     setBusy(true);
     try {
       const dataUrl = await fileToJpegDataUrl(file);
-      await saveAssetPhoto({ assetId, dataUrl, kind, userId: user.id });
+      const { queued } = await saveAssetPhoto({ assetId, dataUrl, kind, userId: user.id });
       await queryClient.invalidateQueries({ queryKey: ["asset-photos", assetId] });
-      toast.success("Photo added to this asset");
+      toast.success(
+        queued
+          ? "Photo saved on this device. It will upload when you're back online."
+          : "Photo added to this asset",
+      );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not save the photo");
     } finally {

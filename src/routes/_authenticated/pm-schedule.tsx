@@ -100,24 +100,42 @@ function PmSchedulePage() {
     placeholderData: keepPreviousData,
     queryFn: async () => {
       const history = window === "history";
-      const from = grouped ? 0 : page * PAGE_SIZE;
-      const to = grouped ? 999 : page * PAGE_SIZE + PAGE_SIZE - 1;
-      let query = supabase
-        .from("pm_schedules")
-        .select(
-          "*, assets(id, name, location_name, building, tag_number, class, manufacturer, model)",
-          { count: "exact" },
-        )
-        .eq("active", !history)
-        .order("next_due", { ascending: !history })
-        .range(from, to);
-      if (search.trim()) query = query.ilike("title", `%${search.trim()}%`);
-      if (window === "overdue") query = query.lt("next_due", today());
-      if (window === "week") query = query.gte("next_due", today()).lte("next_due", inDays(7));
-      if (window === "month") query = query.gte("next_due", today()).lte("next_due", inDays(30));
-      const { data, error, count } = await query;
-      if (error) throw error;
-      return { rows: data, count: count ?? 0 };
+      const build = (from: number, to: number) => {
+        let query = supabase
+          .from("pm_schedules")
+          .select(
+            "*, assets(id, name, location_name, building, tag_number, class, manufacturer, model)",
+            { count: "exact" },
+          )
+          .eq("active", !history)
+          .order("next_due", { ascending: !history })
+          .order("id")
+          .range(from, to);
+        if (search.trim()) query = query.ilike("title", `%${search.trim()}%`);
+        if (window === "overdue") query = query.lt("next_due", today());
+        if (window === "week") query = query.gte("next_due", today()).lte("next_due", inDays(7));
+        if (window === "month") query = query.gte("next_due", today()).lte("next_due", inDays(30));
+        return query;
+      };
+      if (!grouped) {
+        const { data, error, count } = await build(
+          page * PAGE_SIZE,
+          page * PAGE_SIZE + PAGE_SIZE - 1,
+        );
+        if (error) throw error;
+        return { rows: data, count: count ?? 0 };
+      }
+      // Grouped view shows everything, so walk every page (the server caps each at 1,000).
+      const first = await build(0, 999);
+      if (first.error) throw first.error;
+      const total = first.count ?? first.data.length;
+      const rows = [...first.data];
+      for (let from = 1000; from < total && from < 20_000; from += 1000) {
+        const next = await build(from, from + 999);
+        if (next.error) throw next.error;
+        rows.push(...next.data);
+      }
+      return { rows, count: total };
     },
   });
 

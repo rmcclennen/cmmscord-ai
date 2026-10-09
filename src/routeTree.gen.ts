@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as OverviewRouteImport } from './routes/overview'
 import { Route as PortalRouteImport } from './routes/portal'
 import { Route as AuthenticatedApprovalsRouteImport } from './routes/_authenticated/approvals'
+import { Route as AuthenticatedAuditLogRouteImport } from './routes/_authenticated/audit-log'
 import { Route as AuthenticatedCompanyRouteImport } from './routes/_authenticated/company'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedEquipmentDownRouteImport } from './routes/_authenticated/equipment-down'
@@ -24,6 +25,7 @@ import { Route as AuthenticatedPartRequestsRouteImport } from './routes/_authent
 import { Route as AuthenticatedPmDueRouteImport } from './routes/_authenticated/pm-due'
 import { Route as AuthenticatedPmScheduleRouteImport } from './routes/_authenticated/pm-schedule'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
+import { Route as AuthenticatedScanRouteImport } from './routes/_authenticated/scan'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedTeamRouteImport } from './routes/_authenticated/team'
 import { Route as AuthenticatedWorkOrdersRouteImport } from './routes/_authenticated/work-orders'
@@ -58,6 +60,11 @@ const PortalRoute = PortalRouteImport.update({
 const AuthenticatedApprovalsRoute = AuthenticatedApprovalsRouteImport.update({
   id: '/approvals',
   path: '/approvals',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAuditLogRoute = AuthenticatedAuditLogRouteImport.update({
+  id: '/audit-log',
+  path: '/audit-log',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedCompanyRoute = AuthenticatedCompanyRouteImport.update({
@@ -107,6 +114,11 @@ const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
   path: '/reports',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedScanRoute = AuthenticatedScanRouteImport.update({
+  id: '/scan',
+  path: '/scan',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -147,6 +159,7 @@ export interface FileRoutesByFullPath {
   '/overview': typeof OverviewRoute
   '/portal': typeof PortalRoute
   '/approvals': typeof AuthenticatedApprovalsRoute
+  '/audit-log': typeof AuthenticatedAuditLogRoute
   '/company': typeof AuthenticatedCompanyRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/equipment-down': typeof AuthenticatedEquipmentDownRoute
@@ -156,6 +169,7 @@ export interface FileRoutesByFullPath {
   '/pm-due': typeof AuthenticatedPmDueRoute
   '/pm-schedule': typeof AuthenticatedPmScheduleRoute
   '/reports': typeof AuthenticatedReportsRoute
+  '/scan': typeof AuthenticatedScanRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/team': typeof AuthenticatedTeamRoute
   '/work-orders': typeof AuthenticatedWorkOrdersRoute
@@ -169,6 +183,7 @@ export interface FileRoutesByTo {
   '/overview': typeof OverviewRoute
   '/portal': typeof PortalRoute
   '/approvals': typeof AuthenticatedApprovalsRoute
+  '/audit-log': typeof AuthenticatedAuditLogRoute
   '/company': typeof AuthenticatedCompanyRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/equipment-down': typeof AuthenticatedEquipmentDownRoute
@@ -178,6 +193,7 @@ export interface FileRoutesByTo {
   '/pm-due': typeof AuthenticatedPmDueRoute
   '/pm-schedule': typeof AuthenticatedPmScheduleRoute
   '/reports': typeof AuthenticatedReportsRoute
+  '/scan': typeof AuthenticatedScanRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/team': typeof AuthenticatedTeamRoute
   '/work-orders': typeof AuthenticatedWorkOrdersRoute
@@ -193,6 +209,7 @@ export interface FileRoutesById {
   '/overview': typeof OverviewRoute
   '/portal': typeof PortalRoute
   '/_authenticated/approvals': typeof AuthenticatedApprovalsRoute
+  '/_authenticated/audit-log': typeof AuthenticatedAuditLogRoute
   '/_authenticated/company': typeof AuthenticatedCompanyRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/equipment-down': typeof AuthenticatedEquipmentDownRoute
@@ -202,6 +219,7 @@ export interface FileRoutesById {
   '/_authenticated/pm-due': typeof AuthenticatedPmDueRoute
   '/_authenticated/pm-schedule': typeof AuthenticatedPmScheduleRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
+  '/_authenticated/scan': typeof AuthenticatedScanRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/team': typeof AuthenticatedTeamRoute
   '/_authenticated/work-orders': typeof AuthenticatedWorkOrdersRoute
@@ -217,6 +235,7 @@ export interface FileRouteTypes {
     | '/overview'
     | '/portal'
     | '/approvals'
+    | '/audit-log'
     | '/company'
     | '/dashboard'
     | '/equipment-down'
@@ -226,6 +245,7 @@ export interface FileRouteTypes {
     | '/pm-due'
     | '/pm-schedule'
     | '/reports'
+    | '/scan'
     | '/settings'
     | '/team'
     | '/work-orders'
@@ -239,6 +259,7 @@ export interface FileRouteTypes {
     | '/overview'
     | '/portal'
     | '/approvals'
+    | '/audit-log'
     | '/company'
     | '/dashboard'
     | '/equipment-down'
@@ -248,6 +269,7 @@ export interface FileRouteTypes {
     | '/pm-due'
     | '/pm-schedule'
     | '/reports'
+    | '/scan'
     | '/settings'
     | '/team'
     | '/work-orders'
@@ -262,6 +284,7 @@ export interface FileRouteTypes {
     | '/overview'
     | '/portal'
     | '/_authenticated/approvals'
+    | '/_authenticated/audit-log'
     | '/_authenticated/company'
     | '/_authenticated/dashboard'
     | '/_authenticated/equipment-down'
@@ -271,6 +294,7 @@ export interface FileRouteTypes {
     | '/_authenticated/pm-due'
     | '/_authenticated/pm-schedule'
     | '/_authenticated/reports'
+    | '/_authenticated/scan'
     | '/_authenticated/settings'
     | '/_authenticated/team'
     | '/_authenticated/work-orders'
@@ -329,6 +353,13 @@ declare module '@tanstack/react-router' {
       path: '/approvals'
       fullPath: '/approvals'
       preLoaderRoute: typeof AuthenticatedApprovalsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/audit-log': {
+      id: '/_authenticated/audit-log'
+      path: '/audit-log'
+      fullPath: '/audit-log'
+      preLoaderRoute: typeof AuthenticatedAuditLogRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/company': {
@@ -394,6 +425,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedReportsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/scan': {
+      id: '/_authenticated/scan'
+      path: '/scan'
+      fullPath: '/scan'
+      preLoaderRoute: typeof AuthenticatedScanRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/settings': {
       id: '/_authenticated/settings'
       path: '/settings'
@@ -441,6 +479,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedApprovalsRoute: typeof AuthenticatedApprovalsRoute
+  AuthenticatedAuditLogRoute: typeof AuthenticatedAuditLogRoute
   AuthenticatedCompanyRoute: typeof AuthenticatedCompanyRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedEquipmentDownRoute: typeof AuthenticatedEquipmentDownRoute
@@ -450,6 +489,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPmDueRoute: typeof AuthenticatedPmDueRoute
   AuthenticatedPmScheduleRoute: typeof AuthenticatedPmScheduleRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
+  AuthenticatedScanRoute: typeof AuthenticatedScanRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedTeamRoute: typeof AuthenticatedTeamRoute
   AuthenticatedWorkOrdersRoute: typeof AuthenticatedWorkOrdersRoute
@@ -460,6 +500,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedApprovalsRoute: AuthenticatedApprovalsRoute,
+  AuthenticatedAuditLogRoute: AuthenticatedAuditLogRoute,
   AuthenticatedCompanyRoute: AuthenticatedCompanyRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedEquipmentDownRoute: AuthenticatedEquipmentDownRoute,
@@ -469,6 +510,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPmDueRoute: AuthenticatedPmDueRoute,
   AuthenticatedPmScheduleRoute: AuthenticatedPmScheduleRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
+  AuthenticatedScanRoute: AuthenticatedScanRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedTeamRoute: AuthenticatedTeamRoute,
   AuthenticatedWorkOrdersRoute: AuthenticatedWorkOrdersRoute,

@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/paged";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -105,12 +106,14 @@ function PrintAllQrLabelsButton() {
   const { data } = useQuery({
     queryKey: ["qr-label-assets"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("assets")
-        .select("id, name, tag_number, building, location_name")
-        .order("name")
-        .limit(200);
-      if (error) throw error;
+      const data = await fetchAllRows((from, to) =>
+        supabase
+          .from("assets")
+          .select("id, name, tag_number, building, location_name")
+          .order("name")
+          .order("id")
+          .range(from, to),
+      );
       return data as QrLabelAsset[];
     },
   });
@@ -150,15 +153,17 @@ function AssetsPage() {
     queryKey: ["assets-all"],
     placeholderData: keepPreviousData,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("assets")
-        .select(
-          "id, name, tag_number, class, type, make, model, criticality, status, manufacturer, manufacturer_url, serial_number, supplier, building, category, hp, volts, rpm, frame",
-        )
-        .order("name")
-        .limit(5000);
-      if (error) throw error;
-      return (data ?? []).map((a) => {
+      const data = await fetchAllRows((from, to) =>
+        supabase
+          .from("assets")
+          .select(
+            "id, name, tag_number, class, type, make, model, criticality, status, manufacturer, manufacturer_url, serial_number, supplier, building, category, hp, volts, rpm, frame",
+          )
+          .order("name")
+          .order("id")
+          .range(from, to),
+      );
+      return data.map((a) => {
         const resolvedBuilding = buildingOf(a.name, null, null, a.building);
         const resolvedSystem = systemOf(a.name, resolvedBuilding, null, a.type, a.category);
         return {
@@ -175,10 +180,11 @@ function AssetsPage() {
     queryKey: ["assets-parts-map"],
     placeholderData: keepPreviousData,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("part_assets")
-        .select(
-          `
+      return fetchAllRows((from, to) =>
+        supabase
+          .from("part_assets")
+          .select(
+            `
           asset_id,
           part_id,
           parts (
@@ -193,10 +199,11 @@ function AssetsPage() {
             where_to_buy
           )
         `,
-        )
-        .limit(10000);
-      if (error) throw error;
-      return data ?? [];
+          )
+          .order("asset_id")
+          .order("part_id")
+          .range(from, to),
+      );
     },
   });
 
@@ -258,13 +265,15 @@ function AssetsPage() {
     queryKey: ["assets-pms-summary"],
     placeholderData: keepPreviousData,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("pm_schedules")
-        .select("id, asset_id, title, next_due, interval_days, priority, assigned_to, active")
-        .eq("active", true)
-        .order("next_due", { ascending: true });
-      if (error) throw error;
-      return data ?? [];
+      return fetchAllRows((from, to) =>
+        supabase
+          .from("pm_schedules")
+          .select("id, asset_id, title, next_due, interval_days, priority, assigned_to, active")
+          .eq("active", true)
+          .order("next_due", { ascending: true })
+          .order("id")
+          .range(from, to),
+      );
     },
   });
 
@@ -336,10 +345,7 @@ function AssetsPage() {
   }, [all]);
 
   const buildingTabs = useMemo(
-    () =>
-      [...BUILDING_NAMES, "Other / Unassigned"].filter(
-        (b) => (buildingCounts.get(b) ?? 0) > 0,
-      ),
+    () => [...BUILDING_NAMES, "Other / Unassigned"].filter((b) => (buildingCounts.get(b) ?? 0) > 0),
     [buildingCounts],
   );
 

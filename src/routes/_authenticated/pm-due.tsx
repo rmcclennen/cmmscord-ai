@@ -2,21 +2,27 @@ import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/paged";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { WorkOrderDialog } from "@/components/work-order-dialog";
 import { EditPmScheduleDialog } from "@/components/edit-pm-schedule-dialog";
-import { clampToSeason, daysUntil, prettyLabel, seasonLabel } from "@/lib/cmms";
+import { PmCompleteDialog, isoDay } from "@/components/pm-complete-dialog";
+import { daysUntil, prettyLabel, seasonLabel } from "@/lib/cmms";
 import { toast } from "sonner";
-import { AlertTriangle, CalendarClock, CheckCircle2, RefreshCw, Printer } from "lucide-react";
+import {
+  AlertTriangle,
+  CalendarClock,
+  CheckCircle2,
+  RefreshCw,
+  Printer,
+  ClipboardPlus,
+} from "lucide-react";
 import {
   openMorningPrintDialog,
   getAutoPrintConfig,
   formatTime12h,
 } from "@/lib/auto-morning-print";
-
-const isoDay = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 export const Route = createFileRoute("/_authenticated/pm-due")({
   head: () => ({
@@ -75,37 +81,36 @@ function PmDuePage() {
     queryKey: ["pms", "due", day],
     refetchOnWindowFocus: true,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("pm_schedules")
-        .select(
-          "*, assets(id, name, location_name, building, tag_number, class, manufacturer, model)",
-        )
-        .eq("active", true)
-        .lte("next_due", horizon)
-        .order("next_due");
-      if (error) throw error;
-      return data;
+      return fetchAllRows((from, to) =>
+        supabase
+          .from("pm_schedules")
+          .select(
+            "*, assets(id, name, location_name, building, tag_number, class, manufacturer, model)",
+          )
+          .eq("active", true)
+          .lte("next_due", horizon)
+          .order("next_due")
+          .order("id")
+          .range(from, to),
+      );
     },
   });
 
-  const complete = useMutation({
-    mutationFn: async (pm: {
-      id: string;
-      interval_days: number;
-      season_start_md: string | null;
-      season_end_md: string | null;
-    }) => {
-      const raw = isoDay(new Date(Date.now() + pm.interval_days * 86400000));
-      const next = clampToSeason(raw, pm.season_start_md, pm.season_end_md);
-      const { error } = await supabase
-        .from("pm_schedules")
-        .update({ last_completed: day, next_due: next })
-        .eq("id", pm.id);
+  const generate = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc("generate_due_pm_work_orders", {
+        _horizon_days: 7,
+      });
       if (error) throw error;
+      return data ?? 0;
     },
-    onSuccess: () => {
-      toast.success("PM marked complete and rescheduled");
-      queryClient.invalidateQueries({ queryKey: ["pms"] });
+    onSuccess: (n) => {
+      toast.success(
+        n > 0
+          ? `Created ${n} work order${n === 1 ? "" : "s"} for due PMs`
+          : "Every due PM already has an open work order",
+      );
+      queryClient.invalidateQueries({ queryKey: ["work-orders"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
     onError: (error: Error) => toast.error(error.message),
@@ -173,21 +178,15 @@ function PmDuePage() {
             </Button>
           }
         />
-        <Button
-          size="sm"
-          variant="ghost"
-          disabled={complete.isPending}
-          onClick={() =>
-            complete.mutate({
-              id: pm.id,
-              interval_days: pm.interval_days,
-              season_start_md: pm.season_start_md,
-              season_end_md: pm.season_end_md,
-            })
+        <PmCompleteDialog
+          pm={pm}
+          completedOn={day}
+          trigger={
+            <Button size="sm" variant="ghost">
+              <CheckCircle2 className="size-4" /> Complete
+            </Button>
           }
-        >
-          <CheckCircle2 className="size-4" /> Complete
-        </Button>
+        />
       </div>
     );
   };
@@ -236,6 +235,16 @@ function PmDuePage() {
             title="Batch print today's PMs and work orders"
           >
             <Printer className="size-3.5" /> Morning Print Dispatch
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => generate.mutate()}
+            disabled={generate.isPending}
+            className="gap-1.5 text-xs font-semibold"
+            title="Create a work order for every due PM that doesn't have one yet"
+          >
+            <ClipboardPlus className="size-3.5" /> Generate work orders
           </Button>
           <Button
             variant="outline"

@@ -3,6 +3,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
 import { getManufacturerPortalInfo } from "./manufacturer-links";
+import { assertPublicHttpUrl, safeFetch } from "./url-guard";
 
 export interface DiscoveredManual {
   id: string;
@@ -446,17 +447,19 @@ Set manualTitle to "${docTitle}". Return between 5 and 20 practical tasks.`;
         // Try to actually read the manual file (uploaded files are stored as site-relative paths).
         const content: Array<Record<string, unknown>> = [{ type: "text", text: prompt }];
         let fetchUrl = docUrl;
+        let ownOrigin: string | undefined;
         if (docUrl.startsWith("/")) {
           try {
             const { getRequest } = await import("@tanstack/react-start/server");
-            fetchUrl = new URL(docUrl, new URL(getRequest().url).origin).toString();
+            ownOrigin = new URL(getRequest().url).origin;
+            fetchUrl = new URL(docUrl, ownOrigin).toString();
           } catch {
             fetchUrl = "";
           }
         }
         if (/^https?:\/\//i.test(fetchUrl)) {
           try {
-            const res = await fetch(fetchUrl, { redirect: "follow" });
+            const res = await safeFetch(fetchUrl, {}, ownOrigin ? { allowOrigin: ownOrigin } : {});
             const contentType = (res.headers.get("content-type") || "").split(";")[0]?.trim() || "";
             if (res.ok && !/text\/html/i.test(contentType)) {
               const bytes = new Uint8Array(await res.arrayBuffer());
@@ -829,16 +832,13 @@ export const downloadManualFromLink = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const url = new URL(data.url);
-    if (!["http:", "https:"].includes(url.protocol))
-      throw new Error("Only web links are supported.");
+    const url = assertPublicHttpUrl(data.url);
 
     let fileUrl = data.url;
     let downloaded = false;
     let reason = "";
     try {
-      const res = await fetch(data.url, {
-        redirect: "follow",
+      const res = await safeFetch(data.url, {
         headers: {
           "User-Agent": "Mozilla/5.0 (CMMSCord manual fetcher)",
           Accept: "application/pdf,*/*",

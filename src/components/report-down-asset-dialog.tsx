@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/paged";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +23,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { writeOrQueue } from "@/lib/offline-sync";
+import { isAlreadyApplied } from "@/lib/offline-queue";
 import { AlertOctagon, Wrench, Plus, CheckCircle2, Search } from "lucide-react";
 
 interface ReportDownAssetDialogProps {
@@ -57,13 +60,14 @@ export function ReportDownAssetDialog({
   const { data: assets = [] } = useQuery({
     queryKey: ["all-assets-for-report"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("assets")
-        .select("id, name, tag_number, building, manufacturer, model, status")
-        .order("name")
-        .limit(2000);
-      if (error) throw error;
-      return data || [];
+      return fetchAllRows((from, to) =>
+        supabase
+          .from("assets")
+          .select("id, name, tag_number, building, manufacturer, model, status")
+          .order("name")
+          .order("id")
+          .range(from, to),
+      );
     },
     enabled: open,
   });
@@ -84,68 +88,90 @@ export function ReportDownAssetDialog({
 
   const selectedAsset = assets.find((a) => a.id === selectedAssetId);
 
+  // Ids are created once per report and kept across retries, so a resend can't duplicate it.
+  const ids = useRef<{ wo: string; part: string } | null>(null);
+
   const reportMutation = useMutation({
+    networkMode: "always",
     mutationFn: async () => {
       if (!selectedAssetId) throw new Error("Please select an asset.");
       if (!issue.trim()) throw new Error("Please describe the failure symptoms or repair issue.");
 
-      const { data: authData } = await supabase.auth.getUser();
-      const currentUserId = authData?.user?.id ?? null;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const currentUserId = sessionData.session?.user.id ?? null;
+      const { wo: woId, part: partId } = (ids.current ??= {
+        wo: crypto.randomUUID(),
+        part: crypto.randomUUID(),
+      });
+      const priority = status === "down" ? "critical" : "high";
 
-      // 1. Update Asset Status and Criticality
-      const { error: assetErr } = await supabase
-        .from("assets")
-        .update({
-          status,
-          notes: issue.trim(),
-          criticality,
-        })
-        .eq("id", selectedAssetId);
-      if (assetErr) throw assetErr;
+      const assetPatch = { status, notes: issue.trim(), criticality };
+      const woRow = {
+        id: woId,
+        asset_id: selectedAssetId,
+        title: `[${status === "down" ? "OUTAGE" : "REPAIR"}] ${selectedAsset?.name ?? "Equipment"} — ${issue.slice(0, 60)}`,
+        description: issue.trim(),
+        wo_type: status === "down" ? "emergency" : "corrective",
+        priority,
+        status: "open",
+        labor_hours: parseFloat(laborHours) || 4,
+        created_by: currentUserId,
+      };
+      const estCostNum = parseFloat(estimatedCost) || null;
+      const partRow =
+        partsMode === "none"
+          ? null
+          : {
+              id: partId,
+              asset_id: selectedAssetId,
+              work_order_id: woId,
+              title: partsDescription.trim() || `Replacement Parts for ${selectedAsset?.name}`,
+              part_lines: partsDescription.trim() || "See outage description",
+              status: partsMode,
+              quoted_cost: partsMode === "bidding" ? estCostNum : null,
+              awarded_cost: partsMode === "ordered" ? estCostNum : null,
+              vendor: vendor.trim() || null,
+              awarded_vendor: partsMode === "ordered" ? vendor.trim() || null : null,
+              po_number: partsMode === "ordered" ? poNumber.trim() || null : null,
+              expected_date: expectedDate || null,
+              priority,
+              route_to: "supervisors",
+              requested_by: currentUserId,
+              note: `Logged during outage report. Issue: ${issue.trim()}`,
+            };
 
-      // 2. Create emergency/corrective work order
-      const { data: woData, error: woErr } = await supabase
-        .from("work_orders")
-        .insert({
-          asset_id: selectedAssetId,
-          title: `[${status === "down" ? "OUTAGE" : "REPAIR"}] ${selectedAsset?.name ?? "Equipment"} — ${issue.slice(0, 60)}`,
-          description: issue.trim(),
-          wo_type: status === "down" ? "emergency" : "corrective",
-          priority: status === "down" ? "critical" : "high",
-          status: "open",
-          labor_hours: parseFloat(laborHours) || 4,
-          created_by: currentUserId,
-        })
-        .select("id")
-        .single();
-      if (woErr) console.warn("Could not create work order:", woErr);
+      return writeOrQueue(
+        [
+          { kind: "update", table: "assets", id: selectedAssetId, patch: assetPatch },
+          { kind: "insert", table: "work_orders", row: woRow },
+          ...(partRow ? [{ kind: "insert" as const, table: "part_requests", row: partRow }] : []),
+        ],
+        async () => {
+          const { error: assetErr } = await supabase
+            .from("assets")
+            .update(assetPatch)
+            .eq("id", selectedAssetId);
+          if (assetErr) throw assetErr;
 
-      // 3. Create part request if parts needed
-      if (partsMode !== "none") {
-        const estCostNum = parseFloat(estimatedCost) || null;
-        const { error: partErr } = await supabase.from("part_requests").insert({
-          asset_id: selectedAssetId,
-          work_order_id: woData?.id ?? null,
-          title: partsDescription.trim() || `Replacement Parts for ${selectedAsset?.name}`,
-          part_lines: partsDescription.trim() || "See outage description",
-          status: partsMode,
-          quoted_cost: partsMode === "bidding" ? estCostNum : null,
-          awarded_cost: partsMode === "ordered" ? estCostNum : null,
-          vendor: vendor.trim() || null,
-          awarded_vendor: partsMode === "ordered" ? vendor.trim() || null : null,
-          po_number: partsMode === "ordered" ? poNumber.trim() || null : null,
-          expected_date: expectedDate || null,
-          priority: status === "down" ? "critical" : "high",
-          route_to: "supervisors",
-          requested_by: currentUserId,
-          note: `Logged during outage report. Issue: ${issue.trim()}`,
-        });
-        if (partErr) console.warn("Could not create part request:", partErr);
-      }
+          const { error: woErr } = await supabase.from("work_orders").insert(woRow);
+          if (woErr && !isAlreadyApplied(woErr))
+            console.warn("Could not create work order:", woErr);
+
+          if (partRow) {
+            const { error: partErr } = await supabase.from("part_requests").insert(partRow);
+            if (partErr && !isAlreadyApplied(partErr)) {
+              console.warn("Could not create part request:", partErr);
+            }
+          }
+        },
+      );
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      ids.current = null;
       toast.success(
-        `Reported ${selectedAsset?.name ?? "Equipment"} as ${status === "down" ? "DOWN" : "NEEDS REPAIR"}!`,
+        result.queued
+          ? "Saved on this device. It will be sent when you're back online."
+          : `Reported ${selectedAsset?.name ?? "Equipment"} as ${status === "down" ? "DOWN" : "NEEDS REPAIR"}!`,
       );
       queryClient.invalidateQueries({ queryKey: ["equipment-down"] });
       queryClient.invalidateQueries({ queryKey: ["assets"] });

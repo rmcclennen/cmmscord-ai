@@ -1,4 +1,5 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { QueryClient } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import {
   Outlet,
   Link,
@@ -14,6 +15,17 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "@/components/ui/sonner";
 import { AccessibilityToolbar } from "@/components/accessibility-toolbar";
+import { PwaRegister } from "@/components/pwa";
+import { startOfflineSync } from "@/lib/offline-sync";
+import {
+  CACHE_BUSTER,
+  CACHE_MAX_AGE_MS,
+  clearDeviceCache,
+  createDevicePersister,
+  shouldPersistQuery,
+} from "@/lib/query-persist";
+
+const devicePersister = createDevicePersister();
 
 function NotFoundComponent() {
   return (
@@ -79,7 +91,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
+      { name: "theme-color", content: "#0f172a" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-title", content: "AssetCare" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
       { title: "AssetCareConnect" },
       {
         name: "description",
@@ -107,6 +124,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: "https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap",
       },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: "/icons/favicon-32.png", type: "image/png", sizes: "32x32" },
+      { rel: "apple-touch-icon", href: "/icons/apple-touch-icon.png" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
     ],
   }),
   shellComponent: RootShell,
@@ -140,17 +160,35 @@ function RootComponent() {
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
       router.invalidate();
-      if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
+      if (event === "SIGNED_OUT") {
+        // Don't leave the last person's data on a shared device.
+        queryClient.clear();
+        void clearDeviceCache();
+      } else {
+        queryClient.invalidateQueries();
+      }
     });
     return () => sub.subscription.unsubscribe();
   }, [router, queryClient]);
 
+  // Replay changes saved while offline as soon as the connection is back.
+  useEffect(() => startOfflineSync(), []);
+
   return (
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{
+        persister: devicePersister,
+        maxAge: CACHE_MAX_AGE_MS,
+        buster: CACHE_BUSTER,
+        dehydrateOptions: { shouldDehydrateQuery: shouldPersistQuery },
+      }}
+    >
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
       <Toaster />
       <AccessibilityToolbar />
-    </QueryClientProvider>
+      <PwaRegister />
+    </PersistQueryClientProvider>
   );
 }

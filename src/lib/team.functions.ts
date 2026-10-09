@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
 import type { AppRole } from "./roles";
+import { canAssignRole, canDeleteUser, canEditProfile, canManageUsers } from "./authz";
 
 type DatabaseAppRole = Database["public"]["Enums"]["app_role"];
 
@@ -23,7 +24,21 @@ export const addTeamMember = createServerFn({ method: "POST" })
       })
       .parse(data),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    const { getCallerRoles, getCallerCompanyIds } = await import("./authz.server");
+    const callerRoles = await getCallerRoles(context.supabase, context.userId);
+    if (!canManageUsers(callerRoles)) {
+      throw new Error("Only admins or managers can add team members.");
+    }
+    for (const role of data.roles) {
+      if (!canAssignRole(callerRoles, role, "new-member", context.userId)) {
+        throw new Error(`You are not allowed to assign the ${role} role.`);
+      }
+    }
+    const companyIds = await getCallerCompanyIds(context.supabase, context.userId);
+    const companyId = companyIds[0];
+    if (!companyId) throw new Error("You are not a member of a company workspace.");
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     let memberId: string = crypto.randomUUID();
@@ -76,6 +91,12 @@ export const addTeamMember = createServerFn({ method: "POST" })
         console.warn("Shadow auth user fallback:", e);
       }
     }
+
+    // 0. Put them in the caller's company workspace.
+    const { error: memberError } = await supabaseAdmin
+      .from("company_members")
+      .upsert({ company_id: companyId, user_id: memberId }, { onConflict: "company_id,user_id" });
+    if (memberError) throw new Error(`Could not add to your workspace: ${memberError.message}`);
 
     // 1. Upsert profile
     const { error: profError } = await supabaseAdmin.from("profiles").upsert({
@@ -147,7 +168,14 @@ export const updateTeamMember = createServerFn({ method: "POST" })
       })
       .parse(data),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    const { getCallerRoles, assertSharesCompany } = await import("./authz.server");
+    const callerRoles = await getCallerRoles(context.supabase, context.userId);
+    if (!canEditProfile(callerRoles, data.userId, context.userId)) {
+      throw new Error("Only admins or managers can edit other people's details.");
+    }
+    await assertSharesCompany(context.supabase, data.userId);
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const trimmedName = data.fullName.trim();
@@ -187,7 +215,14 @@ export const addMemberRole = createServerFn({ method: "POST" })
       })
       .parse(data),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    const { getCallerRoles, assertSharesCompany } = await import("./authz.server");
+    const callerRoles = await getCallerRoles(context.supabase, context.userId);
+    if (!canAssignRole(callerRoles, data.role, data.userId, context.userId)) {
+      throw new Error("You are not allowed to assign that role.");
+    }
+    await assertSharesCompany(context.supabase, data.userId);
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("user_roles")
@@ -213,19 +248,37 @@ export const removeMemberRole = createServerFn({ method: "POST" })
       })
       .parse(data),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    const { getCallerRoles, assertSharesCompany } = await import("./authz.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const callerRoles = await getCallerRoles(context.supabase, context.userId);
+
+    // Resolve which user + role this request touches, then authorize that.
+    let targetUserId = data.userId;
+    let targetRole = data.role;
     if (data.rowId) {
-      const { error } = await supabaseAdmin.from("user_roles").delete().eq("id", data.rowId);
-      if (error) throw error;
-    } else if (data.userId && data.role) {
-      const { error } = await supabaseAdmin
+      const { data: row, error } = await supabaseAdmin
         .from("user_roles")
-        .delete()
-        .eq("user_id", data.userId)
-        .eq("role", data.role as DatabaseAppRole);
+        .select("user_id, role")
+        .eq("id", data.rowId)
+        .maybeSingle();
       if (error) throw error;
+      if (!row) return { ok: true };
+      targetUserId = row.user_id;
+      targetRole = row.role;
     }
+    if (!targetUserId || !targetRole) throw new Error("Specify which role to remove.");
+    if (!canAssignRole(callerRoles, targetRole, targetUserId, context.userId)) {
+      throw new Error("You are not allowed to remove that role.");
+    }
+    await assertSharesCompany(context.supabase, targetUserId);
+
+    const { error } = await supabaseAdmin
+      .from("user_roles")
+      .delete()
+      .eq("user_id", targetUserId)
+      .eq("role", targetRole as DatabaseAppRole);
+    if (error) throw error;
     return { ok: true };
   });
 
@@ -234,14 +287,30 @@ export const removeMemberRole = createServerFn({ method: "POST" })
  */
 export const getTeamRoster = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async () => {
+  .handler(async ({ context }) => {
+    const { getCallerCompanyIds } = await import("./authz.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Only people who share a company workspace with the caller.
+    const companyIds = await getCallerCompanyIds(context.supabase, context.userId);
+    if (companyIds.length === 0) return [];
+    const { data: memberRows, error: memberErr } = await supabaseAdmin
+      .from("company_members")
+      .select("user_id")
+      .in("company_id", companyIds);
+    if (memberErr) throw memberErr;
+    const ids = Array.from(new Set((memberRows ?? []).map((m) => m.user_id)));
+    if (ids.length === 0) return [];
 
     const [{ data: directory, error: dirErr }, { data: profiles }, { data: roles }] =
       await Promise.all([
-        supabaseAdmin.from("team_directory").select("id, full_name, updated_at").order("full_name"),
-        supabaseAdmin.from("profiles").select("id, full_name, email, phone, carrier"),
-        supabaseAdmin.from("user_roles").select("id, user_id, role"),
+        supabaseAdmin
+          .from("team_directory")
+          .select("id, full_name, updated_at")
+          .in("id", ids)
+          .order("full_name"),
+        supabaseAdmin.from("profiles").select("id, full_name, email, phone, carrier").in("id", ids),
+        supabaseAdmin.from("user_roles").select("id, user_id, role").in("user_id", ids),
       ]);
 
     if (dirErr) throw dirErr;
@@ -266,7 +335,8 @@ export const getTeamRoster = createServerFn({ method: "GET" })
 /**
  * Fully removes a teammate: unassigns their work, drops roles/profile/directory
  * rows, and deletes the underlying account so they can no longer sign in.
- * Only admins and managers may call it, and nobody can delete themselves.
+ * Only admins and managers may call it (managers cannot remove senior staff), the
+ * person must be in the caller's company workspace, and nobody can delete themselves.
  */
 export const deleteTeamMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -276,19 +346,20 @@ export const deleteTeamMember = createServerFn({ method: "POST" })
       throw new Error("You cannot delete your own account.");
     }
 
+    const { getCallerRoles, assertSharesCompany } = await import("./authz.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: myRoles } = await supabaseAdmin
+    await assertSharesCompany(context.supabase, data.userId);
+    const callerRoles = await getCallerRoles(context.supabase, context.userId);
+    const { data: targetRoleRows } = await supabaseAdmin
       .from("user_roles")
       .select("role")
-      .eq("user_id", context.userId);
+      .eq("user_id", data.userId);
+    const targetRoles = (targetRoleRows ?? []).map((r) => r.role as AppRole);
 
-    const allowed =
-      !myRoles ||
-      myRoles.length === 0 ||
-      myRoles.some((r) => r.role === "admin" || r.role === "manager" || r.role === "supervisor");
-
-    if (!allowed) throw new Error("Only admins or managers can delete users.");
+    if (!canDeleteUser(callerRoles, targetRoles, data.userId, context.userId)) {
+      throw new Error("You are not allowed to delete this user.");
+    }
 
     await supabaseAdmin
       .from("pm_schedules")

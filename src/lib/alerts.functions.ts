@@ -19,12 +19,26 @@ const schema = z.object({
 
 /**
  * Sends an assignment alert to one teammate over the channels they opted into:
- * their email inbox and/or their carrier's free email-to-SMS gateway.
+ * push notification to their phone/computer, their email inbox, and/or their
+ * carrier's free email-to-SMS gateway.
  */
 export const sendAssignmentAlert = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => schema.parse(input))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    // Without this check any signed-in user could email or text anyone in the system.
+    const { assertSharesCompany } = await import("@/lib/authz.server");
+    await assertSharesCompany(context.supabase, data.recipientUserId);
+
+    // Phone/desktop push first: it needs no email domain and is the fastest channel.
+    const { sendPushToUser } = await import("@/lib/push.server");
+    const pushed = await sendPushToUser(data.recipientUserId, {
+      title: data.title,
+      body: data.body,
+      url: data.link ?? "/",
+      tag: data.eventKey,
+    });
+
     const { smsGatewayAddress, truncateForSms } = await import("@/lib/carriers");
     const { dispatchMessage, emailConfigured } = await import("@/lib/alerts.server");
 
@@ -37,10 +51,10 @@ export const sendAssignmentAlert = createServerFn({ method: "POST" })
       .eq("id", data.recipientUserId)
       .maybeSingle();
     if (error) throw error;
-    if (!profile) return { configured: emailConfigured(), results: [] };
+    if (!profile) return { configured: emailConfigured(), results: [], pushed };
 
     if (!emailConfigured()) {
-      return { configured: false, results: [] };
+      return { configured: false, results: [], pushed };
     }
 
     const siteUrl = process.env["SITE_URL"] || "https://assetcareconnect.app";
@@ -79,7 +93,7 @@ export const sendAssignmentAlert = createServerFn({ method: "POST" })
       );
     }
 
-    return { configured: true, results };
+    return { configured: true, results, pushed };
   });
 
 function escapeHtml(value: string) {

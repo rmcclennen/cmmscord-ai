@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { plantForBuilding, slugifyPlant, type Plant } from "@/lib/plants";
+import { CompanyMembershipCard } from "@/components/company-membership-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -126,6 +127,7 @@ function CompanyWorkspacePage() {
 
   return (
     <div className="space-y-6">
+      <CompanyMembershipCard />
       <div className="flex flex-col gap-2 border-b border-border/80 pb-4 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-2.5">
           <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
