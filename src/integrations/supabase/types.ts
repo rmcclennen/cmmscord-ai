@@ -14,6 +14,215 @@ export type Database = {
   }
   public: {
     Tables: {
+      asset_maintenance_info: {
+        Row: {
+          asset_id: string
+          company_id: string
+          created_at: string
+          id: string
+          intervals: Json
+          parts: Json
+          sources: Json
+          summary: string | null
+        }
+        Insert: {
+          asset_id: string
+          company_id: string
+          created_at?: string
+          id?: string
+          intervals?: Json
+          parts?: Json
+          sources?: Json
+          summary?: string | null
+        }
+        Update: {
+          asset_id?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          intervals?: Json
+          parts?: Json
+          sources?: Json
+          summary?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_maintenance_info_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_maintenance_info_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      asset_photos: {
+        Row: {
+          asset_id: string
+          caption: string | null
+          company_id: string
+          created_at: string
+          id: string
+          kind: string
+          storage_path: string
+          updated_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          asset_id: string
+          caption?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          kind?: string
+          storage_path: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          asset_id?: string
+          caption?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          storage_path?: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_photos_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_photos_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assets: {
+        Row: {
+          building: string | null
+          category: string | null
+          class: string | null
+          commission_date: string | null
+          company_id: string
+          created_at: string
+          criticality: string
+          enclosure: string | null
+          frame: string | null
+          hertz: string | null
+          hp: string | null
+          id: string
+          limble_asset_id: number | null
+          location_name: string | null
+          make: string | null
+          manuals: string | null
+          manufacturer: string | null
+          manufacturer_url: string | null
+          model: string | null
+          name: string
+          notes: string | null
+          parent_limble_id: number | null
+          phase: string | null
+          rpm: string | null
+          serial_number: string | null
+          status: string
+          supplier: string | null
+          tag_number: string | null
+          type: string | null
+          updated_at: string
+          volts: string | null
+        }
+        Insert: {
+          building?: string | null
+          category?: string | null
+          class?: string | null
+          commission_date?: string | null
+          company_id: string
+          created_at?: string
+          criticality?: string
+          enclosure?: string | null
+          frame?: string | null
+          hertz?: string | null
+          hp?: string | null
+          id?: string
+          limble_asset_id?: number | null
+          location_name?: string | null
+          make?: string | null
+          manuals?: string | null
+          manufacturer?: string | null
+          manufacturer_url?: string | null
+          model?: string | null
+          name: string
+          notes?: string | null
+          parent_limble_id?: number | null
+          phase?: string | null
+          rpm?: string | null
+          serial_number?: string | null
+          status?: string
+          supplier?: string | null
+          tag_number?: string | null
+          type?: string | null
+          updated_at?: string
+          volts?: string | null
+        }
+        Update: {
+          building?: string | null
+          category?: string | null
+          class?: string | null
+          commission_date?: string | null
+          company_id?: string
+          created_at?: string
+          criticality?: string
+          enclosure?: string | null
+          frame?: string | null
+          hertz?: string | null
+          hp?: string | null
+          id?: string
+          limble_asset_id?: number | null
+          location_name?: string | null
+          make?: string | null
+          manuals?: string | null
+          manufacturer?: string | null
+          manufacturer_url?: string | null
+          model?: string | null
+          name?: string
+          notes?: string | null
+          parent_limble_id?: number | null
+          phase?: string | null
+          rpm?: string | null
+          serial_number?: string | null
+          status?: string
+          supplier?: string | null
+          tag_number?: string | null
+          type?: string | null
+          updated_at?: string
+          volts?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_log: {
         Row: {
           action: string
@@ -47,193 +256,6 @@ export type Database = {
           subject_user_id?: string | null
           table_name?: string
           user_id?: string | null
-        }
-        Relationships: []
-      }
-      asset_maintenance_info: {
-        Row: {
-          company_id: string
-          asset_id: string
-          created_at: string
-          id: string
-          intervals: Json
-          parts: Json
-          sources: Json
-          summary: string | null
-        }
-        Insert: {
-          company_id?: string
-          asset_id: string
-          created_at?: string
-          id?: string
-          intervals?: Json
-          parts?: Json
-          sources?: Json
-          summary?: string | null
-        }
-        Update: {
-          company_id?: string
-          asset_id?: string
-          created_at?: string
-          id?: string
-          intervals?: Json
-          parts?: Json
-          sources?: Json
-          summary?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "asset_maintenance_info_asset_id_fkey"
-            columns: ["asset_id"]
-            isOneToOne: false
-            referencedRelation: "assets"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      asset_photos: {
-        Row: {
-          company_id: string
-          asset_id: string
-          caption: string | null
-          created_at: string
-          id: string
-          kind: string
-          storage_path: string
-          updated_at: string
-          uploaded_by: string | null
-        }
-        Insert: {
-          company_id?: string
-          asset_id: string
-          caption?: string | null
-          created_at?: string
-          id?: string
-          kind?: string
-          storage_path: string
-          updated_at?: string
-          uploaded_by?: string | null
-        }
-        Update: {
-          company_id?: string
-          asset_id?: string
-          caption?: string | null
-          created_at?: string
-          id?: string
-          kind?: string
-          storage_path?: string
-          updated_at?: string
-          uploaded_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "asset_photos_asset_id_fkey"
-            columns: ["asset_id"]
-            isOneToOne: false
-            referencedRelation: "assets"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      assets: {
-        Row: {
-          company_id: string
-          building: string | null
-          category: string | null
-          class: string | null
-          commission_date: string | null
-          created_at: string
-          criticality: string
-          enclosure: string | null
-          frame: string | null
-          hertz: string | null
-          hp: string | null
-          id: string
-          limble_asset_id: number | null
-          location_name: string | null
-          make: string | null
-          manuals: string | null
-          manufacturer: string | null
-          manufacturer_url: string | null
-          model: string | null
-          name: string
-          notes: string | null
-          parent_limble_id: number | null
-          phase: string | null
-          rpm: string | null
-          serial_number: string | null
-          status: string
-          supplier: string | null
-          tag_number: string | null
-          type: string | null
-          updated_at: string
-          volts: string | null
-        }
-        Insert: {
-          company_id?: string
-          building?: string | null
-          category?: string | null
-          class?: string | null
-          commission_date?: string | null
-          created_at?: string
-          criticality?: string
-          enclosure?: string | null
-          frame?: string | null
-          hertz?: string | null
-          hp?: string | null
-          id?: string
-          limble_asset_id?: number | null
-          location_name?: string | null
-          make?: string | null
-          manuals?: string | null
-          manufacturer?: string | null
-          manufacturer_url?: string | null
-          model?: string | null
-          name: string
-          notes?: string | null
-          parent_limble_id?: number | null
-          phase?: string | null
-          rpm?: string | null
-          serial_number?: string | null
-          status?: string
-          supplier?: string | null
-          tag_number?: string | null
-          type?: string | null
-          updated_at?: string
-          volts?: string | null
-        }
-        Update: {
-          company_id?: string
-          building?: string | null
-          category?: string | null
-          class?: string | null
-          commission_date?: string | null
-          created_at?: string
-          criticality?: string
-          enclosure?: string | null
-          frame?: string | null
-          hertz?: string | null
-          hp?: string | null
-          id?: string
-          limble_asset_id?: number | null
-          location_name?: string | null
-          make?: string | null
-          manuals?: string | null
-          manufacturer?: string | null
-          manufacturer_url?: string | null
-          model?: string | null
-          name?: string
-          notes?: string | null
-          parent_limble_id?: number | null
-          phase?: string | null
-          rpm?: string | null
-          serial_number?: string | null
-          status?: string
-          supplier?: string | null
-          tag_number?: string | null
-          type?: string | null
-          updated_at?: string
-          volts?: string | null
         }
         Relationships: []
       }
@@ -274,7 +296,15 @@ export type Database = {
           created_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "company_members_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       deletion_requests: {
         Row: {
@@ -293,7 +323,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          company_id?: string
+          company_id: string
           created_at?: string
           decided_at?: string | null
           decided_by?: string | null
@@ -322,13 +352,21 @@ export type Database = {
           status?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "deletion_requests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       manuals: {
         Row: {
-          company_id: string
           added_by: string | null
           asset_id: string | null
+          company_id: string
           created_at: string
           file_url: string
           id: string
@@ -339,9 +377,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          company_id?: string
           added_by?: string | null
           asset_id?: string | null
+          company_id: string
           created_at?: string
           file_url: string
           id?: string
@@ -352,9 +390,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          company_id?: string
           added_by?: string | null
           asset_id?: string | null
+          company_id?: string
           created_at?: string
           file_url?: string
           id?: string
@@ -370,6 +408,13 @@ export type Database = {
             columns: ["asset_id"]
             isOneToOne: false
             referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manuals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -409,24 +454,24 @@ export type Database = {
       }
       part_assets: {
         Row: {
-          company_id: string
           asset_id: string
+          company_id: string
           created_at: string
           id: string
           note: string | null
           part_id: string
         }
         Insert: {
-          company_id?: string
           asset_id: string
+          company_id: string
           created_at?: string
           id?: string
           note?: string | null
           part_id: string
         }
         Update: {
-          company_id?: string
           asset_id?: string
+          company_id?: string
           created_at?: string
           id?: string
           note?: string | null
@@ -441,6 +486,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "part_assets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "part_assets_part_id_fkey"
             columns: ["part_id"]
             isOneToOne: false
@@ -451,8 +503,8 @@ export type Database = {
       }
       part_request_bids: {
         Row: {
-          company_id: string
           amount: number | null
+          company_id: string
           contact: string | null
           created_at: string
           created_by: string | null
@@ -465,8 +517,8 @@ export type Database = {
           vendor: string
         }
         Insert: {
-          company_id?: string
           amount?: number | null
+          company_id: string
           contact?: string | null
           created_at?: string
           created_by?: string | null
@@ -479,8 +531,8 @@ export type Database = {
           vendor: string
         }
         Update: {
-          company_id?: string
           amount?: number | null
+          company_id?: string
           contact?: string | null
           created_at?: string
           created_by?: string | null
@@ -494,6 +546,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "part_request_bids_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "part_request_bids_request_id_fkey"
             columns: ["request_id"]
             isOneToOne: false
@@ -504,10 +563,10 @@ export type Database = {
       }
       part_requests: {
         Row: {
-          company_id: string
           asset_id: string | null
           awarded_cost: number | null
           awarded_vendor: string | null
+          company_id: string
           created_at: string
           decision_note: string | null
           expected_date: string | null
@@ -535,10 +594,10 @@ export type Database = {
           work_order_id: string | null
         }
         Insert: {
-          company_id?: string
           asset_id?: string | null
           awarded_cost?: number | null
           awarded_vendor?: string | null
+          company_id: string
           created_at?: string
           decision_note?: string | null
           expected_date?: string | null
@@ -566,10 +625,10 @@ export type Database = {
           work_order_id?: string | null
         }
         Update: {
-          company_id?: string
           asset_id?: string | null
           awarded_cost?: number | null
           awarded_vendor?: string | null
+          company_id?: string
           created_at?: string
           decision_note?: string | null
           expected_date?: string | null
@@ -605,6 +664,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "part_requests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "part_requests_part_id_fkey"
             columns: ["part_id"]
             isOneToOne: false
@@ -622,8 +688,8 @@ export type Database = {
       }
       part_transactions: {
         Row: {
-          company_id: string
           asset_id: string | null
+          company_id: string
           created_at: string
           id: string
           kind: string
@@ -634,8 +700,8 @@ export type Database = {
           work_order_id: string | null
         }
         Insert: {
-          company_id?: string
           asset_id?: string | null
+          company_id: string
           created_at?: string
           id?: string
           kind?: string
@@ -646,8 +712,8 @@ export type Database = {
           work_order_id?: string | null
         }
         Update: {
-          company_id?: string
           asset_id?: string | null
+          company_id?: string
           created_at?: string
           id?: string
           kind?: string
@@ -663,6 +729,13 @@ export type Database = {
             columns: ["asset_id"]
             isOneToOne: false
             referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "part_transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
           {
@@ -683,8 +756,8 @@ export type Database = {
       }
       parts: {
         Row: {
-          company_id: string
           bin: string | null
+          company_id: string
           created_at: string
           created_by: string | null
           description: string | null
@@ -701,8 +774,8 @@ export type Database = {
           where_to_buy: string | null
         }
         Insert: {
-          company_id?: string
           bin?: string | null
+          company_id: string
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -719,8 +792,8 @@ export type Database = {
           where_to_buy?: string | null
         }
         Update: {
-          company_id?: string
           bin?: string | null
+          company_id?: string
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -736,75 +809,12 @@ export type Database = {
           updated_at?: string
           where_to_buy?: string | null
         }
-        Relationships: []
-      }
-      pm_schedules: {
-        Row: {
-          company_id: string
-          active: boolean
-          asset_id: string | null
-          assigned_label: string | null
-          assigned_to: string | null
-          created_at: string
-          estimated_hours: number | null
-          id: string
-          interval_days: number
-          last_completed: string | null
-          limble_task_id: number | null
-          next_due: string
-          priority: string
-          season_end_md: string | null
-          season_start_md: string | null
-          tasks: string | null
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          company_id?: string
-          active?: boolean
-          asset_id?: string | null
-          assigned_label?: string | null
-          assigned_to?: string | null
-          created_at?: string
-          estimated_hours?: number | null
-          id?: string
-          interval_days?: number
-          last_completed?: string | null
-          limble_task_id?: number | null
-          next_due?: string
-          priority?: string
-          season_end_md?: string | null
-          season_start_md?: string | null
-          tasks?: string | null
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          company_id?: string
-          active?: boolean
-          asset_id?: string | null
-          assigned_label?: string | null
-          assigned_to?: string | null
-          created_at?: string
-          estimated_hours?: number | null
-          id?: string
-          interval_days?: number
-          last_completed?: string | null
-          limble_task_id?: number | null
-          next_due?: string
-          priority?: string
-          season_end_md?: string | null
-          season_start_md?: string | null
-          tasks?: string | null
-          title?: string
-          updated_at?: string
-        }
         Relationships: [
           {
-            foreignKeyName: "pm_schedules_asset_id_fkey"
-            columns: ["asset_id"]
+            foreignKeyName: "parts_company_id_fkey"
+            columns: ["company_id"]
             isOneToOne: false
-            referencedRelation: "assets"
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -828,7 +838,7 @@ export type Database = {
         Insert: {
           asset_id?: string | null
           client_id?: string | null
-          company_id?: string
+          company_id: string
           completed_by?: string | null
           completed_on: string
           created_at?: string
@@ -855,7 +865,114 @@ export type Database = {
           pm_schedule_id?: string
           work_order_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "pm_completions_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pm_completions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pm_completions_pm_schedule_id_fkey"
+            columns: ["pm_schedule_id"]
+            isOneToOne: false
+            referencedRelation: "pm_schedules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pm_completions_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pm_schedules: {
+        Row: {
+          active: boolean
+          asset_id: string | null
+          assigned_label: string | null
+          assigned_to: string | null
+          company_id: string
+          created_at: string
+          estimated_hours: number | null
+          id: string
+          interval_days: number
+          last_completed: string | null
+          limble_task_id: number | null
+          next_due: string
+          priority: string
+          season_end_md: string | null
+          season_start_md: string | null
+          tasks: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          asset_id?: string | null
+          assigned_label?: string | null
+          assigned_to?: string | null
+          company_id: string
+          created_at?: string
+          estimated_hours?: number | null
+          id?: string
+          interval_days?: number
+          last_completed?: string | null
+          limble_task_id?: number | null
+          next_due?: string
+          priority?: string
+          season_end_md?: string | null
+          season_start_md?: string | null
+          tasks?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          asset_id?: string | null
+          assigned_label?: string | null
+          assigned_to?: string | null
+          company_id?: string
+          created_at?: string
+          estimated_hours?: number | null
+          id?: string
+          interval_days?: number
+          last_completed?: string | null
+          limble_task_id?: number | null
+          next_due?: string
+          priority?: string
+          season_end_md?: string | null
+          season_start_md?: string | null
+          tasks?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pm_schedules_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pm_schedules_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -961,9 +1078,9 @@ export type Database = {
       }
       work_orders: {
         Row: {
-          company_id: string
           asset_id: string | null
           assigned_to: string | null
+          company_id: string
           completed_at: string | null
           completion_notes: string | null
           created_at: string
@@ -982,9 +1099,9 @@ export type Database = {
           wo_type: string
         }
         Insert: {
-          company_id?: string
           asset_id?: string | null
           assigned_to?: string | null
+          company_id: string
           completed_at?: string | null
           completion_notes?: string | null
           created_at?: string
@@ -1003,9 +1120,9 @@ export type Database = {
           wo_type?: string
         }
         Update: {
-          company_id?: string
           asset_id?: string | null
           assigned_to?: string | null
+          company_id?: string
           completed_at?: string | null
           completion_notes?: string | null
           created_at?: string
@@ -1029,6 +1146,13 @@ export type Database = {
             columns: ["asset_id"]
             isOneToOne: false
             referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
           {
@@ -1060,13 +1184,10 @@ export type Database = {
         Returns: string
       }
       create_company: { Args: { _name: string }; Returns: string }
-      generate_due_pm_work_orders: { Args: { _horizon_days?: number }; Returns: number }
-      is_company_member: { Args: { _company_id: string }; Returns: boolean }
-      my_default_company_id: { Args: never; Returns: string }
-      shares_company_with: { Args: { _user_id: string }; Returns: boolean }
       decide_deletion_request: {
         Args: { _approve: boolean; _note?: string; _request_id: string }
         Returns: {
+          company_id: string
           created_at: string
           decided_at: string | null
           decided_by: string | null
@@ -1087,6 +1208,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      generate_due_pm_work_orders: {
+        Args: { _horizon_days?: number }
+        Returns: number
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1094,7 +1219,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_company_member: { Args: { _company_id: string }; Returns: boolean }
       is_team_member: { Args: { _user_id: string }; Returns: boolean }
+      my_default_company_id: { Args: never; Returns: string }
+      shares_company_with: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role:
