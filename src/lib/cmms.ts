@@ -107,7 +107,10 @@ const BUILDING_RULES: Array<[string, RegExp]> = [
   ["UV Building", /uv building|disinfection|\buv\b|trojan|chlorine|contact basin|hypo/i],
   ["Non-Potable Building", /non[- ]?pot(?:able)?|plant water/i],
   ["Admin", /administration|admin building|\badmin\b|lab |laboratory|office/i],
-  ["RDT Building", /rdt building|rotary drum thickener|\brdt\b|dewater|sludge cake|silo|schwing|polymer/i],
+  [
+    "RDT Building",
+    /rdt building|rotary drum thickener|\brdt\b|dewater|sludge cake|silo|schwing|polymer/i,
+  ],
   ["Renewable Fuels", /\bRF\b|renewable fuel/i],
 ];
 

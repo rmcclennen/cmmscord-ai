@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { MailCheck, MessageSquare, Save } from "lucide-react";
+import { PushSettings } from "@/components/push-settings";
 import { AutoMorningPrintSettings } from "@/components/auto-morning-print-settings";
 import { openMorningPrintDialog } from "@/lib/auto-morning-print";
 
@@ -114,6 +115,8 @@ function SettingsPage() {
           optional.
         </p>
       </div>
+
+      <PushSettings />
 
       <div className="space-y-5 rounded-lg border border-border bg-card p-5">
         <div className="space-y-2">

@@ -15,6 +15,10 @@ import {
 import { NotificationBell } from "@/components/notification-bell";
 import { BulkAssetUploader } from "@/components/bulk-asset-uploader";
 import { CompanyOnboardingDialog } from "@/components/company-onboarding-dialog";
+import { OfflineBanner } from "@/components/offline-banner";
+import { InstallBanner } from "@/components/pwa";
+import { useMyCompanies } from "@/hooks/use-companies";
+import { useOfflineQueue } from "@/hooks/use-offline";
 import { AutoMorningPrintListener } from "@/components/auto-morning-print-listener";
 import { openMorningPrintDialog } from "@/lib/auto-morning-print";
 import {
@@ -37,6 +41,8 @@ import {
   MoreHorizontal,
   PackageSearch,
   Printer,
+  ScanLine,
+  History,
 } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -78,6 +84,7 @@ const MORE_NAV = [
   { to: "/approvals", label: "Approvals", icon: ShieldCheck },
   { to: "/team", label: "Team", icon: Users },
   { to: "/company", label: "Company", icon: Building2 },
+  { to: "/audit-log", label: "Audit Log", icon: History },
   { to: "/settings", label: "Alerts", icon: Settings },
 ] as const;
 
@@ -90,7 +97,18 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [importOpen, setImportOpen] = useState(false);
   const [onboardOpen, setOnboardOpen] = useState(false);
 
+  const { items: queued } = useOfflineQueue();
+  const { hasNone: noCompany } = useMyCompanies();
+
   async function signOut() {
+    if (
+      queued.length > 0 &&
+      !window.confirm(
+        `${queued.length} change${queued.length === 1 ? " is" : "s are"} saved on this device and not sent yet. They stay on this device and send the next time you sign in on it. Sign out anyway?`,
+      )
+    ) {
+      return;
+    }
     await queryClient.cancelQueries();
     queryClient.clear();
     await supabase.auth.signOut();
@@ -293,6 +311,15 @@ export function AppShell({ children }: { children: ReactNode }) {
               <span>Company Plans</span>
             </Button>
 
+            <Link
+              to="/scan"
+              aria-label="Scan an equipment QR code"
+              className="inline-flex h-9 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            >
+              <ScanLine className="size-4" aria-hidden="true" />
+              <span className="hidden sm:inline">Scan</span>
+            </Link>
+
             <NotificationBell />
 
             <span className="hidden text-xs font-medium text-sidebar-foreground/75 xl:inline max-w-40 truncate">
@@ -405,15 +432,58 @@ export function AppShell({ children }: { children: ReactNode }) {
             </DropdownMenuContent>
           </DropdownMenu>
         </nav>
+        <OfflineBanner />
+        <InstallBanner />
       </header>
 
       <main
         id="main-content"
         tabIndex={-1}
-        className="mx-auto max-w-[1600px] px-4 py-6 outline-none"
+        className="mx-auto max-w-[1600px] px-4 py-6 pb-24 outline-none lg:pb-6"
       >
+        {noCompany && (
+          <p role="status" className="mb-4 rounded-md bg-amber-500/15 p-3 text-sm">
+            You're not part of a company yet, so no plant data is shown. Ask a manager to add you on
+            the Team page.
+          </p>
+        )}
         {children}
       </main>
+
+      <nav
+        aria-label="Quick navigation"
+        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-sidebar-border bg-sidebar pb-[env(safe-area-inset-bottom)] text-sidebar-foreground lg:hidden"
+      >
+        {(
+          [
+            { to: "/equipment-down", label: "Down", icon: AlertOctagon },
+            { to: "/pm-due", label: "PM Due", icon: CalendarClock },
+            { to: "/scan", label: "Scan", icon: ScanLine, primary: true },
+            { to: "/work-orders", label: "Orders", icon: ClipboardList },
+            { to: "/assets", label: "Assets", icon: Boxes },
+          ] as const
+        ).map((item) => {
+          const active = pathname.startsWith(item.to);
+          return (
+            <Link
+              key={item.to}
+              to={item.to}
+              className={`flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-semibold ${
+                active ? "text-sidebar-primary" : "text-sidebar-foreground/75"
+              }`}
+            >
+              {"primary" in item ? (
+                <span className="-mt-5 flex size-12 items-center justify-center rounded-full bg-sidebar-primary text-sidebar-primary-foreground shadow-lg">
+                  <item.icon className="size-6" aria-hidden="true" />
+                </span>
+              ) : (
+                <item.icon className="size-5" aria-hidden="true" />
+              )}
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
 
       {/* Global In-App Asset Importer Dialog */}
       <BulkAssetUploader open={importOpen} onOpenChange={setImportOpen} />

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,8 @@ import {
 import { PRIORITIES, WO_TYPES, prettyLabel } from "@/lib/cmms";
 import { useTeamMembers } from "@/hooks/use-team-members";
 import { memberLabel, notifyUser } from "@/lib/notify";
+import { writeOrQueue } from "@/lib/offline-sync";
+import { isAlreadyApplied } from "@/lib/offline-queue";
 import { PartsLookupDialog } from "@/components/parts-lookup-dialog";
 import { toast } from "sonner";
 import { Sparkles } from "lucide-react";
@@ -53,6 +55,8 @@ export function WorkOrderDialog({
   const [assetSearch, setAssetSearch] = useState("");
   const [assignee, setAssignee] = useState("unassigned");
   const queryClient = useQueryClient();
+  // One id per work order, kept across retries so a resend can never create a duplicate.
+  const draftId = useRef<string | null>(null);
   const team = useTeamMembers(open);
 
   const assetOptions = useQuery({
@@ -68,37 +72,71 @@ export function WorkOrderDialog({
   });
 
   const create = useMutation({
+    networkMode: "always",
     mutationFn: async () => {
-      const { data: userData } = await supabase.auth.getUser();
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user.id ?? null;
       const assignedTo = assignee === "unassigned" ? null : assignee;
-      const { data, error } = await supabase
-        .from("work_orders")
-        .insert({
-          title: title.trim(),
-          description: description.trim() || null,
-          priority,
-          wo_type: woType,
-          due_date: dueDate || null,
-          asset_id: asset,
-          pm_schedule_id: pmScheduleId ?? null,
-          created_by: userData.user?.id ?? null,
-          assigned_to: assignedTo,
-        })
-        .select("wo_number")
-        .single();
-      if (error) throw error;
-      if (assignedTo) {
-        await notifyUser({
-          userId: assignedTo,
-          title: `WO-${data.wo_number} assigned to you`,
-          body: `${title.trim()}${dueDate ? ` · due ${dueDate}` : ""} · ${prettyLabel(priority)} priority`,
-          link: "/work-orders",
-        });
-      }
-      return data;
+      const id = (draftId.current ??= crypto.randomUUID());
+      const row = {
+        id,
+        title: title.trim(),
+        description: description.trim() || null,
+        priority,
+        wo_type: woType,
+        due_date: dueDate || null,
+        asset_id: asset,
+        pm_schedule_id: pmScheduleId ?? null,
+        created_by: userId,
+        assigned_to: assignedTo,
+      };
+      const alert = assignedTo
+        ? {
+            userId: assignedTo,
+            title: `${title.trim()} assigned to you`,
+            body: `${dueDate ? `due ${dueDate} · ` : ""}${prettyLabel(priority)} priority`,
+            link: "/work-orders",
+            eventKey: `wo-${id}`,
+          }
+        : null;
+
+      const result = await writeOrQueue(
+        [
+          { kind: "insert", table: "work_orders", row },
+          ...(alert ? [{ kind: "notify" as const, input: alert }] : []),
+        ],
+        async () => {
+          let { data, error } = await supabase
+            .from("work_orders")
+            .insert(row)
+            .select("wo_number")
+            .single();
+          if (error && isAlreadyApplied(error)) {
+            // A previous attempt saved it but the alert failed: reuse that work order.
+            ({ data, error } = await supabase
+              .from("work_orders")
+              .select("wo_number")
+              .eq("id", id)
+              .single());
+          }
+          if (error || !data) throw error ?? new Error("Work order was not saved");
+          if (alert) {
+            await notifyUser({ ...alert, title: `WO-${data.wo_number} assigned to you` });
+          }
+          return data;
+        },
+      );
+      return result.queued
+        ? { queued: true as const }
+        : { queued: false as const, ...result.value };
     },
     onSuccess: (data) => {
-      toast.success(`Work order WO-${data.wo_number} created`);
+      draftId.current = null;
+      if (data.queued) {
+        toast.success("Saved on this device. It will be sent when you're back online.");
+      } else {
+        toast.success(`Work order WO-${data.wo_number} created`);
+      }
       queryClient.invalidateQueries({ queryKey: ["work-orders"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });

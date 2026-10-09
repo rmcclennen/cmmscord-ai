@@ -41,6 +41,7 @@ export const Route = createFileRoute("/_authenticated/work-orders")({
 function WorkOrdersPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("active");
+  const [limit, setLimit] = useState(100);
   const queryClient = useQueryClient();
   const team = useTeamMembers();
 
@@ -74,14 +75,14 @@ function WorkOrdersPage() {
   });
 
   const wos = useQuery({
-    queryKey: ["work-orders", search, status],
+    queryKey: ["work-orders", search, status, limit],
     placeholderData: keepPreviousData,
     queryFn: async () => {
       let query = supabase
         .from("work_orders")
         .select("*, assets(id, name, manufacturer, manufacturer_url, serial_number, model)")
         .order("created_at", { ascending: false })
-        .limit(100);
+        .limit(limit);
       if (search.trim()) query = query.ilike("title", `%${search.trim()}%`);
       if (status === "active") query = query.in("status", ["open", "in_progress", "on_hold"]);
       else if (status !== "all") query = query.eq("status", status);
@@ -287,6 +288,13 @@ function WorkOrdersPage() {
         {wos.isLoading && <p className="p-3 text-sm text-muted-foreground">Loading work orders…</p>}
         {!wos.isLoading && (wos.data ?? []).length === 0 && (
           <p className="p-3 text-sm text-muted-foreground">No work orders match this filter.</p>
+        )}
+        {(wos.data ?? []).length >= limit && (
+          <div className="p-3 text-center">
+            <Button variant="outline" onClick={() => setLimit(limit + 100)}>
+              Show more
+            </Button>
+          </div>
         )}
       </div>
     </div>

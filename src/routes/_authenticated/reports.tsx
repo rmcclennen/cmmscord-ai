@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/paged";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -67,11 +68,14 @@ function ReportsPage() {
   const assets = useQuery({
     queryKey: ["report-assets"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("assets")
-        .select("id, name, building, status")
-        .order("name");
-      if (error) throw error;
+      const data = await fetchAllRows((from, to) =>
+        supabase
+          .from("assets")
+          .select("id, name, building, status")
+          .order("name")
+          .order("id")
+          .range(from, to),
+      );
       return data as AssetRow[];
     },
   });
@@ -79,10 +83,13 @@ function ReportsPage() {
   const wos = useQuery({
     queryKey: ["report-wos"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("work_orders")
-        .select("asset_id, status, labor_hours");
-      if (error) throw error;
+      const data = await fetchAllRows((from, to) =>
+        supabase
+          .from("work_orders")
+          .select("asset_id, status, labor_hours")
+          .order("created_at")
+          .range(from, to),
+      );
       return data as WoRow[];
     },
   });
@@ -90,10 +97,13 @@ function ReportsPage() {
   const prs = useQuery({
     queryKey: ["report-part-requests"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("part_requests")
-        .select("asset_id, status, quoted_cost, awarded_cost");
-      if (error) throw error;
+      const data = await fetchAllRows((from, to) =>
+        supabase
+          .from("part_requests")
+          .select("asset_id, status, quoted_cost, awarded_cost")
+          .order("created_at")
+          .range(from, to),
+      );
       return data as PrRow[];
     },
   });
@@ -101,10 +111,13 @@ function ReportsPage() {
   const pms = useQuery({
     queryKey: ["report-pms"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("pm_schedules")
-        .select("id, asset_id, active, next_due, last_completed");
-      if (error) throw error;
+      const data = await fetchAllRows((from, to) =>
+        supabase
+          .from("pm_schedules")
+          .select("id, asset_id, active, next_due, last_completed")
+          .order("id")
+          .range(from, to),
+      );
       return data as PmRow[];
     },
   });

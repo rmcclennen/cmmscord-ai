@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { safeFetch } from "./url-guard";
 import { z } from "zod";
 
 const ScannedPartSchema = z.object({
@@ -104,8 +105,16 @@ export const scanDocumentForAssets = createServerFn({ method: "POST" })
     if (!fileBase64 && data.fileUrl) {
       let res: Response;
       try {
-        res = await fetch(data.fileUrl, { redirect: "follow" });
-      } catch {
+        res = await safeFetch(data.fileUrl);
+      } catch (e) {
+        if (
+          e instanceof Error &&
+          /private or internal|valid web address|Only web links|non-standard|username/.test(
+            e.message,
+          )
+        ) {
+          throw e;
+        }
         throw new Error("Could not download that link — check the address and try again.");
       }
       if (!res.ok) {

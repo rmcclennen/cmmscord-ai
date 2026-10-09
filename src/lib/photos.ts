@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { writeOrQueue } from "@/lib/offline-sync";
 
 export const PHOTO_BUCKET = "asset-photos";
 
@@ -38,33 +39,50 @@ function dataUrlToBlob(dataUrl: string): Blob {
   return new Blob([buf], { type: mime });
 }
 
-/** Uploads a captured photo and records it against an asset. */
+/**
+ * Uploads a captured photo and records it against an asset. With no signal the photo
+ * is kept on this device and uploaded later (`queued: true`).
+ */
 export async function saveAssetPhoto(opts: {
   assetId: string;
   dataUrl: string;
   kind: PhotoKind;
   caption?: string | null;
   userId: string;
-}) {
-  const path = `${opts.assetId}/${crypto.randomUUID()}.jpg`;
-  const { error: uploadError } = await supabase.storage
-    .from(PHOTO_BUCKET)
-    .upload(path, dataUrlToBlob(opts.dataUrl), { contentType: "image/jpeg", upsert: false });
-  if (uploadError) throw uploadError;
-
-  const { data, error } = await supabase
-    .from("asset_photos")
-    .insert({
-      asset_id: opts.assetId,
-      storage_path: path,
-      kind: opts.kind,
+}): Promise<{ queued: boolean }> {
+  const photoId = crypto.randomUUID();
+  const blob = dataUrlToBlob(opts.dataUrl);
+  const result = await writeOrQueue(
+    {
+      kind: "photo",
+      assetId: opts.assetId,
+      photoId,
+      fileName: `${photoId}.jpg`,
+      contentType: "image/jpeg",
+      blob,
+      photoKind: opts.kind,
       caption: opts.caption ?? null,
-      uploaded_by: opts.userId,
-    })
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
+      uploadedBy: opts.userId,
+    },
+    async () => {
+      // Same path/ids the queue would use, so a retry after a partial failure is harmless.
+      const path = `${opts.assetId}/${photoId}.jpg`;
+      const { error: uploadError } = await supabase.storage
+        .from(PHOTO_BUCKET)
+        .upload(path, blob, { contentType: "image/jpeg", upsert: true });
+      if (uploadError) throw uploadError;
+      const { error } = await supabase.from("asset_photos").insert({
+        id: photoId,
+        asset_id: opts.assetId,
+        storage_path: path,
+        kind: opts.kind,
+        caption: opts.caption ?? null,
+        uploaded_by: opts.userId,
+      });
+      if (error) throw error;
+    },
+  );
+  return { queued: result.queued };
 }
 
 export async function signedPhotoUrls(paths: string[]) {
