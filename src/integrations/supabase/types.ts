@@ -282,7 +282,7 @@ export type Database = {
       }
       company_members: {
         Row: {
-          company_id: string
+          company_id?: string
           created_at: string
           user_id: string
         }
@@ -455,7 +455,7 @@ export type Database = {
       part_assets: {
         Row: {
           asset_id: string
-          company_id: string
+          company_id?: string
           created_at: string
           id: string
           note: string | null
@@ -1080,7 +1080,7 @@ export type Database = {
         Row: {
           asset_id: string | null
           assigned_to: string | null
-          company_id: string
+          company_id?: string
           completed_at: string | null
           completion_notes: string | null
           created_at: string
