@@ -18,7 +18,7 @@ export async function getCallerCompanyIds(supabase: Client, userId: string): Pro
     .select("company_id")
     .eq("user_id", userId);
   if (error) throw new Error("Could not verify your company workspace.");
-  return (data ?? []).map((r) => r.company_id);
+  return (data ?? []).map((r) => r.company_id).filter((id): id is string => Boolean(id));
 }
 
 /** Throws unless the caller shares a company workspace with `targetUserId`. */
