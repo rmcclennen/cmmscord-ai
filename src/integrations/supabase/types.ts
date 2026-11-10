@@ -27,7 +27,7 @@ export type Database = {
         }
         Insert: {
           asset_id: string
-          company_id: string
+          company_id?: string
           created_at?: string
           id?: string
           intervals?: Json
@@ -77,7 +77,7 @@ export type Database = {
         Insert: {
           asset_id: string
           caption?: string | null
-          company_id: string
+          company_id?: string
           created_at?: string
           id?: string
           kind?: string
@@ -152,7 +152,7 @@ export type Database = {
           category?: string | null
           class?: string | null
           commission_date?: string | null
-          company_id: string
+          company_id?: string
           created_at?: string
           criticality?: string
           enclosure?: string | null
@@ -287,7 +287,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          company_id: string
+          company_id?: string
           created_at?: string
           user_id: string
         }
@@ -323,7 +323,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          company_id: string
+          company_id?: string
           created_at?: string
           decided_at?: string | null
           decided_by?: string | null
@@ -379,7 +379,7 @@ export type Database = {
         Insert: {
           added_by?: string | null
           asset_id?: string | null
-          company_id: string
+          company_id?: string
           created_at?: string
           file_url: string
           id?: string
@@ -463,7 +463,7 @@ export type Database = {
         }
         Insert: {
           asset_id: string
-          company_id: string
+          company_id?: string
           created_at?: string
           id?: string
           note?: string | null
@@ -518,7 +518,7 @@ export type Database = {
         }
         Insert: {
           amount?: number | null
-          company_id: string
+          company_id?: string
           contact?: string | null
           created_at?: string
           created_by?: string | null
@@ -597,7 +597,7 @@ export type Database = {
           asset_id?: string | null
           awarded_cost?: number | null
           awarded_vendor?: string | null
-          company_id: string
+          company_id?: string
           created_at?: string
           decision_note?: string | null
           expected_date?: string | null
@@ -701,7 +701,7 @@ export type Database = {
         }
         Insert: {
           asset_id?: string | null
-          company_id: string
+          company_id?: string
           created_at?: string
           id?: string
           kind?: string
@@ -775,7 +775,7 @@ export type Database = {
         }
         Insert: {
           bin?: string | null
-          company_id: string
+          company_id?: string
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -838,7 +838,7 @@ export type Database = {
         Insert: {
           asset_id?: string | null
           client_id?: string | null
-          company_id: string
+          company_id?: string
           completed_by?: string | null
           completed_on: string
           created_at?: string
@@ -922,7 +922,7 @@ export type Database = {
           asset_id?: string | null
           assigned_label?: string | null
           assigned_to?: string | null
-          company_id: string
+          company_id?: string
           created_at?: string
           estimated_hours?: number | null
           id?: string
@@ -1101,7 +1101,7 @@ export type Database = {
         Insert: {
           asset_id?: string | null
           assigned_to?: string | null
-          company_id: string
+          company_id?: string
           completed_at?: string | null
           completion_notes?: string | null
           created_at?: string
