@@ -287,7 +287,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          company_id?: string
+          company_id: string
           created_at?: string
           user_id: string
         }
