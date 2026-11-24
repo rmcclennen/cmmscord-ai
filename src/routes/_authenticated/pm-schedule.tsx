@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ShowMoreList } from "@/components/show-more-list";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WorkOrderDialog } from "@/components/work-order-dialog";
 import { DeleteRequestDialog } from "@/components/delete-request-dialog";
@@ -457,7 +458,7 @@ function PmSchedulePage() {
                       {rows.length} PMs
                     </span>
                   </div>
-                  <div className="divide-y divide-border">{rows.map(renderRow)}</div>
+                  <div className="divide-y divide-border"><ShowMoreList items={rows} render={renderRow} step={15} /></div>
                 </div>
               ))}
               {pms.isLoading && (
@@ -473,14 +474,14 @@ function PmSchedulePage() {
 
           {groups.map(([building, rows]) => (
             <TabsContent key={building} value={building} className="mt-4">
-              <div className="panel divide-y divide-border">{rows.map(renderRow)}</div>
+              <div className="panel divide-y divide-border"><ShowMoreList items={rows} render={renderRow} /></div>
             </TabsContent>
           ))}
         </Tabs>
       ) : (
         <>
           <div className="panel divide-y divide-border">
-            {(pms.data?.rows ?? []).map(renderRow)}
+            <ShowMoreList items={pms.data?.rows ?? []} render={renderRow} />
             {pms.isLoading && (
               <p className="p-3 text-sm text-muted-foreground">Loading PM schedule…</p>
             )}

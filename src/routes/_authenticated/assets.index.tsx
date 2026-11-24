@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/paged";
+import { ShowMoreList } from "@/components/show-more-list";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -144,7 +145,7 @@ function AssetsPage() {
   const [viewMode, setViewMode] = useState<"grouped" | "flat">("grouped");
   const [collapsedSystems, setCollapsedSystems] = useState<Record<string, boolean>>({});
   const [expandedPartsMap, setExpandedPartsMap] = useState<Record<string, boolean>>({});
-  const [allPartsExpanded, setAllPartsExpanded] = useState<boolean>(true);
+  const [allPartsExpanded, setAllPartsExpanded] = useState<boolean>(false);
   const [page, setPage] = useState(0);
   const [importOpen, setImportOpen] = useState(false);
 
@@ -943,8 +944,19 @@ function AssetsPage() {
                           <TableHead className="text-right">Action</TableHead>
                         </TableRow>
                       </TableHeader>
-                      <TableBody>
-                        {systemAssets.map((a) => {
+                      <ShowMoreList
+                        items={systemAssets}
+                        wrap={(rows) => <TableBody>{rows}</TableBody>}
+                        wrapMore={(b) => (
+                          <TableBody>
+                            <TableRow>
+                              <TableCell colSpan={9} className="text-center">
+                                {b}
+                              </TableCell>
+                            </TableRow>
+                          </TableBody>
+                        )}
+                        render={(a) => {
                           const pmInfo = pmMap.get(a.id);
                           const unitParts = partsByAsset.get(a.id) ?? [];
                           const isPartsExpanded = isAssetPartsExpanded(a.id);
@@ -959,8 +971,8 @@ function AssetsPage() {
                               onToggleParts={() => toggleAssetParts(a.id)}
                             />
                           );
-                        })}
-                      </TableBody>
+                        }}
+                      />
                     </Table>
                   </div>
                 )}

@@ -23,12 +23,31 @@ async function currentUserId(): Promise<string | null> {
   return data.session?.user.id ?? null;
 }
 
+/** Minimum quiet time before writing the cache; every cache change used to trigger a full copy and froze the app. */
+export const PERSIST_DEBOUNCE_MS = 5000;
+
 export function createDevicePersister(): Persister {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let latest: PersistedClient | null = null;
+  const flush = async () => {
+    timer = null;
+    const client = latest;
+    latest = null;
+    if (!client) return;
+    const userId = await currentUserId();
+    if (!userId) return;
+    await kvSet(CACHE_KEY, { userId, savedAt: Date.now(), client } satisfies Stored);
+  };
+  const schedule = () => {
+    const w = globalThis as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => void };
+    if (w.requestIdleCallback) w.requestIdleCallback(() => void flush(), { timeout: 10000 });
+    else void flush();
+  };
   return {
     persistClient: async (client) => {
-      const userId = await currentUserId();
-      if (!userId) return;
-      await kvSet(CACHE_KEY, { userId, savedAt: Date.now(), client } satisfies Stored);
+      latest = client;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(schedule, PERSIST_DEBOUNCE_MS);
     },
     restoreClient: async () => {
       const stored = await kvGet<Stored>(CACHE_KEY);
@@ -40,7 +59,12 @@ export function createDevicePersister(): Persister {
       }
       return stored.client;
     },
-    removeClient: () => kvDel(CACHE_KEY),
+    removeClient: () => {
+      if (timer) clearTimeout(timer);
+      timer = null;
+      latest = null;
+      return kvDel(CACHE_KEY);
+    },
   };
 }
 
