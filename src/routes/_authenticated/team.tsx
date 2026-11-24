@@ -1371,6 +1371,7 @@ function TeamPage() {
                 inviteUrl,
                 tempPassword,
               );
+              void mailtoUrl;
               const isRealAccount = /^[0-9a-f-]{36}$/i.test(inviteMember.id);
 
               return (
@@ -1570,8 +1571,28 @@ function TeamPage() {
                           toast.error("Please enter an email address first.");
                           return;
                         }
-                        copyInviteLinkToClipboard(inviteUrl);
-                        window.location.href = mailtoUrl;
+                        void (async () => {
+                          let pw = tempPassword;
+                          if (!pw && isRealAccount) {
+                            try {
+                              const res = await tempPasswordMutation.mutateAsync({
+                                userId: inviteMember.id,
+                                email: activeEmail,
+                              });
+                              pw = res.password;
+                            } catch {
+                              return;
+                            }
+                          }
+                          copyInviteLinkToClipboard(inviteUrl);
+                          window.location.href = generateMailtoLink(
+                            activeEmail,
+                            inviteMember.full_name || "",
+                            roleTitle,
+                            inviteUrl,
+                            pw,
+                          );
+                        })();
                       }}
                     >
                       <Mail className="size-4" />
