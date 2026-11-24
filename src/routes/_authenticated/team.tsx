@@ -9,6 +9,7 @@ import {
   removeMemberRole,
   getTeamRoster,
   deleteTeamMember as removeTeamMember,
+  setTemporaryPassword,
 } from "@/lib/team.functions";
 import {
   DEFAULT_PLANT_CREW,
@@ -130,7 +131,13 @@ function generateInviteUrl(email: string, name: string, role?: string) {
   return `${origin}/auth?${params.toString()}`;
 }
 
-function generateMailtoLink(email: string, name: string, roleTitle: string, inviteUrl: string) {
+function generateMailtoLink(
+  email: string,
+  name: string,
+  roleTitle: string,
+  inviteUrl: string,
+  tempPassword?: string | null,
+) {
   const subject = encodeURIComponent(
     `CMMS Facility Access: You're invited to join AssetCareConnect as ${roleTitle}`,
   );
@@ -139,6 +146,9 @@ function generateMailtoLink(email: string, name: string, roleTitle: string, invi
       `You have been invited to join the Facility Maintenance & Operations team as: ${roleTitle}.\n\n` +
       `Click the link below to set up your account and access all site-specific plant assets, PM schedules, and work orders:\n\n` +
       `${inviteUrl}\n\n` +
+      (tempPassword
+        ? `Sign in with:\nEmail: ${email}\nTemporary password: ${tempPassword}\n(Please change it after your first sign-in.)\n\n`
+        : "") +
       `System Capabilities:\n` +
       `• View & execute Preventive Maintenance (PM) schedules\n` +
       `• Inspect OEM lubrication, grease, belt & nameplate specs for plant equipment\n` +
@@ -162,6 +172,16 @@ function TeamPage() {
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [inviteMember, setInviteMember] = useState<MemberData | null>(null);
   const [inviteEmailInput, setInviteEmailInput] = useState("");
+  const [tempPassword, setTempPassword] = useState<string | null>(null);
+  const tempPasswordMutation = useMutation({
+    mutationFn: async (vars: { userId: string; email: string }) =>
+      setTemporaryPassword({ data: vars }),
+    onSuccess: (res) => {
+      setTempPassword(res.password);
+      toast.success("Temporary password created.");
+    },
+    onError: (e: Error) => toast.error(e.message || "Could not create temporary password"),
+  });
   const [copiedLink, setCopiedLink] = useState(false);
 
   // Form states for Add Member
@@ -1329,6 +1349,7 @@ function TeamPage() {
           if (!open) {
             setInviteMember(null);
             setCopiedLink(false);
+            setTempPassword(null);
           }
         }}
       >
@@ -1348,7 +1369,9 @@ function TeamPage() {
                 inviteMember.full_name || "",
                 roleTitle,
                 inviteUrl,
+                tempPassword,
               );
+              const isRealAccount = /^[0-9a-f-]{36}$/i.test(inviteMember.id);
 
               return (
                 <>
@@ -1403,6 +1426,62 @@ function TeamPage() {
                       </div>
                     </div>
 
+                    {/* Temporary Password */}
+                    <div className="space-y-1.5 rounded-lg border border-border p-3">
+                      <Label className="text-xs">Temporary Password</Label>
+                      {tempPassword ? (
+                        <div className="flex gap-2">
+                          <Input
+                            readOnly
+                            value={tempPassword}
+                            className="font-mono text-sm bg-muted/50 select-all"
+                            onClick={(e) => (e.target as HTMLInputElement).select()}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="shrink-0 gap-1.5"
+                            onClick={() => {
+                              void navigator.clipboard.writeText(tempPassword);
+                              toast.success("Password copied.");
+                            }}
+                          >
+                            <Copy className="size-4" /> Copy
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          className="gap-1.5"
+                          disabled={
+                            !isRealAccount || !activeEmail || tempPasswordMutation.isPending
+                          }
+                          onClick={() =>
+                            tempPasswordMutation.mutate({
+                              userId: inviteMember.id,
+                              email: activeEmail,
+                            })
+                          }
+                        >
+                          {tempPasswordMutation.isPending ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <ShieldCheck className="size-4" />
+                          )}
+                          Create temporary password
+                        </Button>
+                      )}
+                      <p className="text-[11px] text-muted-foreground">
+                        {tempPassword
+                          ? "Included in the email below. They can sign in right away with their email and this password."
+                          : isRealAccount
+                            ? "Sets a new password on their account so they can sign in right away. Replaces any existing password."
+                            : "Save the member with an email first to create a password."}
+                      </p>
+                    </div>
+
                     {/* Direct Sign-Up Link Box */}
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
@@ -1454,7 +1533,10 @@ function TeamPage() {
                         {`Subject: CMMS Facility Access: You're invited to join AssetCareConnect as ${roleTitle}\n\n` +
                           `Hello ${inviteMember.full_name || "Teammate"},\n\n` +
                           `You have been invited to join the Facility Maintenance & Operations team as: ${roleTitle}.\n\n` +
-                          `Click the sign-up link to activate your account and access all site-specific plant assets, PM schedules, and work orders.`}
+                          `Click the sign-up link to activate your account and access all site-specific plant assets, PM schedules, and work orders.` +
+                          (tempPassword
+                            ? `\n\nSign in with:\nEmail: ${activeEmail}\nTemporary password: ${tempPassword}`
+                            : "")}
                       </p>
                     </div>
                   </div>

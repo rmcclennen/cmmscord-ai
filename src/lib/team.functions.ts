@@ -384,3 +384,54 @@ export const deleteTeamMember = createServerFn({ method: "POST" })
 
     return { ok: true };
   });
+
+/** Readable temporary password (no look-alike characters). */
+export function makeTempPassword(length = 12): string {
+  const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  const bytes = new Uint32Array(length);
+  crypto.getRandomValues(bytes);
+  let out = "";
+  for (const b of bytes) out += chars[b % chars.length];
+  return out;
+}
+
+/**
+ * Sets a fresh temporary password on a team member's sign-in account so an
+ * admin/manager can hand it to them with the invite.
+ */
+export const setTemporaryPassword = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) =>
+    z.object({ userId: z.string().uuid(), email: z.string().email() }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { getCallerRoles, assertSharesCompany } = await import("./authz.server");
+    const callerRoles = await getCallerRoles(context.supabase, context.userId);
+    if (!canManageUsers(callerRoles)) {
+      throw new Error("Only admins or managers can create temporary passwords.");
+    }
+    if (data.userId === context.userId) {
+      throw new Error("Use your own account settings to change your password.");
+    }
+    await assertSharesCompany(context.supabase, data.userId);
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: targetRoles } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", data.userId);
+    if (targetRoles?.some((r) => r.role === "admin") && !callerRoles.includes("admin")) {
+      throw new Error("Only an admin can reset another admin's password.");
+    }
+
+    const password = makeTempPassword();
+    const email = data.email.trim().toLowerCase();
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(data.userId, {
+      email,
+      email_confirm: true,
+      password,
+    });
+    if (error) throw new Error(`Could not set temporary password: ${error.message}`);
+    await supabaseAdmin.from("profiles").update({ email }).eq("id", data.userId);
+    return { password, email };
+  });
