@@ -1,3 +1,4 @@
+import { ShowMoreList } from "@/components/show-more-list";
 import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -214,7 +215,7 @@ function PmDuePage() {
         {list.length === 0 ? (
           <p className="p-4 text-sm text-muted-foreground">Nothing here — all clear.</p>
         ) : (
-          <div className="divide-y divide-border">{list.map(renderRow)}</div>
+          <div className="divide-y divide-border"><ShowMoreList items={list} render={renderRow} /></div>
         )}
       </section>
     );
