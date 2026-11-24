@@ -1,3 +1,4 @@
+import { SimilarAssetsPicker } from "./similar-assets-picker";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TabsContent } from "@/components/ui/tabs";
@@ -348,6 +349,7 @@ export function PmsTab({ ctx }: { ctx: AssetCtx }) {
               Add all to PM schedule
             </Button>
           </div>
+<SimilarAssetsPicker ctx={ctx} />
           <ul className="mt-2 divide-y divide-border">
             {intervals.map((i, idx) => (
               <li key={idx} className="py-2.5 flex flex-wrap items-center justify-between gap-2">

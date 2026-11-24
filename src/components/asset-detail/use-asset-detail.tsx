@@ -29,6 +29,8 @@ export function useAssetDetail(assetId: string) {
   const research = useServerFn(researchAssetMaintenance);
   const team = useTeamMembers();
   const [tab, setTab] = useState("specs");
+  const [alsoApplyTo, setAlsoApplyTo] = useState<string[]>([]);
+  useEffect(() => setAlsoApplyTo([]), [assetId]);
   const [scanManualDialogOpen, setScanManualDialogOpen] = useState(false);
   const [selectedManualForScan, setSelectedManualForScan] = useState<{
     id?: string;
@@ -405,11 +407,12 @@ export function useAssetDetail(assetId: string) {
   const addPms = useMutation({
     mutationFn: async (items: Interval[]) => {
       const today = new Date();
-      const rows = items.map((i) => {
+      const targets = [assetId, ...alsoApplyTo.filter((id) => id !== assetId)];
+      const rows = targets.flatMap((targetId) => items.map((i) => {
         const days = frequencyToDays(i.frequency);
         const due = new Date(today.getTime() + days * 86400000);
         return {
-          asset_id: assetId,
+          asset_id: targetId,
           title: i.task,
           tasks: [i.frequency ? `Manufacturer interval: ${i.frequency}` : null, i.notes]
             .filter(Boolean)
@@ -419,13 +422,13 @@ export function useAssetDetail(assetId: string) {
           priority: "medium",
           active: true,
         };
-      });
+      }));
       const { error } = await supabase.from("pm_schedules").insert(rows);
       if (error) throw error;
       return rows.length;
     },
     onSuccess: (n) => {
-      toast.success(n === 1 ? "PM added to schedule" : `${n} PMs added to schedule`);
+      toast.success(n === 1 ? "PM added to schedule" : `${n} PMs added to schedule${alsoApplyTo.length ? ` across ${alsoApplyTo.length + 1} assets` : ""}`);
       queryClient.invalidateQueries({ queryKey: ["pms"] });
       queryClient.invalidateQueries({ queryKey: ["asset-pms", assetId] });
       queryClient.invalidateQueries({ queryKey: ["assets-pms-summary"] });
@@ -635,6 +638,8 @@ export function useAssetDetail(assetId: string) {
     moveBuilding,
     updateAssetStatusMutation,
     addPms,
+    alsoApplyTo,
+    setAlsoApplyTo,
     assetPartRequests,
     markRequestReceived,
     addPartToInventory,
