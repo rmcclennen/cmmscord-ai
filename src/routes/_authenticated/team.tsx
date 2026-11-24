@@ -1584,12 +1584,15 @@ function TeamPage() {
                               return;
                             }
                           }
-                          copyInviteLinkToClipboard(inviteUrl);
+                          const signInUrl = pw
+                            ? `${window.location.origin}/auth?signin=1&email=${encodeURIComponent(activeEmail)}`
+                            : inviteUrl;
+                          copyInviteLinkToClipboard(signInUrl);
                           window.location.href = generateMailtoLink(
                             activeEmail,
                             inviteMember.full_name || "",
                             roleTitle,
-                            inviteUrl,
+                            signInUrl,
                             pw,
                           );
                         })();
