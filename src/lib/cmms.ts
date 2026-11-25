@@ -90,11 +90,13 @@ export function clampToSeason(dueDate: string, startMd: string | null, endMd: st
   return dueDate;
 }
 
+const SAFETY_LABEL = /\bfire\s+ext|\bemergency\s+light/i;
+
 /** Plant areas / buildings, matched against asset + PM text (first match wins). */
 const BUILDING_RULES: Array<[string, RegExp]> = [
   [
     "Safety Equipment",
-    /fire extinguish|extinguisher|eye ?wash|safety shower|\bscba\b|\baed\b|gas detect|fall protection|first aid|fire alarm|sprinkler|confined space|lockout/i,
+    /fire\s+ext|emergency\s+light|extinguisher|eye ?wash|safety shower|\bscba\b|\baed\b|gas detect|fall protection|first aid|fire alarm|sprinkler|confined space|lockout/i,
   ],
   ["Headworks", /headworks|bar screen|washing compactor|grit|vortex|septic receiving|vac truck/i],
   ["East Digester", /east digester|digester east|\beast dig\b/i],
@@ -137,6 +139,7 @@ export function buildingOf(
 ) {
   const allText = `${assetName ?? ""} ${title ?? ""} ${location ?? ""} ${override ?? ""}`;
   if (/\bRF\b|renewable fuels?/i.test(allText)) return "Renewable Fuels";
+  if (SAFETY_LABEL.test(allText)) return "Safety Equipment";
   if (override && override.trim()) {
     const savedBuilding = override.trim();
     return BUILDING_ALIASES[savedBuilding.toLowerCase()] ?? savedBuilding;
@@ -351,7 +354,7 @@ export const SYSTEM_RULES: Array<{
     icon: "ShieldAlert",
     color: "red",
     test: (t) =>
-      /fire extinguish|extinguisher|eye ?wash|safety shower|\bscba\b|\baed\b|gas detect|fall protection|first aid/i.test(
+      /fire\s+ext|emergency\s+light|extinguisher|eye ?wash|safety shower|\bscba\b|\baed\b|gas detect|fall protection|first aid/i.test(
         t,
       ),
   },
