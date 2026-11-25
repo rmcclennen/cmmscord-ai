@@ -11,4 +11,4 @@
 
 <!-- LOVABLE:END -->
 
-- Asset navigation groups equipment by resolved building and process system, using existing imported parent references for nested equipment; render closed branches lazily and paginate open lists to avoid large-page freezes.
+- Asset and PM navigation share a building/system/equipment tree using existing imported parent references; PM equipment selections filter schedules in place, while assets open equipment details. Render closed branches lazily and paginate open lists to avoid large-page freezes.

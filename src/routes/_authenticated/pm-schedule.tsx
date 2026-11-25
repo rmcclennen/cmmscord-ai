@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -13,14 +13,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ShowMoreList } from "@/components/show-more-list";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AssetBuildingTree } from "@/components/asset-building-tree";
+import type { TreeAsset } from "@/lib/asset-tree";
 import { WorkOrderDialog } from "@/components/work-order-dialog";
 import { DeleteRequestDialog } from "@/components/delete-request-dialog";
 import { RelabelAssetDialog } from "@/components/relabel-asset-dialog";
 import { EditPmScheduleDialog } from "@/components/edit-pm-schedule-dialog";
 import { CreatePmScheduleDialog } from "@/components/create-pm-schedule-dialog";
 import { MatchPmAssetDialog } from "@/components/match-pm-asset-dialog";
-import { buildingOf, clampToSeason, dueTone, prettyLabel, seasonLabel } from "@/lib/cmms";
+import { buildingOf, clampToSeason, dueTone, prettyLabel, seasonLabel, systemOf } from "@/lib/cmms";
 import { useTeamMembers } from "@/hooks/use-team-members";
 import { memberLabel, notifyUser } from "@/lib/notify";
 import { toast } from "sonner";
@@ -48,7 +49,9 @@ export const Route = createFileRoute("/_authenticated/pm-schedule")({
         name: "description",
         content: "Preventive maintenance schedule with overdue, due-soon, and upcoming tasks.",
       },
-      { property: "og:title", content: "PM Schedule" },
+      { property: "og:title", content: "PM Schedule | AssetCareConnect" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       {
         property: "og:description",
         content: "Track and complete preventive maintenance across the plant.",
@@ -63,7 +66,10 @@ function PmSchedulePage() {
   const [window, setWindow] = useState("all");
   const [page, setPage] = useState(0);
   const [grouped, setGrouped] = useState(true);
-  const [tab, setTab] = useState("all");
+  const [building, setBuilding] = useState("all");
+  const [system, setSystem] = useState("all");
+  const [selectedIds, setSelectedIds] = useState<Set<string> | null>(null);
+  const [equipmentName, setEquipmentName] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const team = useTeamMembers();
 
@@ -97,7 +103,7 @@ function PmSchedulePage() {
   });
 
   const pms = useQuery({
-    queryKey: ["pms", search, window, page, grouped],
+    queryKey: ["pms", search, window],
     placeholderData: keepPreviousData,
     queryFn: async () => {
       const history = window === "history";
@@ -105,7 +111,7 @@ function PmSchedulePage() {
         let query = supabase
           .from("pm_schedules")
           .select(
-            "*, assets(id, name, location_name, building, tag_number, class, manufacturer, model)",
+            "*, assets(id, name, location_name, building, tag_number, class, manufacturer, model, type, category, limble_asset_id, parent_limble_id)",
             { count: "exact" },
           )
           .eq("active", !history)
@@ -118,14 +124,6 @@ function PmSchedulePage() {
         if (window === "month") query = query.gte("next_due", today()).lte("next_due", inDays(30));
         return query;
       };
-      if (!grouped) {
-        const { data, error, count } = await build(
-          page * PAGE_SIZE,
-          page * PAGE_SIZE + PAGE_SIZE - 1,
-        );
-        if (error) throw error;
-        return { rows: data, count: count ?? 0 };
-      }
       // Grouped view shows everything, so walk every page (the server caps each at 1,000).
       const first = await build(0, 999);
       if (first.error) throw first.error;
@@ -163,8 +161,7 @@ function PmSchedulePage() {
     onError: (error: Error) => toast.error(error.message),
   });
 
-  const total = pms.data?.count ?? 0;
-  const maxPage = Math.max(0, Math.ceil(total / PAGE_SIZE) - 1);
+
   type Row = NonNullable<typeof pms.data>["rows"][number];
 
   const unassignedCount = (pms.data?.rows ?? []).filter((p) => !p.asset_id).length;
@@ -298,29 +295,41 @@ function PmSchedulePage() {
     );
   };
 
+  const pmBuilding = (pm: Row) => buildingOf(pm.assets?.name, pm.title, pm.assets?.location_name, pm.assets?.building);
+  const pmEquipmentId = (pm: Row) => pm.asset_id ?? `pm:${pm.id}`;
+  const treeAssets = useMemo(() => {
+    const members = new Map<string, TreeAsset>();
+    for (const pm of pms.data?.rows ?? []) {
+      const resolvedBuilding = buildingOf(pm.assets?.name, pm.title, pm.assets?.location_name, pm.assets?.building);
+      const id = pm.asset_id ?? `pm:${pm.id}`;
+      const asset = pm.assets;
+      members.set(id, {
+        id,
+        name: asset?.name ?? pm.title,
+        building: resolvedBuilding,
+        system: systemOf(asset?.name ?? pm.title, resolvedBuilding, asset?.location_name, asset?.type, asset?.category),
+        limble_asset_id: asset?.limble_asset_id ?? null,
+        parent_limble_id: asset?.parent_limble_id ?? null,
+      });
+    }
+    return [...members.values()];
+  }, [pms.data]);
+  const visibleRows = (pms.data?.rows ?? []).filter((pm) =>
+    (building === "all" || pmBuilding(pm) === building) &&
+    (!selectedIds || selectedIds.has(pmEquipmentId(pm)))
+  );
+  const total = visibleRows.length;
+  const maxPage = Math.max(0, Math.ceil(total / PAGE_SIZE) - 1);
   const groups = (() => {
     const map = new Map<string, Row[]>();
-    for (const pm of pms.data?.rows ?? []) {
-      const key = buildingOf(
-        pm.assets?.name,
-        pm.title,
-        pm.assets?.location_name,
-        pm.assets?.building,
-      );
-      const list = map.get(key);
-      if (list) list.push(pm);
-      else map.set(key, [pm]);
+    for (const pm of visibleRows) {
+      const key = building === "all" ? pmBuilding(pm) : systemOf(pm.assets?.name ?? pm.title, pmBuilding(pm), pm.assets?.location_name, pm.assets?.type, pm.assets?.category);
+      const list = map.get(key) ?? [];
+      list.push(pm);
+      map.set(key, list);
     }
-    return [...map.entries()].sort((a, b) =>
-      a[0] === "Other / Unassigned"
-        ? 1
-        : b[0] === "Other / Unassigned"
-          ? -1
-          : a[0].localeCompare(b[0]),
-    );
+    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
   })();
-
-  const activeTab = tab === "all" || groups.some(([b]) => b === tab) ? tab : "all";
 
   return (
     <div className="space-y-5">
@@ -432,60 +441,57 @@ function PmSchedulePage() {
             setPage(0);
           }}
         >
-          {grouped ? "Grouped by building" : "Group by building"}
+          {grouped ? "Grouped view" : "Flat list"}
         </Button>
         <span className="font-mono text-xs text-muted-foreground">{total} schedules</span>
       </div>
 
+      <div className="grid min-w-0 gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <AssetBuildingTree
+          assets={treeAssets}
+          building={building}
+          system={system}
+          loading={pms.isLoading}
+          onSelect={(nextBuilding, nextSystem, ids) => {
+            setBuilding(nextBuilding);
+            setSystem(nextSystem);
+            setSelectedIds(ids ? new Set(ids) : null);
+            setEquipmentName(null);
+            setPage(0);
+          }}
+          onEquipmentSelect={(ids, name) => {
+            setSelectedIds(new Set(ids));
+            setEquipmentName(name);
+            setPage(0);
+          }}
+        />
+        <div className="min-w-0 space-y-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="min-w-0 break-words text-lg font-semibold">{equipmentName ?? (building === "all" ? "All PM schedules" : building)}</h2>
+            <span className="text-xs text-muted-foreground">{total} PMs</span>
+          </div>
       {grouped ? (
-        <Tabs value={activeTab} onValueChange={setTab}>
-          <TabsList className="flex h-auto flex-wrap justify-start gap-1">
-            <TabsTrigger value="all">All ({pms.data?.rows?.length ?? 0})</TabsTrigger>
-            {groups.map(([building, rows]) => (
-              <TabsTrigger key={building} value={building}>
-                {building} ({rows.length})
-              </TabsTrigger>
-            ))}
-          </TabsList>
-
-          <TabsContent value="all" className="mt-4">
-            <div className="space-y-4">
-              {groups.map(([building, rows]) => (
-                <div key={building} className="panel">
-                  <div className="flex items-center justify-between border-b border-border px-3 py-2">
-                    <h2 className="text-sm font-semibold">{building}</h2>
-                    <span className="font-mono text-xs text-muted-foreground">
-                      {rows.length} PMs
-                    </span>
-                  </div>
-                  <div className="divide-y divide-border"><ShowMoreList items={rows} render={renderRow} step={15} /></div>
-                </div>
-              ))}
-              {pms.isLoading && (
-                <p className="panel p-3 text-sm text-muted-foreground">Loading PM schedule…</p>
-              )}
-              {!pms.isLoading && groups.length === 0 && (
-                <p className="panel p-3 text-sm text-muted-foreground">
-                  No PM schedules match this filter.
-                </p>
-              )}
-            </div>
-          </TabsContent>
-
-          {groups.map(([building, rows]) => (
-            <TabsContent key={building} value={building} className="mt-4">
-              <div className="panel divide-y divide-border"><ShowMoreList items={rows} render={renderRow} /></div>
-            </TabsContent>
+        <div className="space-y-4">
+          {groups.map(([name, rows]) => (
+            <section key={name} className="border-b border-border pb-3">
+              <div className="flex items-center justify-between border-b border-border px-3 py-2">
+                <h3 className="text-sm font-semibold">{name}</h3>
+                <span className="font-mono text-xs text-muted-foreground">{rows.length} PMs</span>
+              </div>
+              <div className="divide-y divide-border"><ShowMoreList key={`${building}:${system}:${equipmentName}:${name}`} items={rows} render={renderRow} step={15} /></div>
+            </section>
           ))}
-        </Tabs>
+          {pms.isLoading && <p className="p-3 text-sm text-muted-foreground">Loading PM schedule…</p>}
+          {!pms.isLoading && groups.length === 0 && <p className="p-3 text-sm text-muted-foreground">No PM schedules match this filter.</p>}
+        </div>
       ) : (
         <>
           <div className="panel divide-y divide-border">
-            <ShowMoreList items={pms.data?.rows ?? []} render={renderRow} />
+            <ShowMoreList key={`${page}:${building}:${system}:${equipmentName}`} items={visibleRows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)} render={renderRow} />
             {pms.isLoading && (
               <p className="p-3 text-sm text-muted-foreground">Loading PM schedule…</p>
             )}
-            {!pms.isLoading && (pms.data?.rows ?? []).length === 0 && (
+            {!pms.isLoading && visibleRows.length === 0 && (
               <p className="p-3 text-sm text-muted-foreground">
                 No PM schedules match this filter.
               </p>
@@ -517,6 +523,8 @@ function PmSchedulePage() {
           </div>
         </>
       )}
+        </div>
+      </div>
     </div>
   );
 }

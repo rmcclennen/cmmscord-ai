@@ -6,7 +6,7 @@ import { ShowMoreList } from "@/components/show-more-list";
 import { BUILDING_NAMES } from "@/lib/cmms";
 import { buildAssetTree, treeAssetIds, type AssetTreeNode, type TreeAsset } from "@/lib/asset-tree";
 
-function EquipmentBranch({ node }: { node: AssetTreeNode }) {
+function EquipmentBranch({ node, onEquipmentSelect }: { node: AssetTreeNode; onEquipmentSelect?: ((assetIds: string[], name: string) => void) | undefined }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="min-w-0">
@@ -16,22 +16,23 @@ function EquipmentBranch({ node }: { node: AssetTreeNode }) {
             {open ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
           </Button>
         ) : <Wrench className="m-1.5 size-3 shrink-0 text-muted-foreground" />}
-        <Link to="/assets/$assetId" params={{ assetId: node.asset.id }} className="min-w-0 flex-1 break-words py-1 text-xs leading-4 text-foreground hover:text-primary hover:underline">
+        {onEquipmentSelect ? <Button variant="ghost" className="h-auto min-w-0 flex-1 justify-start whitespace-normal break-words px-1 py-1 text-left text-xs leading-4" onClick={() => onEquipmentSelect(treeAssetIds([node]), node.asset.name)}>{node.asset.name}</Button> : <Link to="/assets/$assetId" params={{ assetId: node.asset.id }} className="min-w-0 flex-1 break-words py-1 text-xs leading-4 text-foreground hover:text-primary hover:underline">
           {node.asset.name}
-        </Link>
+        </Link>}
         {node.children.length > 0 && <span className="pt-1 text-xs text-muted-foreground">{node.children.length}</span>}
       </div>
-      {open && <div className="ml-3 border-l border-border pl-2"><ShowMoreList items={node.children} step={15} render={(child) => <EquipmentBranch key={child.asset.id} node={child} />} /></div>}
+      {open && <div className="ml-3 border-l border-border pl-2"><ShowMoreList items={node.children} step={15} render={(child) => <EquipmentBranch key={child.asset.id} node={child} onEquipmentSelect={onEquipmentSelect} />} /></div>}
     </div>
   );
 }
 
-export function AssetBuildingTree({ assets, building, system, onSelect, loading }: {
+export function AssetBuildingTree({ assets, building, system, onSelect, loading, onEquipmentSelect }: {
   assets: TreeAsset[];
   building: string;
   system: string;
   onSelect: (building: string, system: string, assetIds: string[] | null) => void;
   loading: boolean;
+  onEquipmentSelect?: (assetIds: string[], name: string) => void;
 }) {
   const [openBuildings, setOpenBuildings] = useState<Record<string, boolean>>({});
   const [openSystems, setOpenSystems] = useState<Record<string, boolean>>({});
@@ -75,7 +76,7 @@ export function AssetBuildingTree({ assets, building, system, onSelect, loading 
                   <Button variant={building === name && system === systemName ? "secondary" : "ghost"} className="h-auto min-h-9 w-full justify-start gap-1.5 px-1 py-2 text-left text-xs" aria-expanded={systemOpen} aria-label={`${systemOpen ? "Collapse" : "Expand"} system ${systemName} in ${name}`} onClick={() => { setOpenSystems((prev) => ({ ...prev, [key]: !systemOpen })); onSelect(name, systemName, ids); }}>
                     {systemOpen ? <ChevronDown className="size-3.5 shrink-0" /> : <ChevronRight className="size-3.5 shrink-0" />}<Layers className="size-3.5 shrink-0 text-muted-foreground" /><span className="min-w-0 flex-1 whitespace-normal break-words">{systemName}</span><span className="text-muted-foreground">{ids.length}</span>
                   </Button>
-                  {systemOpen && <div className="ml-3 border-l border-border pl-2"><ShowMoreList items={nodes} step={15} render={(node) => <EquipmentBranch key={node.asset.id} node={node} />} /></div>}
+                  {systemOpen && <div className="ml-3 border-l border-border pl-2"><ShowMoreList items={nodes} step={15} render={(node) => <EquipmentBranch key={node.asset.id} node={node} onEquipmentSelect={onEquipmentSelect} />} /></div>}
                 </div>;
               })}
             </div>}
