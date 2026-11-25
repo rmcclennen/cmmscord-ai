@@ -70,6 +70,7 @@ function PmSchedulePage() {
   const [system, setSystem] = useState("all");
   const [selectedIds, setSelectedIds] = useState<Set<string> | null>(null);
   const [equipmentName, setEquipmentName] = useState<string | null>(null);
+  const [selectedPmId, setSelectedPmId] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const team = useTeamMembers();
 
@@ -297,6 +298,16 @@ function PmSchedulePage() {
 
   const pmBuilding = (pm: Row) => buildingOf(pm.assets?.name, pm.title, pm.assets?.location_name, pm.assets?.building);
   const pmEquipmentId = (pm: Row) => pm.asset_id ?? `pm:${pm.id}`;
+  const tasksByEquipment = useMemo(() => {
+    const map = new Map<string, Row[]>();
+    for (const pm of pms.data?.rows ?? []) {
+      const id = pm.asset_id ?? `pm:${pm.id}`;
+      const tasks = map.get(id) ?? [];
+      tasks.push(pm);
+      map.set(id, tasks);
+    }
+    return map;
+  }, [pms.data]);
   const treeAssets = useMemo(() => {
     const members = new Map<string, TreeAsset>();
     for (const pm of pms.data?.rows ?? []) {
@@ -316,7 +327,8 @@ function PmSchedulePage() {
   }, [pms.data]);
   const visibleRows = (pms.data?.rows ?? []).filter((pm) =>
     (building === "all" || pmBuilding(pm) === building) &&
-    (!selectedIds || selectedIds.has(pmEquipmentId(pm)))
+    (!selectedIds || selectedIds.has(pmEquipmentId(pm))) &&
+    (!selectedPmId || selectedPmId === pm.id)
   );
   const total = visibleRows.length;
   const maxPage = Math.max(0, Math.ceil(total / PAGE_SIZE) - 1);
@@ -457,13 +469,33 @@ function PmSchedulePage() {
             setSystem(nextSystem);
             setSelectedIds(ids ? new Set(ids) : null);
             setEquipmentName(null);
+            setSelectedPmId(null);
             setPage(0);
           }}
           onEquipmentSelect={(ids, name) => {
             setSelectedIds(new Set(ids));
             setEquipmentName(name);
+            setSelectedPmId(null);
             setPage(0);
           }}
+          renderEquipmentTasks={(assetId) => (
+            <ShowMoreList items={tasksByEquipment.get(assetId) ?? []} step={10} render={(pm) => (
+              <Button key={pm.id} variant={selectedPmId === pm.id ? "secondary" : "ghost"}
+                aria-label={`Open PM: ${pm.title}`}
+                className="my-1 h-auto w-full items-start justify-start gap-1.5 whitespace-normal px-1.5 py-2 text-left text-xs"
+                onClick={() => {
+                  setSelectedIds(new Set([assetId]));
+                  setSelectedPmId(pm.id);
+                  setEquipmentName(pm.title);
+                  setPage(0);
+                }}>
+                <CalendarPlus className="mt-0.5 size-3.5 shrink-0 text-primary" />
+                <span className="min-w-0 break-words"><span className="block">{pm.title}</span>
+                  <span className="mt-1 block font-mono text-muted-foreground">{pm.next_due}</span>
+                </span>
+              </Button>
+            )} />
+          )}
         />
         <div className="min-w-0 space-y-3">
           <div className="flex flex-wrap items-baseline justify-between gap-2">

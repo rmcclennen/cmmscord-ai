@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Building2, ChevronDown, ChevronRight, Layers, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,12 +6,12 @@ import { ShowMoreList } from "@/components/show-more-list";
 import { BUILDING_NAMES } from "@/lib/cmms";
 import { buildAssetTree, treeAssetIds, type AssetTreeNode, type TreeAsset } from "@/lib/asset-tree";
 
-function EquipmentBranch({ node, onEquipmentSelect }: { node: AssetTreeNode; onEquipmentSelect?: ((assetIds: string[], name: string) => void) | undefined }) {
+function EquipmentBranch({ node, onEquipmentSelect, renderEquipmentTasks }: { node: AssetTreeNode; onEquipmentSelect?: ((assetIds: string[], name: string) => void) | undefined; renderEquipmentTasks?: ((assetId: string) => ReactNode) | undefined }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="min-w-0">
       <div className="flex min-w-0 items-start gap-1 py-1">
-        {node.children.length > 0 ? (
+        {node.children.length > 0 || renderEquipmentTasks ? (
           <Button variant="ghost" size="icon" className="size-6 shrink-0" aria-label={`${open ? "Collapse" : "Expand"} ${node.asset.name}`} aria-expanded={open} onClick={() => setOpen(!open)}>
             {open ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
           </Button>
@@ -21,18 +21,22 @@ function EquipmentBranch({ node, onEquipmentSelect }: { node: AssetTreeNode; onE
         </Link>}
         {node.children.length > 0 && <span className="pt-1 text-xs text-muted-foreground">{node.children.length}</span>}
       </div>
-      {open && <div className="ml-3 border-l border-border pl-2"><ShowMoreList items={node.children} step={15} render={(child) => <EquipmentBranch key={child.asset.id} node={child} onEquipmentSelect={onEquipmentSelect} />} /></div>}
+      {open && <div className="ml-3 border-l border-border pl-2">
+        {renderEquipmentTasks?.(node.asset.id)}
+        <ShowMoreList items={node.children} step={15} render={(child) => <EquipmentBranch key={child.asset.id} node={child} onEquipmentSelect={onEquipmentSelect} renderEquipmentTasks={renderEquipmentTasks} />} />
+      </div>}
     </div>
   );
 }
 
-export function AssetBuildingTree({ assets, building, system, onSelect, loading, onEquipmentSelect }: {
+export function AssetBuildingTree({ assets, building, system, onSelect, loading, onEquipmentSelect, renderEquipmentTasks }: {
   assets: TreeAsset[];
   building: string;
   system: string;
   onSelect: (building: string, system: string, assetIds: string[] | null) => void;
   loading: boolean;
   onEquipmentSelect?: (assetIds: string[], name: string) => void;
+  renderEquipmentTasks?: (assetId: string) => ReactNode;
 }) {
   const [openBuildings, setOpenBuildings] = useState<Record<string, boolean>>({});
   const [openSystems, setOpenSystems] = useState<Record<string, boolean>>({});
@@ -76,7 +80,7 @@ export function AssetBuildingTree({ assets, building, system, onSelect, loading,
                   <Button variant={building === name && system === systemName ? "secondary" : "ghost"} className="h-auto min-h-9 w-full justify-start gap-1.5 px-1 py-2 text-left text-xs" aria-expanded={systemOpen} aria-label={`${systemOpen ? "Collapse" : "Expand"} system ${systemName} in ${name}`} onClick={() => { setOpenSystems((prev) => ({ ...prev, [key]: !systemOpen })); onSelect(name, systemName, ids); }}>
                     {systemOpen ? <ChevronDown className="size-3.5 shrink-0" /> : <ChevronRight className="size-3.5 shrink-0" />}<Layers className="size-3.5 shrink-0 text-muted-foreground" /><span className="min-w-0 flex-1 whitespace-normal break-words">{systemName}</span><span className="text-muted-foreground">{ids.length}</span>
                   </Button>
-                  {systemOpen && <div className="ml-3 border-l border-border pl-2"><ShowMoreList items={nodes} step={15} render={(node) => <EquipmentBranch key={node.asset.id} node={node} onEquipmentSelect={onEquipmentSelect} />} /></div>}
+                  {systemOpen && <div className="ml-3 border-l border-border pl-2"><ShowMoreList items={nodes} step={15} render={(node) => <EquipmentBranch key={node.asset.id} node={node} onEquipmentSelect={onEquipmentSelect} renderEquipmentTasks={renderEquipmentTasks} />} /></div>}
                 </div>;
               })}
             </div>}
