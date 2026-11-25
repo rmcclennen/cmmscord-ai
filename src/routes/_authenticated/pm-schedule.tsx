@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { ShowMoreList } from "@/components/show-more-list";
 import { AssetBuildingTree } from "@/components/asset-building-tree";
+import { fetchAllRows } from "@/lib/paged";
 import type { TreeAsset } from "@/lib/asset-tree";
 import { WorkOrderDialog } from "@/components/work-order-dialog";
 import { DeleteRequestDialog } from "@/components/delete-request-dialog";
@@ -62,6 +63,7 @@ export const Route = createFileRoute("/_authenticated/pm-schedule")({
 });
 
 function PmSchedulePage() {
+  const [selectionMade, setSelectionMade] = useState(false);
   const [search, setSearch] = useState("");
   const [window, setWindow] = useState("all");
   const [page, setPage] = useState(0);
@@ -103,9 +105,26 @@ function PmSchedulePage() {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const navigation = useQuery({
+    queryKey: ["pm-navigation", search, window],
+    queryFn: async () => {
+      const rows = await fetchAllRows((from, to) => supabase.from("pm_schedules")
+        .select("id, asset_id, title, next_due, assets(id, name, location_name, building, type, category, limble_asset_id, parent_limble_id)")
+        .eq("active", window !== "history").order("next_due").order("id").range(from, to));
+      return rows.filter((pm) => (!search.trim() || pm.title.toLowerCase().includes(search.trim().toLowerCase())) &&
+        (window !== "overdue" || pm.next_due < today()) &&
+        (window !== "week" || (pm.next_due >= today() && pm.next_due <= inDays(7))) &&
+        (window !== "month" || (pm.next_due >= today() && pm.next_due <= inDays(30))));
+    },
+  });
+  const requestedPmIds = useMemo(() => (navigation.data ?? []).filter((pm) =>
+    (building === "all" || buildingOf(pm.assets?.name, pm.title, pm.assets?.location_name, pm.assets?.building) === building) &&
+    (!selectedIds || selectedIds.has(pm.asset_id ?? `pm:${pm.id}`)) && (!selectedPmId || selectedPmId === pm.id)
+  ).map((pm) => pm.id), [navigation.data, building, selectedIds, selectedPmId]);
+
   const pms = useQuery({
-    queryKey: ["pms", search, window],
-    placeholderData: keepPreviousData,
+    queryKey: ["pms", search, window, requestedPmIds],
+    enabled: selectionMade && requestedPmIds.length > 0,
     queryFn: async () => {
       const history = window === "history";
       const build = (from: number, to: number) => {
@@ -115,6 +134,7 @@ function PmSchedulePage() {
             "*, assets(id, name, location_name, building, tag_number, class, manufacturer, model, type, category, limble_asset_id, parent_limble_id)",
             { count: "exact" },
           )
+          .in("id", requestedPmIds)
           .eq("active", !history)
           .order("next_due", { ascending: !history })
           .order("id")
@@ -299,18 +319,18 @@ function PmSchedulePage() {
   const pmBuilding = (pm: Row) => buildingOf(pm.assets?.name, pm.title, pm.assets?.location_name, pm.assets?.building);
   const pmEquipmentId = (pm: Row) => pm.asset_id ?? `pm:${pm.id}`;
   const tasksByEquipment = useMemo(() => {
-    const map = new Map<string, Row[]>();
-    for (const pm of pms.data?.rows ?? []) {
+    const map = new Map<string, NonNullable<typeof navigation.data>>();
+    for (const pm of navigation.data ?? []) {
       const id = pm.asset_id ?? `pm:${pm.id}`;
       const tasks = map.get(id) ?? [];
       tasks.push(pm);
       map.set(id, tasks);
     }
     return map;
-  }, [pms.data]);
+  }, [navigation.data]);
   const treeAssets = useMemo(() => {
     const members = new Map<string, TreeAsset>();
-    for (const pm of pms.data?.rows ?? []) {
+    for (const pm of navigation.data ?? []) {
       const resolvedBuilding = buildingOf(pm.assets?.name, pm.title, pm.assets?.location_name, pm.assets?.building);
       const id = pm.asset_id ?? `pm:${pm.id}`;
       const asset = pm.assets;
@@ -324,7 +344,7 @@ function PmSchedulePage() {
       });
     }
     return [...members.values()];
-  }, [pms.data]);
+  }, [navigation.data]);
   const visibleRows = (pms.data?.rows ?? []).filter((pm) =>
     (building === "all" || pmBuilding(pm) === building) &&
     (!selectedIds || selectedIds.has(pmEquipmentId(pm))) &&
@@ -463,8 +483,9 @@ function PmSchedulePage() {
           assets={treeAssets}
           building={building}
           system={system}
-          loading={pms.isLoading}
+          loading={navigation.isLoading}
           onSelect={(nextBuilding, nextSystem, ids) => {
+            setSelectionMade(true);
             setBuilding(nextBuilding);
             setSystem(nextSystem);
             setSelectedIds(ids ? new Set(ids) : null);
@@ -473,6 +494,7 @@ function PmSchedulePage() {
             setPage(0);
           }}
           onEquipmentSelect={(ids, name) => {
+            setSelectionMade(true);
             setSelectedIds(new Set(ids));
             setEquipmentName(name);
             setSelectedPmId(null);
@@ -484,6 +506,7 @@ function PmSchedulePage() {
                 aria-label={`Open PM: ${pm.title}`}
                 className="my-1 h-auto w-full items-start justify-start gap-1.5 whitespace-normal px-1.5 py-2 text-left text-xs"
                 onClick={() => {
+                  setSelectionMade(true);
                   setSelectedIds(new Set([assetId]));
                   setSelectedPmId(pm.id);
                   setEquipmentName(pm.title);
@@ -498,6 +521,7 @@ function PmSchedulePage() {
           )}
         />
         <div className="min-w-0 space-y-3">
+        {selectionMade && <>
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="min-w-0 break-words text-lg font-semibold">{equipmentName ?? (building === "all" ? "All PM schedules" : building)}</h2>
             <span className="text-xs text-muted-foreground">{total} PMs</span>
@@ -555,6 +579,7 @@ function PmSchedulePage() {
           </div>
         </>
       )}
+        </>}
         </div>
       </div>
     </div>

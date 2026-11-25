@@ -12,3 +12,4 @@
 <!-- LOVABLE:END -->
 
 - Asset and PM navigation share a building/system/equipment tree using existing imported parent references; PM branches include expandable task leaves that select individual schedules in place, while assets open equipment details. Render closed branches lazily and paginate open lists to avoid large-page freezes.
+- Assets and PM Schedule initially fetch only navigation labels and hierarchy; defer detail queries and right-hand lists until an explicit building, system, equipment, or task selection, and scope detail reads to that selection.

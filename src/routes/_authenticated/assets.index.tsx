@@ -105,8 +105,10 @@ interface LinkedPart {
 }
 
 function PrintAllQrLabelsButton() {
+  const [requested, setRequested] = useState(false);
   const { data } = useQuery({
     queryKey: ["qr-label-assets"],
+    enabled: requested,
     queryFn: async () => {
       const data = await fetchAllRows((from, to) =>
         supabase
@@ -126,6 +128,7 @@ function PrintAllQrLabelsButton() {
       trigger={
         <Button
           variant="outline"
+          onClick={() => setRequested(true)}
           className="flex items-center gap-2 font-semibold border-primary/40 text-primary hover:bg-primary/10"
         >
           <QrCode className="size-4" /> Print QR labels
@@ -136,6 +139,7 @@ function PrintAllQrLabelsButton() {
 }
 
 function AssetsPage() {
+  const [selectionMade, setSelectionMade] = useState(false);
   const [search, setSearch] = useState("");
   const [cls, setCls] = useState("all");
   const [building, setBuilding] = useState("all");
@@ -151,10 +155,26 @@ function AssetsPage() {
   const [page, setPage] = useState(0);
   const [importOpen, setImportOpen] = useState(false);
 
+  const navigation = useQuery({
+    queryKey: ["asset-navigation"],
+    queryFn: async () => {
+      const rows = await fetchAllRows((from, to) => supabase.from("assets")
+        .select("id, name, building, location_name, type, category, limble_asset_id, parent_limble_id")
+        .order("name").order("id").range(from, to));
+      return rows.map((a) => {
+        const resolvedBuilding = buildingOf(a.name, null, a.location_name, a.building);
+        return { ...a, building: resolvedBuilding, system: systemOf(a.name, resolvedBuilding, null, a.type, a.category) };
+      });
+    },
+  });
+  const requestedIds = useMemo(() => (navigation.data ?? []).filter((a) =>
+    (building === "all" || a.building === building) && (!hierarchyAssetIds || hierarchyAssetIds.has(a.id))
+  ).map((a) => a.id), [navigation.data, building, hierarchyAssetIds]);
+
   // Fetch Assets
   const assets = useQuery({
-    queryKey: ["assets-all"],
-    placeholderData: keepPreviousData,
+    queryKey: ["assets-all", requestedIds],
+    enabled: selectionMade && requestedIds.length > 0,
     queryFn: async () => {
       const data = await fetchAllRows((from, to) =>
         supabase
@@ -162,6 +182,7 @@ function AssetsPage() {
           .select(
             "id, name, tag_number, class, type, make, model, criticality, status, manufacturer, manufacturer_url, serial_number, supplier, building, location_name, limble_asset_id, parent_limble_id, category, hp, volts, rpm, frame",
           )
+          .in("id", requestedIds)
           .order("name")
           .order("id")
           .range(from, to),
@@ -180,8 +201,8 @@ function AssetsPage() {
 
   // Fetch Linked Parts via part_assets junction table
   const partAssetsQuery = useQuery({
-    queryKey: ["assets-parts-map"],
-    placeholderData: keepPreviousData,
+    queryKey: ["assets-parts-map", requestedIds],
+    enabled: selectionMade && requestedIds.length > 0,
     queryFn: async () => {
       return fetchAllRows((from, to) =>
         supabase
@@ -203,6 +224,7 @@ function AssetsPage() {
           )
         `,
           )
+          .in("asset_id", requestedIds)
           .order("asset_id")
           .order("part_id")
           .range(from, to),
@@ -265,14 +287,15 @@ function AssetsPage() {
 
   // Fetch PM Schedules
   const pmsQuery = useQuery({
-    queryKey: ["assets-pms-summary"],
-    placeholderData: keepPreviousData,
+    queryKey: ["assets-pms-summary", requestedIds],
+    enabled: selectionMade && requestedIds.length > 0,
     queryFn: async () => {
       return fetchAllRows((from, to) =>
         supabase
           .from("pm_schedules")
           .select("id, asset_id, title, next_due, interval_days, priority, assigned_to, active")
           .eq("active", true)
+          .in("asset_id", requestedIds)
           .order("next_due", { ascending: true })
           .order("id")
           .range(from, to),
@@ -695,11 +718,12 @@ function AssetsPage() {
 
       <div className="grid min-w-0 gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
         <AssetBuildingTree
-          assets={all}
+          assets={navigation.data ?? []}
           building={building}
           system={systemFilter}
-          loading={assets.isLoading}
+          loading={navigation.isLoading}
           onSelect={(nextBuilding, nextSystem, ids) => {
+            setSelectionMade(true);
             setBuilding(nextBuilding);
             setSystemFilter(nextSystem);
             setHierarchyAssetIds(ids ? new Set(ids) : null);
@@ -707,6 +731,7 @@ function AssetsPage() {
           }}
         />
         <div className="min-w-0">
+        {selectionMade && <>
           <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="text-lg font-semibold">{building === "all" ? "All equipment" : building}</h2>
             <span className="text-xs text-muted-foreground">{total} assets</span>
@@ -1002,6 +1027,7 @@ function AssetsPage() {
           </div>
         </div>
       )}
+        </>}
         </div>
       </div>
     </div>
