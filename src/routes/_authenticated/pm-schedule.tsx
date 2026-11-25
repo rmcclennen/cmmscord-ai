@@ -29,6 +29,8 @@ import { toast } from "sonner";
 import {
   CalendarPlus,
   CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   Layers,
   Pencil,
   Search,
@@ -73,6 +75,7 @@ function PmSchedulePage() {
   const [selectedIds, setSelectedIds] = useState<Set<string> | null>(null);
   const [equipmentName, setEquipmentName] = useState<string | null>(null);
   const [selectedPmId, setSelectedPmId] = useState<string | null>(null);
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const queryClient = useQueryClient();
   const team = useTeamMembers();
 
@@ -484,13 +487,24 @@ function PmSchedulePage() {
           building={building}
           system={system}
           loading={navigation.isLoading}
-          onSelect={(nextBuilding, nextSystem, ids) => {
+          onSelect={(nextBuilding, nextSystem, ids, level) => {
             setSelectionMade(true);
             setBuilding(nextBuilding);
             setSystem(nextSystem);
             setSelectedIds(ids ? new Set(ids) : null);
             setEquipmentName(null);
             setSelectedPmId(null);
+            // A building click lists the parent systems only: every group starts closed.
+            if (level === "building") {
+              const names = new Set((navigation.data ?? [])
+                .filter((pm) => buildingOf(pm.assets?.name, pm.title, pm.assets?.location_name, pm.assets?.building) === nextBuilding)
+                .map((pm) => systemOf(pm.assets?.name ?? pm.title, nextBuilding, pm.assets?.location_name, pm.assets?.type, pm.assets?.category)));
+              setCollapsedGroups(Object.fromEntries([...names].map((n) => [n, true])));
+            } else if (level === "system") {
+              setCollapsedGroups((prev) => ({ ...prev, [nextSystem]: false }));
+            } else {
+              setCollapsedGroups({});
+            }
             setPage(0);
           }}
           onEquipmentSelect={(ids, name) => {
@@ -498,6 +512,7 @@ function PmSchedulePage() {
             setSelectedIds(new Set(ids));
             setEquipmentName(name);
             setSelectedPmId(null);
+            setCollapsedGroups({});
             setPage(0);
           }}
           renderEquipmentTasks={(assetId) => (
@@ -510,6 +525,7 @@ function PmSchedulePage() {
                   setSelectedIds(new Set([assetId]));
                   setSelectedPmId(pm.id);
                   setEquipmentName(pm.title);
+                  setCollapsedGroups({});
                   setPage(0);
                 }}>
                 <CalendarPlus className="mt-0.5 size-3.5 shrink-0 text-primary" />
@@ -528,15 +544,28 @@ function PmSchedulePage() {
           </div>
       {grouped ? (
         <div className="space-y-4">
-          {groups.map(([name, rows]) => (
+          {groups.map(([name, rows]) => {
+            const isCollapsed = !!collapsedGroups[name];
+            return (
             <section key={name} className="border-b border-border pb-3">
-              <div className="flex items-center justify-between border-b border-border px-3 py-2">
+              <div
+                role="button"
+                tabIndex={0}
+                aria-expanded={!isCollapsed}
+                onClick={() => setCollapsedGroups((prev) => ({ ...prev, [name]: !isCollapsed }))}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setCollapsedGroups((prev) => ({ ...prev, [name]: !isCollapsed })); } }}
+                className="flex cursor-pointer items-center justify-between gap-2 border-b border-border px-3 py-2 select-none hover:bg-muted/40"
+              >
                 <h3 className="text-sm font-semibold">{name}</h3>
-                <span className="font-mono text-xs text-muted-foreground">{rows.length} PMs</span>
+                <span className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
+                  {rows.length} PMs
+                  {isCollapsed ? <ChevronRight className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+                </span>
               </div>
-              <div className="divide-y divide-border"><ShowMoreList key={`${building}:${system}:${equipmentName}:${name}`} items={rows} render={renderRow} step={15} /></div>
+              {!isCollapsed && <div className="divide-y divide-border"><ShowMoreList key={`${building}:${system}:${equipmentName}:${name}`} items={rows} render={renderRow} step={15} /></div>}
             </section>
-          ))}
+            );
+          })}
           {pms.isLoading && <p className="p-3 text-sm text-muted-foreground">Loading PM schedule…</p>}
           {!pms.isLoading && groups.length === 0 && <p className="p-3 text-sm text-muted-foreground">No PM schedules match this filter.</p>}
         </div>
@@ -580,6 +609,17 @@ function PmSchedulePage() {
         </>
       )}
         </>}
+        {!selectionMade && (
+          <div className="panel p-10 text-center text-muted-foreground">
+            <Layers className="mx-auto size-9 opacity-50" />
+            <p className="mt-3 text-sm font-semibold text-foreground">
+              {building === "all" ? "Pick a building on the left" : building}
+            </p>
+            <p className="mx-auto mt-1 max-w-sm text-xs">
+              Choose a system or a piece of equipment to see its PMs here.
+            </p>
+          </div>
+        )}
         </div>
       </div>
     </div>

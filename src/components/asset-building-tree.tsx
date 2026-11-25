@@ -29,17 +29,32 @@ function EquipmentBranch({ node, onEquipmentSelect, renderEquipmentTasks }: { no
   );
 }
 
+export type TreeSelectionLevel = "all" | "building" | "system";
+
 export function AssetBuildingTree({ assets, building, system, onSelect, loading, onEquipmentSelect, renderEquipmentTasks }: {
   assets: TreeAsset[];
   building: string;
   system: string;
-  onSelect: (building: string, system: string, assetIds: string[] | null) => void;
+  onSelect: (building: string, system: string, assetIds: string[] | null, level: TreeSelectionLevel) => void;
   loading: boolean;
   onEquipmentSelect?: (assetIds: string[], name: string) => void;
   renderEquipmentTasks?: (assetId: string) => ReactNode;
 }) {
   const [openBuildings, setOpenBuildings] = useState<Record<string, boolean>>({});
   const [openSystems, setOpenSystems] = useState<Record<string, boolean>>({});
+
+  /** Clicking a building always lands on the system (parent) level: any equipment left open under it is closed first. */
+  const toggleBuilding = (name: string, open: boolean) => {
+    setOpenBuildings((prev) => ({ ...prev, [name]: !open }));
+    setOpenSystems((prev) => {
+      const prefix = `${name}:`;
+      if (!Object.keys(prev).some((key) => key.startsWith(prefix))) return prev;
+      const next: Record<string, boolean> = {};
+      for (const [key, value] of Object.entries(prev)) if (!key.startsWith(prefix)) next[key] = value;
+      return next;
+    });
+  };
+
   const buildings = useMemo(() => {
     const names = [...new Set(assets.map((a) => a.building))].sort((a, b) => {
       const ia = BUILDING_NAMES.indexOf(a), ib = BUILDING_NAMES.indexOf(b);
@@ -62,13 +77,13 @@ export function AssetBuildingTree({ assets, building, system, onSelect, loading,
       <div className="mb-3 flex items-center justify-between gap-2"><h2 className="text-sm font-semibold">Buildings</h2>
         <Button variant="ghost" size="icon" className="size-7" aria-label="Collapse building tree" title="Collapse building tree" onClick={() => { setOpenBuildings({}); setOpenSystems({}); }}><ChevronRight className="size-4" /></Button>
       </div>
-      <Button variant={building === "all" ? "secondary" : "ghost"} className="mb-2 w-full justify-start gap-2" onClick={() => onSelect("all", "all", null)}><Building2 className="size-4 shrink-0" />All buildings<span className="ml-auto text-xs text-muted-foreground">{assets.length}</span></Button>
+      <Button variant={building === "all" ? "secondary" : "ghost"} className="mb-2 w-full justify-start gap-2" onClick={() => onSelect("all", "all", null, "all")}><Building2 className="size-4 shrink-0" />All buildings<span className="ml-auto text-xs text-muted-foreground">{assets.length}</span></Button>
       {loading && <p className="p-2 text-xs text-muted-foreground">Loading buildings…</p>}
       <div className="max-h-80 overflow-y-auto lg:max-h-none lg:overflow-visible">
         {buildings.map(({ name, count, groups }) => {
           const open = Boolean(openBuildings[name]);
           return <div key={name} className="mb-1">
-            <Button variant={building === name ? "secondary" : "ghost"} className="h-auto min-h-10 w-full justify-start gap-2 px-2 py-2 text-left" aria-expanded={open} aria-label={`${open ? "Collapse" : "Expand"} building ${name}`} onClick={() => { setOpenBuildings((prev) => ({ ...prev, [name]: !open })); onSelect(name, "all", null); }}>
+            <Button variant={building === name ? "secondary" : "ghost"} className="h-auto min-h-10 w-full justify-start gap-2 px-2 py-2 text-left" aria-expanded={open} aria-label={`${open ? "Collapse" : "Expand"} building ${name}`} onClick={() => { toggleBuilding(name, open); onSelect(name, "all", null, "building"); }}>
               {open ? <ChevronDown className="size-4 shrink-0" /> : <ChevronRight className="size-4 shrink-0" />}<span className="min-w-0 flex-1 whitespace-normal break-words">{name}</span><span className="text-xs text-muted-foreground">{count}</span>
             </Button>
             {open && <div className="ml-3 border-l border-border pl-2">
@@ -77,7 +92,7 @@ export function AssetBuildingTree({ assets, building, system, onSelect, loading,
                 const systemOpen = Boolean(openSystems[key]);
                 const ids = treeAssetIds(nodes);
                 return <div key={key}>
-                  <Button variant={building === name && system === systemName ? "secondary" : "ghost"} className="h-auto min-h-9 w-full justify-start gap-1.5 px-1 py-2 text-left text-xs" aria-expanded={systemOpen} aria-label={`${systemOpen ? "Collapse" : "Expand"} system ${systemName} in ${name}`} onClick={() => { setOpenSystems((prev) => ({ ...prev, [key]: !systemOpen })); onSelect(name, systemName, ids); }}>
+                  <Button variant={building === name && system === systemName ? "secondary" : "ghost"} className="h-auto min-h-9 w-full justify-start gap-1.5 px-1 py-2 text-left text-xs" aria-expanded={systemOpen} aria-label={`${systemOpen ? "Collapse" : "Expand"} system ${systemName} in ${name}`} onClick={() => { setOpenSystems((prev) => ({ ...prev, [key]: !systemOpen })); onSelect(name, systemName, ids, "system"); }}>
                     {systemOpen ? <ChevronDown className="size-3.5 shrink-0" /> : <ChevronRight className="size-3.5 shrink-0" />}<Layers className="size-3.5 shrink-0 text-muted-foreground" /><span className="min-w-0 flex-1 whitespace-normal break-words">{systemName}</span><span className="text-muted-foreground">{ids.length}</span>
                   </Button>
                   {systemOpen && <div className="ml-3 border-l border-border pl-2"><ShowMoreList items={nodes} step={15} render={(node) => <EquipmentBranch key={node.asset.id} node={node} onEquipmentSelect={onEquipmentSelect} renderEquipmentTasks={renderEquipmentTasks} />} /></div>}

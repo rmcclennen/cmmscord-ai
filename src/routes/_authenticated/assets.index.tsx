@@ -722,11 +722,20 @@ function AssetsPage() {
           building={building}
           system={systemFilter}
           loading={navigation.isLoading}
-          onSelect={(nextBuilding, nextSystem, ids) => {
+          onSelect={(nextBuilding, nextSystem, ids, level) => {
             setSelectionMade(true);
             setBuilding(nextBuilding);
             setSystemFilter(nextSystem);
             setHierarchyAssetIds(ids ? new Set(ids) : null);
+            // A building click lists the parent systems only: every system card starts closed.
+            if (level === "building") {
+              const names = new Set((navigation.data ?? []).filter((a) => a.building === nextBuilding).map((a) => a.system));
+              setCollapsedSystems(Object.fromEntries([...names].map((n) => [n, true])));
+            } else if (level === "system") {
+              setCollapsedSystems((prev) => ({ ...prev, [nextSystem]: false }));
+            } else {
+              setCollapsedSystems({});
+            }
             setPage(0);
           }}
         />
@@ -1028,6 +1037,17 @@ function AssetsPage() {
         </div>
       )}
         </>}
+        {!selectionMade && (
+          <div className="panel p-10 text-center text-muted-foreground">
+            <Layers className="mx-auto size-9 opacity-50" />
+            <p className="mt-3 text-sm font-semibold text-foreground">
+              {building === "all" ? "Pick a building on the left" : building}
+            </p>
+            <p className="mx-auto mt-1 max-w-sm text-xs">
+              Choose a system or a piece of equipment to see its details here.
+            </p>
+          </div>
+        )}
         </div>
       </div>
     </div>
