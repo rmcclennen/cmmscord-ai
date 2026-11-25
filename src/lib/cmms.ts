@@ -149,6 +149,9 @@ export function buildingOf(
   return "Other / Unassigned";
 }
 
+/** Building ventilation belongs to HVAC, even when its name also mentions a process system. */
+const HVAC_LABEL = /\bhvac\b|air[- ]?handler|\bahu\b|make[- ]?up[- ]air|\bmua\b|exhaust[- ]fans?\b|roof[- ]fans?\b|unit[- ]heater|chiller|condens[eo]r|ventilation[- ]fans?\b|heat[- ]pump|air[- ]condition|\brtu\b|rooftop[- ]unit|furnace/i;
+
 /** Standard Wastewater Process Systems */
 export const SYSTEM_RULES: Array<{
   name: string;
@@ -157,6 +160,13 @@ export const SYSTEM_RULES: Array<{
   color: string;
   test: (text: string, bldg: string) => boolean;
 }> = [
+  {
+    name: "HVAC & Climate System",
+    category: "Facilities & Climate",
+    icon: "ThermometerSnowflake",
+    color: "slate",
+    test: (t) => HVAC_LABEL.test(t),
+  },
   {
     name: "Headworks Polymer System",
     category: "Chemical / Pretreatment",
@@ -322,16 +332,6 @@ export const SYSTEM_RULES: Array<{
       ),
   },
   {
-    name: "HVAC & Climate System",
-    category: "Facilities & Climate",
-    icon: "ThermometerSnowflake",
-    color: "slate",
-    test: (t) =>
-      /hvac|air handler|\bahu\b|make up air|\bmua\b|exhaust fan|roof fan|unit heater|chiller|condenser/i.test(
-        t,
-      ),
-  },
-  {
     name: "Compressed Air System",
     category: "Pneumatic Utilities",
     icon: "Gauge",
@@ -391,6 +391,9 @@ export function systemOf(
   category?: string | null,
   override?: string | null,
 ): string {
+  if (HVAC_LABEL.test(`${assetName ?? ""} ${type ?? ""} ${category ?? ""}`)) {
+    return "HVAC & Climate System";
+  }
   if (override && override.trim()) return override.trim();
   if (
     category &&
