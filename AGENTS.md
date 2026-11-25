@@ -10,3 +10,5 @@
 > the editor, so keep the branch in a working state.
 
 <!-- LOVABLE:END -->
+
+- Asset navigation groups equipment by resolved building and process system, using existing imported parent references for nested equipment; render closed branches lazily and paginate open lists to avoid large-page freezes.

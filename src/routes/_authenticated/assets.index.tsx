@@ -22,11 +22,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AssetBuildingTree } from "@/components/asset-building-tree";
 import {
   classLabel,
   CLASS_LABELS,
-  BUILDING_NAMES,
   buildingOf,
   dueTone,
   systemOf,
@@ -77,13 +76,15 @@ export const Route = createFileRoute("/_authenticated/assets/")({
       {
         name: "description",
         content:
-          "Hierarchical register of every plant asset with tabbed-over replacement parts nested under each unit and scheduled PMs.",
+          "Browse plant assets by building, parent system, and child equipment, with linked parts and preventive maintenance schedules.",
       },
-      { property: "og:title", content: "Plant Assets & Nested Parts Register" },
+      { property: "og:title", content: "Asset Registry | AssetCareConnect" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       {
         property: "og:description",
         content:
-          "Search and manage plant assets grouped by wastewater system with tabbed replacement parts lists and preventive maintenance tracking.",
+          "Manage wastewater equipment by building and parent system, with nested equipment, parts, and preventive maintenance tracking.",
       },
     ],
   }),
@@ -138,6 +139,7 @@ function AssetsPage() {
   const [search, setSearch] = useState("");
   const [cls, setCls] = useState("all");
   const [building, setBuilding] = useState("all");
+  const [hierarchyAssetIds, setHierarchyAssetIds] = useState<Set<string> | null>(null);
   const [systemFilter, setSystemFilter] = useState("all");
   const [pmFilter, setPmFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -158,14 +160,14 @@ function AssetsPage() {
         supabase
           .from("assets")
           .select(
-            "id, name, tag_number, class, type, make, model, criticality, status, manufacturer, manufacturer_url, serial_number, supplier, building, category, hp, volts, rpm, frame",
+            "id, name, tag_number, class, type, make, model, criticality, status, manufacturer, manufacturer_url, serial_number, supplier, building, location_name, limble_asset_id, parent_limble_id, category, hp, volts, rpm, frame",
           )
           .order("name")
           .order("id")
           .range(from, to),
       );
       return data.map((a) => {
-        const resolvedBuilding = buildingOf(a.name, null, null, a.building);
+        const resolvedBuilding = buildingOf(a.name, null, a.location_name, a.building);
         const resolvedSystem = systemOf(a.name, resolvedBuilding, null, a.type, a.category);
         return {
           ...a,
@@ -339,22 +341,12 @@ function AssetsPage() {
     return active;
   }, [systemCounts]);
 
-  const buildingCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const a of all) counts.set(a.building, (counts.get(a.building) ?? 0) + 1);
-    return counts;
-  }, [all]);
-
-  const buildingTabs = useMemo(
-    () => [...BUILDING_NAMES, "Other / Unassigned"].filter((b) => (buildingCounts.get(b) ?? 0) > 0),
-    [buildingCounts],
-  );
-
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     return all.filter((a) => {
       if (building !== "all" && a.building !== building) return false;
-      if (systemFilter !== "all" && a.system !== systemFilter) return false;
+      if (hierarchyAssetIds && !hierarchyAssetIds.has(a.id)) return false;
+      if (!hierarchyAssetIds && systemFilter !== "all" && a.system !== systemFilter) return false;
       if (cls !== "all" && a.class !== cls) return false;
 
       const pmInfo = pmMap.get(a.id);
@@ -405,6 +397,7 @@ function AssetsPage() {
     cls,
     building,
     systemFilter,
+    hierarchyAssetIds,
     pmFilter,
     statusFilter,
     partsFilter,
@@ -492,11 +485,7 @@ function AssetsPage() {
               Hierarchical View
             </Badge>
           </div>
-          <h1 className="text-2xl font-bold">Equipment & Tabbed Parts Register</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Fleet hierarchy formatted exactly like your equipment documents with tabbed-over
-            replacement parts nested under each unit.
-          </p>
+          <h1 className="text-2xl font-bold">Asset Registry</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <PartsLookupDialog
@@ -564,6 +553,7 @@ function AssetsPage() {
             value={systemFilter}
             onValueChange={(v) => {
               setSystemFilter(v);
+              setHierarchyAssetIds(null);
               setPage(0);
             }}
           >
@@ -701,72 +691,26 @@ function AssetsPage() {
           </div>
         </div>
 
-        {/* Quick System Filter Chips */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-0.5 no-scrollbar">
-          <button
-            type="button"
-            onClick={() => {
-              setSystemFilter("all");
-              setPage(0);
-            }}
-            className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors shrink-0 ${
-              systemFilter === "all"
-                ? "bg-primary text-primary-foreground font-semibold"
-                : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            All Systems ({all.length})
-          </button>
-          {systemOptions.map((sys) => {
-            const isSelected = systemFilter === sys;
-            const count = systemCounts.get(sys) ?? 0;
-            return (
-              <button
-                key={sys}
-                type="button"
-                onClick={() => {
-                  setSystemFilter(isSelected ? "all" : sys);
-                  setPage(0);
-                }}
-                className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors shrink-0 flex items-center gap-1.5 ${
-                  isSelected
-                    ? "bg-primary text-primary-foreground font-semibold"
-                    : "bg-muted/70 hover:bg-muted text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <span>{sys}</span>
-                <span
-                  className={`text-[10px] px-1 rounded-full ${
-                    isSelected
-                      ? "bg-primary-foreground/20 text-primary-foreground"
-                      : "bg-background/80 text-muted-foreground font-mono"
-                  }`}
-                >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
       </div>
 
-      {/* Building Filter Tabs */}
-      <Tabs
-        value={building}
-        onValueChange={(v) => {
-          setBuilding(v);
-          setPage(0);
-        }}
-      >
-        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
-          <TabsTrigger value="all">All Buildings ({all.length})</TabsTrigger>
-          {buildingTabs.map((b) => (
-            <TabsTrigger key={b} value={b}>
-              {b} ({buildingCounts.get(b)})
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+      <div className="grid min-w-0 gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <AssetBuildingTree
+          assets={all}
+          building={building}
+          system={systemFilter}
+          loading={assets.isLoading}
+          onSelect={(nextBuilding, nextSystem, ids) => {
+            setBuilding(nextBuilding);
+            setSystemFilter(nextSystem);
+            setHierarchyAssetIds(ids ? new Set(ids) : null);
+            setPage(0);
+          }}
+        />
+        <div className="min-w-0">
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-lg font-semibold">{building === "all" ? "All equipment" : building}</h2>
+            <span className="text-xs text-muted-foreground">{total} assets</span>
+          </div>
 
       {/* Grouped by System View */}
       {viewMode === "grouped" ? (
@@ -812,6 +756,7 @@ function AssetsPage() {
                   setSearch("");
                   setCls("all");
                   setBuilding("all");
+                  setHierarchyAssetIds(null);
                   setSystemFilter("all");
                   setPmFilter("all");
                   setPartsFilter("all");
@@ -1014,7 +959,7 @@ function AssetsPage() {
                       isExpanded={isPartsExpanded}
                       onToggleParts={() => toggleAssetParts(a.id)}
                       showSystemBadge
-                      onSystemClick={(sys) => setSystemFilter(sys)}
+                      onSystemClick={(sys) => { setSystemFilter(sys); setHierarchyAssetIds(null); }}
                     />
                   );
                 })}
@@ -1057,6 +1002,8 @@ function AssetsPage() {
           </div>
         </div>
       )}
+        </div>
+      </div>
     </div>
   );
 }

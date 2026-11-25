@@ -45,6 +45,8 @@ export const Route = createFileRoute("/")({
           "Dedicated access portal for existing users, plant technicians, supervisors, and plant operations staff.",
       },
       { property: "og:title", content: "Member Portal | AssetCareConnect" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       {
         property: "og:description",
         content: "Direct access portal for authorized plant operators and maintenance staff.",
